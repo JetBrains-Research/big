@@ -1,3 +1,10 @@
+.idea/scopes/
+.idea/dictionaries/
+.idea/workspace.xml
+
+.gradle
+gradle
+
 *.class
 
 # Mobile Tools for Java (J2ME)
