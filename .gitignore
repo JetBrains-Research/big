@@ -2,8 +2,9 @@
 .idea/dictionaries/
 .idea/workspace.xml
 
+build
+
 .gradle
-gradle
 
 *.class
 

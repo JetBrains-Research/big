@@ -1,7 +1,9 @@
 package org.jbb.big;
 
-import static org.junit.Assert.*;
+import junit.framework.TestCase;
 
 public class RangeTest extends TestCase {
+  public void testNothing() {
 
+  }
 }
