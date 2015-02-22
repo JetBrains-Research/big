@@ -4,9 +4,11 @@ import java.io.Closeable;
 import java.io.DataInput;
 
 /**
- * Created by pacahon on 22.02.15.
+ * Wrapper for big/little endian DataInputStream
+ *
+ * @author Sergey Zherevchuk
  */
-public class DataInputStreamWrapper<T extends DataInput & Closeable> {
+public class DataInputStreamWrapper<T extends DataInput & Closeable> implements AutoCloseable {
   private final T wrapped;
 
   public DataInputStreamWrapper(T wrapped) {
@@ -15,5 +17,10 @@ public class DataInputStreamWrapper<T extends DataInput & Closeable> {
 
   T getStream() {
     return wrapped;
+  }
+
+  @Override
+  public void close() throws Exception {
+    wrapped.close();
   }
 }

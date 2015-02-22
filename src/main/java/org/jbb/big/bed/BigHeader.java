@@ -3,17 +3,44 @@ package org.jbb.big.bed;
 import com.google.common.io.LittleEndianDataInputStream;
 import com.google.common.primitives.Ints;
 
+import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Created by pacahon on 21.02.15.
+ * Parse BigBed Header
+ *
+ * @author Sergey Zherevchuk
  */
 public class BigHeader {
 
-  public static final int SIGNATURE = 0x8789f2eb;
+  public static final int MAGIC = 0x8789f2eb;
+
+  public static BigHeader parse(final Path path) throws Exception {
+    try (DataInputStreamWrapper<?> w = getDataInput(path)) {
+      final DataInput stream = w.getStream();
+      final short version = stream.readShort();
+      final short zoomLevels = stream.readShort();
+      final long chromTreeOffset = stream.readLong();
+      final long unzoomedDataOffset = stream.readLong();
+      final long unzoomedIndexOffset = stream.readLong();
+      final short fieldCount = stream.readShort();
+      final short definedFieldCount = stream.readShort();
+      final long asOffset = stream.readLong();
+      final long totalSummaryOffset = stream.readLong();
+      final int uncompressBufSize = stream.readInt();
+      final long extensionOffset = stream.readLong();
+
+      BigHeader bigHeader
+          = new BigHeader(version, zoomLevels, chromTreeOffset, unzoomedDataOffset,
+                        unzoomedIndexOffset, fieldCount, definedFieldCount, asOffset,
+                        totalSummaryOffset, uncompressBufSize, extensionOffset);
+      return bigHeader;
+    }
+  }
 
   public final short version;
   public final short zoomLevels;
@@ -25,12 +52,14 @@ public class BigHeader {
   public final long asOffset;
   public final long totalSummaryOffset;
   public final int uncompressBufSize;
+
   public final long extensionOffset;
 
-  public BigHeader(short version, short zoomLevels, long chromTreeOffset, long unzoomedDataOffset,
-                   long unzoomedIndexOffset, short fieldCount, short definedFieldCount,
-                   long asOffset, long totalSummaryOffset,
-                   int uncompressBufSize, long extensionOffset) {
+  public BigHeader(final short version, final short zoomLevels, final long chromTreeOffset,
+                   final long unzoomedDataOffset, final long unzoomedIndexOffset,
+                   final short fieldCount, final short definedFieldCount,
+                   final long asOffset, final long totalSummaryOffset,
+                   final int uncompressBufSize, final long extensionOffset) {
     this.version = version;
     this.zoomLevels = zoomLevels;
     this.chromTreeOffset = chromTreeOffset;
@@ -44,52 +73,25 @@ public class BigHeader {
     this.extensionOffset = extensionOffset;
   }
 
-  public static BigHeader parse(final Path path) throws IOException {
-    DataInputStreamWrapper<?> w = getDataInput(path);
-
-    short version = w.getStream().readShort();
-    short zoomLevels = w.getStream().readShort();
-    long chromTreeOffset = w.getStream().readLong();
-    long unzoomedDataOffset = w.getStream().readLong();
-    long unzoomedIndexOffset = w.getStream().readLong();
-    short fieldCount = w.getStream().readShort();
-    short definedFieldCount = w.getStream().readShort();
-    long asOffset = w.getStream().readLong();
-    long totalSummaryOffset = w.getStream().readLong();
-    int uncompressBufSize = w.getStream().readInt();
-    long extensionOffset = w.getStream().readLong();
-
-    w.getStream().close();
-
-    BigHeader
-        bigHeader =
-        new BigHeader(version, zoomLevels, chromTreeOffset, unzoomedDataOffset, unzoomedIndexOffset,
-                      fieldCount, definedFieldCount, asOffset, totalSummaryOffset,
-                      uncompressBufSize, extensionOffset);
-    return bigHeader;
-  }
-
   /**
-   * Check byte order
+   * Check byte order. Return appropriate DataInputStream.
    *
    * @param path Path to bbi-file
-   * @return DataInput
+   * @return DataInputStream | LittleEndianDataInputStream
    */
   public static DataInputStreamWrapper<?> getDataInput(final Path path) throws IOException {
-    DataInputStream bigEndianInput = new DataInputStream(Files.newInputStream(path));
-    byte[] chunkMagic = new byte[4];
-    bigEndianInput.read(chunkMagic);
-    int magicInt = Ints.fromByteArray(chunkMagic);
-    if (magicInt != SIGNATURE) {
-      magicInt = Ints.fromBytes(chunkMagic[3], chunkMagic[2], chunkMagic[1], chunkMagic[0]);
-      if (magicInt != SIGNATURE) {
-        throw new IOException("Bad signature"); // what about custom exception here?
+    InputStream inputStream = Files.newInputStream(path);
+    DataInputStream bigEndianInput = new DataInputStream(inputStream);
+    byte[] b = new byte[4];
+    bigEndianInput.readFully(b);
+    int magic = Ints.fromByteArray(b);
+    if (magic != MAGIC) {
+      magic = Ints.fromBytes(b[3], b[2], b[1], b[0]);
+      if (magic != MAGIC) {
+        throw new IllegalStateException("bad signature");
       }
-      bigEndianInput.close();
-      LittleEndianDataInputStream
-          littleEndianInput =
-          new LittleEndianDataInputStream(Files.newInputStream(path));
-      littleEndianInput.read(chunkMagic);
+      LittleEndianDataInputStream littleEndianInput
+          = new LittleEndianDataInputStream(inputStream);
 
       return new DataInputStreamWrapper<>(littleEndianInput);
     }
