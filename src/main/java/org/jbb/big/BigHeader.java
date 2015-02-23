@@ -1,4 +1,4 @@
-package org.jbb.big.bed;
+package org.jbb.big;
 
 import com.google.common.io.LittleEndianDataInputStream;
 import com.google.common.primitives.Ints;
@@ -11,13 +11,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Parse BigBed Header
+ * A common header for BigWIG and BigBED files.
  *
  * @author Sergey Zherevchuk
  */
 public class BigHeader {
 
-  public static final int MAGIC = 0x8789f2eb;
+  public static final int BED_MAGIC = 0x8789f2eb;
 
   public static BigHeader parse(final Path path) throws Exception {
     try (DataInputStreamWrapper<?> w = getDataInput(path)) {
@@ -34,25 +34,22 @@ public class BigHeader {
       final int uncompressBufSize = stream.readInt();
       final long extensionOffset = stream.readLong();
 
-      BigHeader bigHeader
-          = new BigHeader(version, zoomLevels, chromTreeOffset, unzoomedDataOffset,
-                        unzoomedIndexOffset, fieldCount, definedFieldCount, asOffset,
-                        totalSummaryOffset, uncompressBufSize, extensionOffset);
-      return bigHeader;
+      return new BigHeader(version, zoomLevels, chromTreeOffset, unzoomedDataOffset,
+                           unzoomedIndexOffset, fieldCount, definedFieldCount, asOffset,
+                           totalSummaryOffset, uncompressBufSize, extensionOffset);
     }
   }
 
   public final short version;
   public final short zoomLevels;
   public final long chromTreeOffset;
-  public final long unzoomedDataOffset; // FullDataOffset in table 5
+  public final long unzoomedDataOffset;  // FullDataOffset in table 5
   public final long unzoomedIndexOffset;
   public final short fieldCount;
   public final short definedFieldCount;
   public final long asOffset;
   public final long totalSummaryOffset;
   public final int uncompressBufSize;
-
   public final long extensionOffset;
 
   public BigHeader(final short version, final short zoomLevels, final long chromTreeOffset,
@@ -74,30 +71,23 @@ public class BigHeader {
   }
 
   /**
-   * Check byte order. Return appropriate DataInputStream.
-   *
-   * @param path Path to bbi-file
-   * @return DataInputStream | LittleEndianDataInputStream
+   * Determines byte order from the first four bytes of the Big file.
    */
   public static DataInputStreamWrapper<?> getDataInput(final Path path) throws IOException {
-    InputStream inputStream = Files.newInputStream(path);
-    DataInputStream bigEndianInput = new DataInputStream(inputStream);
-    byte[] b = new byte[4];
+    final InputStream inputStream = Files.newInputStream(path);
+    final DataInputStream bigEndianInput = new DataInputStream(inputStream);
+    final byte[] b = new byte[4];
     bigEndianInput.readFully(b);
-    int magic = Ints.fromByteArray(b);
-    if (magic != MAGIC) {
-      magic = Ints.fromBytes(b[3], b[2], b[1], b[0]);
-      if (magic != MAGIC) {
+    final int bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3]);
+    if (bigMagic != BED_MAGIC) {
+      final int littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0]);
+      if (littleMagic != BED_MAGIC) {
         throw new IllegalStateException("bad signature");
       }
-      LittleEndianDataInputStream littleEndianInput
-          = new LittleEndianDataInputStream(inputStream);
 
-      return new DataInputStreamWrapper<>(littleEndianInput);
+      return new DataInputStreamWrapper<>(new LittleEndianDataInputStream(inputStream));
     }
 
     return new DataInputStreamWrapper<>(bigEndianInput);
   }
-
-
 }

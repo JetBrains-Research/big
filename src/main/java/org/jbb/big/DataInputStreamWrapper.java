@@ -1,4 +1,4 @@
-package org.jbb.big.bed;
+package org.jbb.big;
 
 import java.io.Closeable;
 import java.io.DataInput;
