@@ -1,8 +1,8 @@
 package org.jbb.big;
 
-import com.sun.istack.internal.Nullable;
-
 import junit.framework.TestCase;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.net.URL;
 import java.nio.file.Path;

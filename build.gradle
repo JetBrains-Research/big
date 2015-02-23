@@ -6,5 +6,6 @@ repositories {
 
 dependencies {
     compile 'com.google.guava:guava:18.+'
+    compile 'com.intellij:annotations:12.+'
     testCompile 'junit:junit:4.+'
 }
