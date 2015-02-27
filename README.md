@@ -1,5 +1,7 @@
 # big [![Build Status](https://travis-ci.org/superbobry/big.svg?branch=master)](https://travis-ci.org/superbobry/big)
 
+[![Join the chat at https://gitter.im/superbobry/big](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/superbobry/big?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 `big` implements classes for reading and writing BigWIG and BigBED from Java.
 
 Useful links
