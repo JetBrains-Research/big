@@ -17,18 +17,17 @@ public class BigHeaderTest extends TestCase {
     final @Nullable URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
     final Path p = Paths.get(url.toURI()).toFile().toPath();
-      final BigHeader bigHeader = BigHeader.parse(p);
-      assertTrue(bigHeader.version > 0);
-      assertTrue(bigHeader.zoomLevels > 0);
-      assertTrue(bigHeader.chromTreeOffset >= 0);
-      assertTrue(bigHeader.unzoomedDataOffset >= 0);
-      assertTrue(bigHeader.unzoomedIndexOffset >= 0);
-      assertTrue(bigHeader.fieldCount > 0);
-      assertTrue(bigHeader.definedFieldCount > 0);
-      assertTrue(bigHeader.asOffset >= 0);
-      assertTrue(bigHeader.totalSummaryOffset >= 0);
-      assertTrue(bigHeader.uncompressBufSize >= 0);
-      assertTrue(bigHeader.extensionOffset >= 0);
+    final BigHeader bigHeader = BigHeader.parse(p);
+    assertTrue(bigHeader.version > 0);
+    assertTrue(bigHeader.zoomLevels > 0);
+    assertTrue(bigHeader.chromTreeOffset >= 0);
+    assertTrue(bigHeader.unzoomedDataOffset >= 0);
+    assertTrue(bigHeader.unzoomedIndexOffset >= 0);
+    assertTrue(bigHeader.fieldCount > 0);
+    assertTrue(bigHeader.definedFieldCount > 0);
+    assertTrue(bigHeader.asOffset >= 0);
+    assertTrue(bigHeader.totalSummaryOffset >= 0);
+    assertTrue(bigHeader.uncompressBufSize >= 0);
+    assertTrue(bigHeader.extensionOffset >= 0);
   }
-
 }

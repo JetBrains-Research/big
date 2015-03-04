@@ -4,14 +4,14 @@ import java.io.Closeable;
 import java.io.DataInput;
 
 /**
- * Wrapper for big/little endian DataInputStream
+ * A wrapper for direct and byte swapped {@link java.io.DataInput}.
  *
  * @author Sergey Zherevchuk
  */
 public class DataInputStreamWrapper<T extends DataInput & Closeable> implements AutoCloseable {
   private final T wrapped;
 
-  public DataInputStreamWrapper(T wrapped) {
+  public DataInputStreamWrapper(final T wrapped) {
     this.wrapped = wrapped;
   }
 
