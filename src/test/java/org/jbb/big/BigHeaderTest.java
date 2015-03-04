@@ -16,7 +16,7 @@ public class BigHeaderTest extends TestCase {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
     final @Nullable URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
-    final Path p = Paths.get(url.getPath());
+    final Path p = Paths.get(url.toURI()).toFile().toPath();
       final BigHeader bigHeader = BigHeader.parse(p);
       assertTrue(bigHeader.version > 0);
       assertTrue(bigHeader.zoomLevels > 0);

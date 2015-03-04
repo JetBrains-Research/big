@@ -1,10 +1,10 @@
-.idea/scopes/
-.idea/dictionaries/
-.idea/workspace.xml
+.idea
 
 build
 
 .gradle
+
+gradle
 
 *.class
 
