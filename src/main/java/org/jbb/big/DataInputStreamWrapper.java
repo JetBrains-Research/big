@@ -5,7 +5,7 @@ import java.io.DataInput;
 import java.io.FilterInputStream;
 
 /**
- * Wrapper for big/little endian DataInputStream
+ * A wrapper for direct and byte swapped {@link java.io.DataInput}.
  *
  * @author Sergey Zherevchuk
  */
@@ -14,7 +14,7 @@ public class DataInputStreamWrapper<T extends FilterInputStream & DataInput & Cl
 
   private final T wrapped;
 
-  public DataInputStreamWrapper(T wrapped) {
+  public DataInputStreamWrapper(final T wrapped) {
     this.wrapped = wrapped;
   }
 
