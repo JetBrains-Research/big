@@ -5,6 +5,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.LinkedList;
 
@@ -13,13 +14,13 @@ import java.util.LinkedList;
  */
 public class BigBedToBed {
 
-  public static void parse(final String path, final String chromName, final int chromStart,
-                     final int chromEnd) throws Exception {
+  public static void parse(final Path path, final String chromName, final int chromStart,
+                           final int chromEnd) throws Exception {
 
     final BigHeader bigHeader = BigHeader.parse(path);
 
     // FIXME: Open file channel again?
-    try (RandomAccessFile raf = new RandomAccessFile(path, "r")) {
+    try (RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r")) {
       FileChannel fc = raf.getChannel();
       int nodeBufferSize = 4;
       ByteBuffer nodeBuffer = ByteBuffer.allocate(nodeBufferSize);

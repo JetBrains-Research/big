@@ -5,14 +5,14 @@ import junit.framework.TestCase;
 import java.io.RandomAccessFile;
 import java.net.URL;
 import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
 
 public class BigBedToBedTest extends TestCase {
   public void testParseBigHeader() throws Exception {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
     final URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
-    String p = url.getPath();
-    final BigHeader bigHeader = BigHeader.parse(p);
+    final BigHeader bigHeader = BigHeader.parse(Paths.get(url.getPath()));
     assertTrue(bigHeader.version == 1);
     assertTrue(bigHeader.zoomLevels == 5);
     assertTrue(bigHeader.chromTreeOffset == 184);
@@ -23,7 +23,6 @@ public class BigBedToBedTest extends TestCase {
     assertTrue(bigHeader.asOffset >= 0);
     assertTrue(bigHeader.totalSummaryOffset >= 0);
     assertTrue(bigHeader.uncompressBufSize >= 0);
-    assertTrue(bigHeader.extensionOffset >= 0);
     assertTrue(bigHeader.bptHeader.blockSize == 1);
     assertTrue(bigHeader.bptHeader.keySize == 5);
     assertTrue(bigHeader.bptHeader.valSize == 8);
@@ -53,7 +52,6 @@ public class BigBedToBedTest extends TestCase {
   public void testRercursiveTraverseBPTree() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
-    String p = url.getPath();
-    BigBedToBed.parse(p, "", 0, 0);
+    BigBedToBed.parse(Paths.get(url.getPath()), "", 0, 0);
   }
 }
