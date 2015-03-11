@@ -1,11 +1,7 @@
 package org.jbb.big;
 
-import com.google.common.primitives.Ints;
-
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 
 /**
  * Chromosome R-tree index headers
@@ -15,23 +11,24 @@ import java.nio.channels.FileChannel;
 public class RTreeIndexHeader {
 
   public static final int MAGIC = 0x2468ace0;
-  public static final int HEADER_SIZE = 48;
 
-  public ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
-  final int blockSize;
-  final long itemCount;
-  final int startChromIx;
-  final int startBase;
-  final int endChromIx;
-  final int endBase;
-  final long fileSize;
-  final int itemsPerSlot;
-  final long rootOffset; // position of root block of r tree
+  public final ByteOrder byteOrder;
+  public final int blockSize;
+  public final long itemCount;
+  public final int startChromIx;
+  public final int startBase;
+  public final int endChromIx;
+  public final int endBase;
+  public final long fileSize;
+  public final int itemsPerSlot;
+  public final long rootOffset; // position of root block of r tree
 
 
-  public RTreeIndexHeader(ByteOrder byteOrder, int blockSize, long itemCount, int startChromIx,
-                          int startBase, int endChromIx, int endBase, long fileSize,
-                          int itemsPerSlot, long rootOffset) {
+  public RTreeIndexHeader(final ByteOrder byteOrder, final int blockSize, final long itemCount,
+                          final int startChromIx, final int startBase, final int endChromIx,
+                          final int endBase, final long fileSize, final int itemsPerSlot,
+                          final long rootOffset) {
+    this.byteOrder = byteOrder;
     this.blockSize = blockSize;
     this.itemCount = itemCount;
     this.startChromIx = startChromIx;
@@ -41,42 +38,28 @@ public class RTreeIndexHeader {
     this.fileSize = fileSize;
     this.itemsPerSlot = itemsPerSlot;
     this.rootOffset = rootOffset;
-    this.byteOrder = byteOrder;
   }
 
   // attach R tree index headers
-  public static RTreeIndexHeader parse(FileChannel fc,
+  public static RTreeIndexHeader parse(final SeekableStream s,
                                        final long unzoomedIndexOffset) throws IOException {
-    fc.position(unzoomedIndexOffset);
-    ByteBuffer rb = ByteBuffer.allocate(HEADER_SIZE);
-    fc.read(rb);
-    rb.flip();
-    // Set byte order
-    final byte[] b = new byte[4];
-    ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
-    rb.get(b);
-    final int bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3]);
-    if (bigMagic != MAGIC) {
-      final int littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0]);
-      if (littleMagic != MAGIC) {
-        throw new IllegalStateException("bad signature R tree");
-      }
-      byteOrder = ByteOrder.LITTLE_ENDIAN;
-    }
-    rb.order(byteOrder);
+    s.seek(unzoomedIndexOffset);
+    s.guess(MAGIC);
 
-    final int blockSize = rb.getInt();
-    final long itemCount = rb.getLong();
-    final int startChromIx = rb.getInt();
-    final int startBase = rb.getInt();
-    final int endChromIx = rb.getInt();
-    final int endBase = rb.getInt();
-    final long fileSize = rb.getLong();
-    final int itemsPerSlot = rb.getInt();
-    rb.getInt(); // skip reserved bytes
-    final long rootOffset = fc.position();
+    final int blockSize = s.readInt();
+    final long itemCount = s.readLong();
+    final int startChromIx = s.readInt();
+    final int startBase = s.readInt();
+    final int endChromIx = s.readInt();
+    final int endBase = s.readInt();
+    final long fileSize = s.readLong();
+    final int itemsPerSlot = s.readInt();
+    s.readInt(); // skip reserved bytes
+    final long rootOffset = s.tell();
 
-    return new RTreeIndexHeader(byteOrder, blockSize, itemCount, startChromIx, startBase,
+    return new RTreeIndexHeader(s.order(), blockSize, itemCount, startChromIx, startBase,
                                 endChromIx, endBase, fileSize, itemsPerSlot, rootOffset);
   }
 }
+
+

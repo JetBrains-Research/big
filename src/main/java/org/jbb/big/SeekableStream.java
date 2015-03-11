@@ -50,6 +50,10 @@ public class SeekableStream extends InputStream implements AutoCloseable, DataIn
     return order;
   }
 
+  public void order(ByteOrder order) {
+    this.order = Preconditions.checkNotNull(order);
+  }
+
   /** Guess byte order from a given big-endian {@code magic}. */
   public void guess(final int magic) throws IOException {
     final byte[] b = new byte[4];
@@ -109,6 +113,11 @@ public class SeekableStream extends InputStream implements AutoCloseable, DataIn
   @Override
   public int read() throws IOException {
     return file.read();
+  }
+
+  @Override
+  public int read(byte b[]) throws IOException {
+    return file.read(b, 0, b.length);
   }
 
   @Override

@@ -2,9 +2,8 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
-import java.io.RandomAccessFile;
 import java.net.URL;
-import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class BigBedToBedTest extends TestCase {
@@ -33,11 +32,10 @@ public class BigBedToBedTest extends TestCase {
   public void testRTreeIndexHeader() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
-    String path = url.getPath();
-    RandomAccessFile raf = new RandomAccessFile(path, "r");
-    FileChannel fc = raf.getChannel();
-    long unzoomedIndexOffset = 192771;
-    RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.parse(fc, unzoomedIndexOffset);
+    final Path path = Paths.get(url.getPath());
+    final SeekableStream s = SeekableStream.of(path);
+    final long unzoomedIndexOffset = 192771;
+    final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.parse(s, unzoomedIndexOffset);
     assertEquals(rTreeIndexHeader.blockSize, 1024);
     assertEquals(rTreeIndexHeader.itemCount, 14810);
     assertEquals(rTreeIndexHeader.startChromIx, 0);
@@ -52,6 +50,6 @@ public class BigBedToBedTest extends TestCase {
   public void testRercursiveTraverseBPTree() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
     assert url != null : "resource not found";
-    BigBedToBed.parse(Paths.get(url.getPath()), "", 0, 0);
+    BigBedToBed.parse(Paths.get(url.getPath()), "", 0, 0, 0);
   }
 }

@@ -12,7 +12,7 @@ public class BptHeader {
 
   public static final int MAGIC = 0x78ca8c91;
 
-  public ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
+  public final ByteOrder byteOrder;
   public final int blockSize;
   public final int keySize;
   public final int valSize;
