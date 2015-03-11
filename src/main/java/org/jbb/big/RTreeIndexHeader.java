@@ -41,7 +41,7 @@ public class RTreeIndexHeader {
   }
 
   // attach R tree index headers
-  public static RTreeIndexHeader parse(final SeekableStream s,
+  public static RTreeIndexHeader read(final SeekableStream s,
                                        final long unzoomedIndexOffset) throws IOException {
     s.seek(unzoomedIndexOffset);
     s.guess(MAGIC);

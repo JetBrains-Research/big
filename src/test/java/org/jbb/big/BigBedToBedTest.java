@@ -35,7 +35,7 @@ public class BigBedToBedTest extends TestCase {
     final Path path = Paths.get(url.getPath());
     final SeekableStream s = SeekableStream.of(path);
     final long unzoomedIndexOffset = 192771;
-    final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.parse(s, unzoomedIndexOffset);
+    final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.read(s, unzoomedIndexOffset);
     assertEquals(rTreeIndexHeader.blockSize, 1024);
     assertEquals(rTreeIndexHeader.itemCount, 14810);
     assertEquals(rTreeIndexHeader.startChromIx, 0);
