@@ -1,5 +1,7 @@
 package org.jbb.big;
 
+import com.google.common.collect.ComparisonChain;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -80,7 +82,6 @@ public class RTreeIndex {
   public static boolean overlaps(final int qChrom, final int qStart, final int qEnd,
                                  final int rStartChrom, final int rStartBase, final int rEndChrom,
                                  final int rEndBase) {
-    // FIXME: ohgodwhy? Надо узнать как уложено дерево и что такое base
     return cmpTwoInt(qChrom, qStart, rEndChrom, rEndBase) > 0 &&
            cmpTwoInt(qChrom, qEnd, rStartChrom, rStartBase) < 0;
   }
@@ -89,17 +90,9 @@ public class RTreeIndex {
    * Return - if b is less than a , 0 if equal, else +
    */
   public static int cmpTwoInt(final int aHi, final int aLo, final int bHi, final int bLo) {
-    if (aHi < bHi) {
-      return 1;
-    } else if (aHi > bHi) {
-      return -1;
-    } else {
-      if (aLo < bLo)
-        return 1;
-      else if (aLo > bLo)
-        return -1;
-      else
-        return 0;
-    }
+    return ComparisonChain.start()
+        .compare(bHi, aHi)
+        .compare(bLo, aLo)
+        .result();
   }
 }

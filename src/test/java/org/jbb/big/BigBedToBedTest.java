@@ -3,6 +3,7 @@ package org.jbb.big;
 import junit.framework.TestCase;
 
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -34,6 +35,14 @@ public class BigBedToBedTest extends TestCase {
     assertTrue(bigHeader.bptHeader.rootOffset == 216);
   }
 
+  public void testBigBedToBed() throws Exception {
+    final URL url = getClass().getClassLoader().getResource("example1.bb");
+    Path o = Files.createTempFile("out", ".bed");
+    BigBedToBed.main(Paths.get(url.getPath()), o, "", 0, 0, 0);
+    assertTrue(Files.size(o) > 0);
+    Files.deleteIfExists(o);
+  }
+
   public void testRTreeIndexHeader() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
     final SeekableStream s = SeekableStream.of(getPath(url));
@@ -50,11 +59,14 @@ public class BigBedToBedTest extends TestCase {
     assertEquals(rTreeIndexHeader.rootOffset, 192819);
   }
 
-  public void testRercursiveTraverseBPTree() throws Exception {
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    assert url != null : "resource not found";
-    BigBedToBed.main(Paths.get(url.getPath()), "", 0, 0, 0);
-  }
+//  public void testRercursiveTraverseBPTree() throws Exception {
+//    final URL url = getClass().getClassLoader().getResource("example1.bb");
+//    assert url != null : "resource not found";
+//    Path o = Files.createTempFile("out", ".bed");
+//    BigBedToBed.main(Paths.get(url.getPath()), o, "", 0, 0, 0);
+//    assertTrue(Files.size(o) > 0);
+//    Files.deleteIfExists(o);
+//  }
 
   public void testRFindChromName() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
@@ -96,7 +108,7 @@ public class BigBedToBedTest extends TestCase {
     final ListIterator<RTreeIndexNodeLeaf> iter2 = overlappingBlockList.listIterator();
     while (iter2.hasNext()) {
       RTreeIndexNodeLeaf block = iter2.next();
-      System.out.println(block.dataOffset + "  " + block.dataSize);
+//      System.out.println(block.dataOffset + "  " + block.dataSize);
     }
 
   }

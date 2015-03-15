@@ -1,12 +1,22 @@
 package org.jbb.big;
 
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+import com.google.common.primitives.Ints;
+
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Collectors;
 
 /**
  * @author Sergey Zherevchuk
@@ -15,7 +25,7 @@ public class BigBedToBed {
 
   /**
    * Main method to convert from BigBED to BED format
-   * @param path Path to source *.bb file
+   * @param inputPath Path to source *.bb file
    * @param chromName If set restrict output to given chromosome
    * @param chromStart If set, restrict output to only that over start. Should be zero by default.
    * @param chromEnd If set, restict output to only that under end. Should be zero to restrict by
@@ -23,9 +33,11 @@ public class BigBedToBed {
    * @param maxItems If set, restrict output to first N items
    * @throws Exception
    */
-  public static void main(final Path path, final String chromName, final int chromStart,
-                           final int chromEnd, final int maxItems) throws Exception {
-    try (SeekableStream s = SeekableStream.of(path)) {
+  public static void main(final Path inputPath, final Path outputPath,
+                          final String chromName, final int chromStart,
+                          final int chromEnd, final int maxItems) throws Exception {
+    try (SeekableStream s = SeekableStream.of(inputPath);
+         BufferedWriter out = Files.newBufferedWriter(outputPath)) {
       // Parse common headers
       final BigHeader bigHeader = BigHeader.parse(s);
       // FIXME: chromFind не используется сейчас, мб и не надо хранить filePath
@@ -61,14 +73,14 @@ public class BigBedToBed {
         final int start = (chromStart != 0) ? chromStart : 0;
         final int end = (chromEnd != 0) ? chromEnd: node.size;
 
-        final LinkedList<BedData> intervalList
+        final List<BedData> intervalList
             = bigBedIntervalQuery(s, bigHeader, rtiHeader, node.id, start, end, itemsLeft);
         // Write data to output file
-        Collections.reverse(intervalList); // FIXME: или descendingIterator?
+
         for (final BedData interval : intervalList) {
-          System.out.println(chromName + "\t" + interval.start + "\t" +  interval.end);
+          out.write(node.key + "\t" + interval.start + "\t" +  interval.end + "\t" + interval.rest + "\n");
         }
-        System.out.println("id: " + node.id + " size: " + node.size);
+//        System.out.println("id: " + node.id + " size: " + node.size);
       }
     }
   }
@@ -85,51 +97,45 @@ public class BigBedToBed {
    * @return
    * @throws IOException
    */
-  public static LinkedList<BedData> bigBedIntervalQuery(final SeekableStream s,
-                                                       final BigHeader bigHeader,
-                                                       final RTreeIndexHeader rTreeIndexHeader,
-                                                       final int chromId, final int chromStart,
-                                                       final int chromEnd,
-                                                       final int maxItems) throws IOException {
-    final LinkedList<BedData> list = new LinkedList<>();
-    final int itemCount = 0;
+  public static List<BedData> bigBedIntervalQuery(final SeekableStream s,
+                                                  final BigHeader bigHeader,
+                                                  final RTreeIndexHeader rTreeIndexHeader,
+                                                  final int chromId, final int chromStart,
+                                                  final int chromEnd,
+                                                  final int maxItems) throws IOException {
     final LinkedList<RTreeIndexNodeLeaf> overlappingBlockList = new LinkedList<>();
     s.order(rTreeIndexHeader.byteOrder);
     RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,
                                       rTreeIndexHeader.rootOffset, chromId, chromStart, chromEnd);
     s.order(bigHeader.byteOrder);
-    // TODO: Set up for uncompression optionally?
-    final boolean uncompressBuf = false;
     Collections.reverse(overlappingBlockList);
-    final ListIterator<RTreeIndexNodeLeaf> iter = overlappingBlockList.listIterator();
-    while (iter.hasNext()) {
-      // New iterator from current position
-      final ListIterator<RTreeIndexNodeLeaf> i = overlappingBlockList.listIterator(iter.nextIndex());
-      RTreeIndexNodeLeaf block = iter.next();
-      // Find contigious blocks and read them into mergedBuf.
-      final HashMap<String, RTreeIndexNodeLeaf> gaps = fileOffsetSizeFindGap(i);
-      final long mergedOffset = block.dataOffset;
-      final long mergedSize
-          = gaps.get("before").dataOffset + gaps.get("before").dataSize - mergedOffset;
-      s.seek(mergedOffset);
-      // FIXME: кастанул в int!
-      final byte[] mergedBuf = new byte[(int)mergedSize];
-      s.readFully(mergedBuf, 0, (int)mergedSize);
-      // Loop through individual blocks within merged section.
-      while (iter.hasNext() && (
-          gaps.containsKey("after") && block.hashCode() != gaps.get("after").hashCode()
-      )) {
-        if (uncompressBuf) {
-          // FIXME: skipped
-        } else {
-          byte[] blockPt = mergedBuf;
-//          final long blockEnd = blockPt + block.dataSize; // FIXME: как это???
-        }
-        block = iter.next();
-      }
 
+    final List<BedData> res = Lists.newLinkedList();
+    for (final RTreeIndexNodeLeaf node : overlappingBlockList) {
+      s.seek(node.dataOffset);
+
+      do {
+        if (s.readInt() != chromId) {
+          throw new IllegalStateException();
+        }
+        final int start = s.readInt();
+        final int end = s.readInt();
+        byte ch;
+        StringBuilder sb = new StringBuilder();
+        for (; ; ) {
+          ch = s.readByte();
+          if (ch == 0) {
+            break;
+          }
+
+          sb.append(ch);
+        }
+
+        res.add(new BedData(chromId, start, end, sb.toString()));
+      } while (s.tell() - node.dataOffset < node.dataSize);
     }
-    return list;
+
+    return res;
   }
 
   /**
