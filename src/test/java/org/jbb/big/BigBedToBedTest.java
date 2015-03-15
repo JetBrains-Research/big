@@ -16,7 +16,7 @@ public class BigBedToBedTest extends TestCase {
   public void testParseBigHeader() throws Exception {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
     final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableStream s = SeekableStream.of(getPath(url));
+    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
     final BigHeader bigHeader = BigHeader.parse(s);
     assertTrue(bigHeader.version == 1);
     assertTrue(bigHeader.zoomLevels == 5);
@@ -45,7 +45,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testRTreeIndexHeader() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableStream s = SeekableStream.of(getPath(url));
+    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
     final long unzoomedIndexOffset = 192771;
     final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.read(s, unzoomedIndexOffset);
     assertEquals(rTreeIndexHeader.blockSize, 1024);
@@ -70,7 +70,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testRFindChromName() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableStream s = SeekableStream.of(getPath(url));
+    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
     final BigHeader bigHeader = BigHeader.parse(s);
     String chromName = "chr1";
     Optional<BptNodeLeaf> bptNodeLeaf =  Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader,
@@ -85,7 +85,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testRFindOverlappingBlocks() throws Exception {
     final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableStream s = SeekableStream.of(getPath(url));
+    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
     // Parse common headers
     final BigHeader bigHeader = BigHeader.parse(s);
 

@@ -14,7 +14,7 @@ public class BigHeader {
 
   public static final int BED_MAGIC = 0x8789f2eb;
 
-  public static BigHeader parse(final SeekableStream s) throws Exception {
+  public static BigHeader parse(final SeekableDataInput s) throws Exception {
     s.guess(BED_MAGIC);
 
     final short version = s.readShort();

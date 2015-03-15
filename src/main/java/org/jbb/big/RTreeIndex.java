@@ -21,7 +21,7 @@ public class RTreeIndex {
    */
   public static void rFindOverlappingBlocks(
       final LinkedList<RTreeIndexNodeLeaf> OverlappingBlockList,
-      final SeekableStream s,
+      final SeekableDataInput s,
       final int level,
       final long indexFileOffset,
       final int chromIx,

@@ -30,7 +30,7 @@ public class BptHeader {
   }
 
   // Attach B+ tree of chromosome names and ids.
-  public static BptHeader read(final SeekableStream s, final long chromTreeOffset)
+  public static BptHeader read(final SeekableDataInput s, final long chromTreeOffset)
       throws IOException {
     s.seek(chromTreeOffset);
     s.guess(MAGIC);

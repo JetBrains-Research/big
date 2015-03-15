@@ -19,7 +19,7 @@ public class Bpt {
    * Recursively go across tree, calling callback at leaves.
    * See tables 9-11 in Supplemental
    */
-  public static void rTraverse(final SeekableStream s, final BptHeader bptHeader,
+  public static void rTraverse(final SeekableDataInput s, final BptHeader bptHeader,
                                      final long blockStart,
                                      final LinkedList<BptNodeLeaf> chromList) throws IOException {
     s.seek(blockStart);
@@ -75,7 +75,7 @@ public class Bpt {
     // FIXME: А зачем нужна проверка на размер поинтера? Пример (valSize != bpt->valSize)
     // Интересно, как на дереве это отражается
     final Optional<BptNodeLeaf> bptNodeLeaf;
-    try (SeekableStream s = SeekableStream.of(filePath)) {
+    try (SeekableDataInput s = SeekableDataInput.of(filePath)) {
       s.order(bptHeader.byteOrder);
       bptNodeLeaf = rFindChromByName(s, bptHeader, bptHeader.rootOffset, chromName);
     }
@@ -85,7 +85,7 @@ public class Bpt {
   /**
    * Find value corresponding to key.
    */
-  private static Optional<BptNodeLeaf> rFindChromByName(final SeekableStream s,
+  private static Optional<BptNodeLeaf> rFindChromByName(final SeekableDataInput s,
                                                      final BptHeader bptHeader,
                                                      final long blockStart,
                                                      final String chromName) throws IOException {

@@ -1,22 +1,17 @@
 package org.jbb.big;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Bytes;
-import com.google.common.primitives.Ints;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.stream.Collectors;
 
 /**
  * @author Sergey Zherevchuk
@@ -36,7 +31,7 @@ public class BigBedToBed {
   public static void main(final Path inputPath, final Path outputPath,
                           final String chromName, final int chromStart,
                           final int chromEnd, final int maxItems) throws Exception {
-    try (SeekableStream s = SeekableStream.of(inputPath);
+    try (SeekableDataInput s = SeekableDataInput.of(inputPath);
          BufferedWriter out = Files.newBufferedWriter(outputPath)) {
       // Parse common headers
       final BigHeader bigHeader = BigHeader.parse(s);
@@ -97,7 +92,7 @@ public class BigBedToBed {
    * @return
    * @throws IOException
    */
-  public static List<BedData> bigBedIntervalQuery(final SeekableStream s,
+  public static List<BedData> bigBedIntervalQuery(final SeekableDataInput s,
                                                   final BigHeader bigHeader,
                                                   final RTreeIndexHeader rTreeIndexHeader,
                                                   final int chromId, final int chromStart,

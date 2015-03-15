@@ -23,26 +23,26 @@ import java.nio.file.Path;
  * @author Sergei Lebedev
  * @since 11/03/15
  */
-public class SeekableStream extends InputStream implements AutoCloseable, DataInput {
+public class SeekableDataInput extends InputStream implements AutoCloseable, DataInput {
   /**
    * Defaults byte order to {@code ByteOrder.BIG_ENDIAN}.
    *
    * @see #of(Path, ByteOrder)
    */
-  public static SeekableStream of(final Path path) throws FileNotFoundException {
+  public static SeekableDataInput of(final Path path) throws FileNotFoundException {
     return of(path, ByteOrder.BIG_ENDIAN);
   }
 
-  public static SeekableStream of(final Path path, final ByteOrder order)
+  public static SeekableDataInput of(final Path path, final ByteOrder order)
       throws FileNotFoundException {
-    return new SeekableStream(path, new RandomAccessFile(path.toFile(), "r"), order);
+    return new SeekableDataInput(path, new RandomAccessFile(path.toFile(), "r"), order);
   }
 
   final private Path filePath;
   private final RandomAccessFile file;
   private ByteOrder order;
 
-  private SeekableStream(final Path path, final RandomAccessFile file, final ByteOrder order) {
+  private SeekableDataInput(final Path path, final RandomAccessFile file, final ByteOrder order) {
     this.file = Preconditions.checkNotNull(file);
     this.filePath = path;
     this.order = Preconditions.checkNotNull(order);
