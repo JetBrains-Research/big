@@ -1,6 +1,8 @@
 package org.jbb.big;
 
 /**
+ * B+ tree external node structure
+ *
  * @author Sergey Zherevchuk
  */
 public class BptNodeLeaf {

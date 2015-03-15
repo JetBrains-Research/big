@@ -35,16 +35,20 @@ public class SeekableStream extends InputStream implements AutoCloseable, DataIn
 
   public static SeekableStream of(final Path path, final ByteOrder order)
       throws FileNotFoundException {
-    return new SeekableStream(new RandomAccessFile(path.toFile(), "r"), order);
+    return new SeekableStream(path, new RandomAccessFile(path.toFile(), "r"), order);
   }
 
+  final private Path filePath;
   private final RandomAccessFile file;
   private ByteOrder order;
 
-  private SeekableStream(final RandomAccessFile file, final ByteOrder order) {
+  private SeekableStream(final Path path, final RandomAccessFile file, final ByteOrder order) {
     this.file = Preconditions.checkNotNull(file);
+    this.filePath = path;
     this.order = Preconditions.checkNotNull(order);
   }
+
+  public Path filePath() { return filePath; }
 
   public ByteOrder order() {
     return order;
