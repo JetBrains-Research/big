@@ -20,7 +20,7 @@ public class RTreeIndex {
    * in these blocks too.
    */
   public static void rFindOverlappingBlocks(
-      final LinkedList<RTreeIndexNodeLeaf> OverlappingBlockList,
+      final LinkedList<RTreeIndexNodeLeaf> overlappingBlockList,
       final SeekableDataInput s,
       final int level,
       final long indexFileOffset,
@@ -41,7 +41,7 @@ public class RTreeIndex {
         final long offset = s.readLong();
         final long size = s.readLong();
         if (overlaps(chromIx, chromStart, chromEnd, startChromIx, startBase, endChromIx, endBase)) {
-          OverlappingBlockList.addFirst(new RTreeIndexNodeLeaf(offset, size));
+          overlappingBlockList.addFirst(new RTreeIndexNodeLeaf(offset, size));
         }
       }
     } else {
@@ -60,7 +60,7 @@ public class RTreeIndex {
       for (final RTreeIndexNodeInternal node: childsList) {
         if (overlaps(chromIx, chromStart, chromEnd, node.startChromIx, node.startBase,
                      node.endChromIx, node.endBase)) {
-          rFindOverlappingBlocks(OverlappingBlockList, s, level + 1, node.dataOffset, chromIx,
+          rFindOverlappingBlocks(overlappingBlockList, s, level + 1, node.dataOffset, chromIx,
                                  chromStart, chromEnd);
 
         }

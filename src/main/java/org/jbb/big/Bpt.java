@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,8 +20,8 @@ public class Bpt {
    * See tables 9-11 in Supplemental
    */
   public static void rTraverse(final SeekableDataInput s, final BptHeader bptHeader,
-                                     final long blockStart,
-                                     final LinkedList<BptNodeLeaf> chromList) throws IOException {
+                               final long blockStart,
+                               final List<BptNodeLeaf> chromList) throws IOException {
     s.seek(blockStart);
     // read node format
     final boolean isLeaf = s.readBoolean();
@@ -53,12 +53,12 @@ public class Bpt {
   /**
    * Callback that captures chromInfo from bPlusTree and add to head of chromList.
    */
-  public static void addChromInfoCallback(final LinkedList<BptNodeLeaf> chromList, final byte[] key,
-                                       final byte[] val, final ByteOrder byteOrder) {
+  public static void addChromInfoCallback(final List<BptNodeLeaf> chromList, final byte[] key,
+                                          final byte[] val, final ByteOrder byteOrder) {
     final ByteBuffer b = ByteBuffer.wrap(val).order(byteOrder);
     final int chromId = b.getInt();
     final int chromSize = b.getInt();
-    chromList.addFirst(new BptNodeLeaf(new String(key), chromId, chromSize));
+    chromList.add(new BptNodeLeaf(new String(key), chromId, chromSize));
   }
 
   /**
@@ -86,9 +86,9 @@ public class Bpt {
    * Find value corresponding to key.
    */
   private static Optional<BptNodeLeaf> rFindChromByName(final SeekableDataInput s,
-                                                     final BptHeader bptHeader,
-                                                     final long blockStart,
-                                                     final String chromName) throws IOException {
+                                                        final BptHeader bptHeader,
+                                                        final long blockStart,
+                                                        final String chromName) throws IOException {
     s.seek(blockStart);
     // Read node format
     final boolean isLeaf = s.readBoolean();
