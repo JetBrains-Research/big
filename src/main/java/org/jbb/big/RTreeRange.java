@@ -3,12 +3,17 @@ package org.jbb.big;
 import java.util.Objects;
 
 /**
- * A range is a pair of genomic offsets.
+ * A semi-closed interval.
  *
  * @author Sergei Lebedev
  * @date 16/03/15
  */
 public class RTreeRange {
+  public static RTreeRange of(final int chromIx, final int startOffset, final int endOffset) {
+    return new RTreeRange(new RTreeOffset(chromIx, startOffset),
+                          new RTreeOffset(chromIx, endOffset));
+  }
+
   /** Start offset (inclusive). */
   public final RTreeOffset left;
   /** End offset (exclusive). */
@@ -19,8 +24,8 @@ public class RTreeRange {
     this.right = right;
   }
 
-  public boolean contains(final RTreeOffset other) {
-    return left.compareTo(other) <= 0 && right.compareTo(other) > 0;
+  public boolean overlaps(final RTreeRange other) {
+    return left.compareTo(other.left) >= 0 && right.compareTo(other.right) <= 0;
   }
 
   @Override

@@ -15,8 +15,8 @@ import java.util.Optional;
 public class BigBedToBedTest extends TestCase {
   public void testParseBigHeader() throws Exception {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
+    final Path inputPath = getExample("example1.bb");
+    final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
     assertTrue(bigHeader.version == 1);
     assertTrue(bigHeader.zoomLevels == 5);
@@ -36,16 +36,20 @@ public class BigBedToBedTest extends TestCase {
   }
 
   public void testBigBedToBed() throws Exception {
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    Path o = Files.createTempFile("out", ".bed");
-    BigBedToBed.main(Paths.get(url.getPath()), o, "", 0, 0, 0);
-    assertTrue(Files.size(o) > 0);
-    Files.deleteIfExists(o);
+    final Path inputPath = getExample("example1.bb");
+    final Path outputPath = Files.createTempFile("out", ".bed");
+    BigBedToBed.main(inputPath, outputPath, "", 0, 0, 0);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
   }
 
   public void testRTreeIndexHeader() throws Exception {
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
+    final Path inputPath = getExample("example1.bb");
+    final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final long unzoomedIndexOffset = 192771;
     final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.read(s, unzoomedIndexOffset);
     assertEquals(rTreeIndexHeader.blockSize, 1024);
@@ -69,23 +73,23 @@ public class BigBedToBedTest extends TestCase {
 //  }
 
   public void testRFindChromName() throws Exception {
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
+    final Path inputPath = getExample("example1.bb");
+    final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
     String chromName = "chr1";
-    Optional<BptNodeLeaf> bptNodeLeaf =  Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader,
-                                                       chromName);
+    Optional<BptNodeLeaf> bptNodeLeaf
+        = Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader, chromName);
     assertFalse(bptNodeLeaf.isPresent());
     chromName = "chr21";
-    bptNodeLeaf =  Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader, chromName);
+    bptNodeLeaf = Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader, chromName);
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(bptNodeLeaf.get().id, 0);
     assertEquals(bptNodeLeaf.get().size, 48129895);
   }
 
   public void testRFindOverlappingBlocks() throws Exception {
-    final URL url = getClass().getClassLoader().getResource("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(getPath(url));
+    final Path inputPath = getExample("example1.bb");
+    final SeekableDataInput s = SeekableDataInput.of(inputPath);
     // Parse common headers
     final BigHeader bigHeader = BigHeader.parse(s);
 
@@ -100,21 +104,26 @@ public class BigBedToBedTest extends TestCase {
     // Loop through chromList in reverse
     final Iterator<BptNodeLeaf> iter = chromList.descendingIterator();
     final BptNodeLeaf node = iter.next();
-    final LinkedList<RTreeIndexNodeLeaf> overlappingBlockList = new LinkedList<>();
+    final LinkedList<RTreeIndexLeaf> overlappingBlockList = new LinkedList<>();
     s.order(rtiHeader.byteOrder);
     RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,
-                                      rtiHeader.rootOffset, node.id, 0, node.size);
+                                      rtiHeader.rootOffset,
+                                      RTreeRange.of(node.id, 0, node.size));
     Collections.reverse(overlappingBlockList);
-    final ListIterator<RTreeIndexNodeLeaf> iter2 = overlappingBlockList.listIterator();
+    final ListIterator<RTreeIndexLeaf> iter2 = overlappingBlockList.listIterator();
     while (iter2.hasNext()) {
-      RTreeIndexNodeLeaf block = iter2.next();
+      RTreeIndexLeaf block = iter2.next();
 //      System.out.println(block.dataOffset + "  " + block.dataSize);
     }
 
   }
 
-  public Path getPath(final URL url) {
-    assert url != null : "resource not found";
+  private Path getExample(final String name) {
+    final URL url = getClass().getClassLoader().getResource(name);
+    if (url == null) {
+      throw new IllegalStateException("resource not found");
+    }
+
     return Paths.get(url.getPath());
   }
 }

@@ -68,8 +68,9 @@ public class BigBedToBed {
         final int start = (chromStart != 0) ? chromStart : 0;
         final int end = (chromEnd != 0) ? chromEnd: node.size;
 
+        final RTreeRange query = RTreeRange.of(node.id, start, end);
         final List<BedData> intervalList
-            = bigBedIntervalQuery(s, bigHeader, rtiHeader, node.id, start, end, itemsLeft);
+            = bigBedIntervalQuery(s, bigHeader, rtiHeader, query, itemsLeft);
         // Write data to output file
 
         for (final BedData interval : intervalList) {
@@ -85,9 +86,7 @@ public class BigBedToBed {
    * @param s Stream
    * @param bigHeader Common headers
    * @param rTreeIndexHeader Headers for R-tree index
-   * @param chromId Chromosome id from B+ tree
-   * @param chromStart If set, restrict output to only that over start
-   * @param chromEnd If set, restrict output to only that under end
+   * @param query
    * @param maxItems Maximum number of items to return, or 0 for all items.
    * @return
    * @throws IOException
@@ -95,28 +94,28 @@ public class BigBedToBed {
   public static List<BedData> bigBedIntervalQuery(final SeekableDataInput s,
                                                   final BigHeader bigHeader,
                                                   final RTreeIndexHeader rTreeIndexHeader,
-                                                  final int chromId, final int chromStart,
-                                                  final int chromEnd,
+                                                  final RTreeRange query,
                                                   final int maxItems) throws IOException {
-    final LinkedList<RTreeIndexNodeLeaf> overlappingBlockList = new LinkedList<>();
+    final LinkedList<RTreeIndexLeaf> overlappingBlockList = new LinkedList<>();
     s.order(rTreeIndexHeader.byteOrder);
     RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,
-                                      rTreeIndexHeader.rootOffset, chromId, chromStart, chromEnd);
+                                      rTreeIndexHeader.rootOffset, query);
     s.order(bigHeader.byteOrder);
     Collections.reverse(overlappingBlockList);
 
+    final int chromIx = query.left.chromIx;
     final List<BedData> res = Lists.newLinkedList();
-    for (final RTreeIndexNodeLeaf node : overlappingBlockList) {
+    for (final RTreeIndexLeaf node : overlappingBlockList) {
       s.seek(node.dataOffset);
 
       do {
-        if (s.readInt() != chromId) {
+        if (s.readInt() != chromIx) {
           throw new IllegalStateException();
         }
         final int start = s.readInt();
         final int end = s.readInt();
         byte ch;
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         for (; ; ) {
           ch = s.readByte();
           if (ch == 0) {
@@ -126,7 +125,7 @@ public class BigBedToBed {
           sb.append(ch);
         }
 
-        res.add(new BedData(chromId, start, end, sb.toString()));
+        res.add(new BedData(chromIx, start, end, sb.toString()));
       } while (s.tell() - node.dataOffset < node.dataSize);
     }
 
@@ -137,12 +136,12 @@ public class BigBedToBed {
    *  Starting at list, find all items that don't have a gap between them and the previous item.
    *  Return at gap, or at end of list, returning pointers to the items before and after the gap.
    */
-  public static HashMap<String, RTreeIndexNodeLeaf> fileOffsetSizeFindGap(
-      final ListIterator<RTreeIndexNodeLeaf> iter) {
-    final HashMap<String, RTreeIndexNodeLeaf> gaps = new HashMap<>(2);
-    RTreeIndexNodeLeaf pt = iter.next();
+  public static HashMap<String, RTreeIndexLeaf> fileOffsetSizeFindGap(
+      final ListIterator<RTreeIndexLeaf> iter) {
+    final HashMap<String, RTreeIndexLeaf> gaps = new HashMap<>(2);
+    RTreeIndexLeaf pt = iter.next();
     while (iter.hasNext()) {
-      final RTreeIndexNodeLeaf next = iter.next();
+      final RTreeIndexLeaf next = iter.next();
       if (next.dataOffset != pt.dataOffset + pt.dataSize) {
         gaps.put("before", pt);
         gaps.put("after", next);

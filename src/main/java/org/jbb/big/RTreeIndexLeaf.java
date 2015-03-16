@@ -6,12 +6,11 @@ package org.jbb.big;
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-public class RTreeIndexNodeLeaf {
-
-  public final long dataOffset; // FIXME: from the begining of file?
+public class RTreeIndexLeaf {
+  public final long dataOffset;
   public final long dataSize;
 
-  public RTreeIndexNodeLeaf(final long dataOffset, final long dataSize) {
+  public RTreeIndexLeaf(final long dataOffset, final long dataSize) {
     this.dataOffset = dataOffset;
     this.dataSize = dataSize;
   }

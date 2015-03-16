@@ -1,7 +1,5 @@
 package org.jbb.big;
 
-import com.google.common.collect.ComparisonChain;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -20,13 +18,11 @@ public class RTreeIndex {
    * in these blocks too.
    */
   public static void rFindOverlappingBlocks(
-      final LinkedList<RTreeIndexNodeLeaf> overlappingBlockList,
+      final LinkedList<RTreeIndexLeaf> overlappingBlockList,
       final SeekableDataInput s,
       final int level,
       final long indexFileOffset,
-      final int chromIx,
-      final int chromStart,
-      final int chromEnd) throws IOException {
+      final RTreeRange query) throws IOException {
     s.seek(indexFileOffset);
     final boolean isLeaf = s.readBoolean();
     s.readBoolean(); // reserved
@@ -35,64 +31,34 @@ public class RTreeIndex {
       // Loop through node adding overlapping leaves to block list.
       for (int i = 0; i < childCount; i++) {
         final int startChromIx = s.readInt();
-        final int startBase = s.readInt();
+        final int startOffset = s.readInt();
         final int endChromIx = s.readInt();
-        final int endBase = s.readInt();
-        final long offset = s.readLong();
-        final long size = s.readLong();
-        if (overlaps(chromIx, chromStart, chromEnd, startChromIx, startBase, endChromIx, endBase)) {
-          overlappingBlockList.addFirst(new RTreeIndexNodeLeaf(offset, size));
+        final int endOffset = s.readInt();
+        final long dataOffset = s.readLong();
+        final long dataSize = s.readLong();
+        final RTreeIndexNode node
+            = RTreeIndexNode.of(startChromIx, startOffset, endChromIx, endOffset, dataOffset);
+        if (node.overlaps(query)) {
+          overlappingBlockList.addFirst(new RTreeIndexLeaf(dataOffset, dataSize));
         }
       }
     } else {
-      final ArrayList<RTreeIndexNodeInternal> childsList = new ArrayList<>(childCount);
+      final ArrayList<RTreeIndexNode> childsList = new ArrayList<>(childCount);
       for (int i = 0; i < childCount; i++) {
         final int startChromIx = s.readInt();
         final int startBase = s.readInt();
         final int endChromIx = s.readInt();
         final int endBase = s.readInt();
         final long offset = s.readLong();
-        childsList.add(
-            new RTreeIndexNodeInternal(startChromIx, startBase, endChromIx, endBase, offset)
-        );
+        childsList.add(RTreeIndexNode.of(startChromIx, startBase, endChromIx, endBase, offset));
       }
-      // Recurse into child nodes that we overlap.
-      for (final RTreeIndexNodeInternal node: childsList) {
-        if (overlaps(chromIx, chromStart, chromEnd, node.startChromIx, node.startBase,
-                     node.endChromIx, node.endBase)) {
-          rFindOverlappingBlocks(overlappingBlockList, s, level + 1, node.dataOffset, chromIx,
-                                 chromStart, chromEnd);
 
+      // Recurse into child nodes that we overlap.
+      for (final RTreeIndexNode node : childsList) {
+        if (node.overlaps(query)) {
+          rFindOverlappingBlocks(overlappingBlockList, s, level + 1, node.dataOffset, query);
         }
       }
     }
-  }
-
-  /**
-   * Check leave overlapping with query interval and chromId
-   * @param qChrom query chromosome id
-   * @param qStart query chromosome start restriction
-   * @param qEnd query chromosome end restriction
-   * @param rStartChrom ID of first chromosome in item
-   * @param rStartBase Position of first base in item
-   * @param rEndChrom ID of last chromosome in item
-   * @param rEndBase Position of last base in item
-   * @return boolean
-   */
-  public static boolean overlaps(final int qChrom, final int qStart, final int qEnd,
-                                 final int rStartChrom, final int rStartBase, final int rEndChrom,
-                                 final int rEndBase) {
-    return cmpTwoInt(qChrom, qStart, rEndChrom, rEndBase) > 0 &&
-           cmpTwoInt(qChrom, qEnd, rStartChrom, rStartBase) < 0;
-  }
-
-  /**
-   * Return - if b is less than a , 0 if equal, else +
-   */
-  public static int cmpTwoInt(final int aHi, final int aLo, final int bHi, final int bLo) {
-    return ComparisonChain.start()
-        .compare(bHi, aHi)
-        .compare(bLo, aLo)
-        .result();
   }
 }
