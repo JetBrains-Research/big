@@ -40,13 +40,12 @@ public class BigHeader {
     }
 
     final BptHeader bptHeader = BptHeader.read(s, chromTreeOffset);
-    return new BigHeader(s.order(), s.filePath(), version, zoomLevels, chromTreeOffset,
+    return new BigHeader(s.order(), version, zoomLevels, chromTreeOffset,
                          unzoomedDataOffset, unzoomedIndexOffset, fieldCount, definedFieldCount,
                          asOffset, totalSummaryOffset, uncompressBufSize, zoomLevelList, bptHeader);
   }
 
   public final ByteOrder byteOrder;
-  public final Path filePath;
   public final short version;
   public final short zoomLevels;
   public final long chromTreeOffset;
@@ -60,7 +59,7 @@ public class BigHeader {
   public final List<ZoomLevel> zoomLevelList;
   public final BptHeader bptHeader;
 
-  public BigHeader(final ByteOrder byteOrder, final Path filePath, final short version,
+  public BigHeader(final ByteOrder byteOrder, final short version,
                    final short zoomLevels, final long chromTreeOffset,
                    final long unzoomedDataOffset, final long unzoomedIndexOffset,
                    final short fieldCount, final short definedFieldCount, final long asOffset,
@@ -68,7 +67,6 @@ public class BigHeader {
                    final List<ZoomLevel> zoomLevelList,
                    final BptHeader bptHeader) {
     this.byteOrder = byteOrder;
-    this.filePath = filePath;
     this.version = version;
     this.zoomLevels = zoomLevels;
     this.chromTreeOffset = chromTreeOffset;

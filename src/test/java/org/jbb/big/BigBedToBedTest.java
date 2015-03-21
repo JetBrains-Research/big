@@ -3,6 +3,9 @@ package org.jbb.big;
 import junit.framework.TestCase;
 
 import java.net.URISyntaxException;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +51,23 @@ public class BigBedToBedTest extends TestCase {
     }
   }
 
+  public void testBigBedToBedRestrictOutput() throws Exception {
+    final Path inputPath = getExample("example1.bb");
+    final Path outputPath = Files.createTempFile("out", ".bed");
+    // Params restriction
+    final int chromStart = 0;
+    final int chromEnd = 33996242;
+    final int maxItems = 5;
+    BigBedToBed.main(inputPath, outputPath, "", chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+//      showFileContent(outputPath);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+  }
+
   public void testRTreeIndexHeader() throws Exception {
     final Path inputPath = getExample("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
@@ -64,25 +84,16 @@ public class BigBedToBedTest extends TestCase {
     assertEquals(rTreeIndexHeader.rootOffset, 192819);
   }
 
-//  public void testRercursiveTraverseBPTree() throws Exception {
-//    final URL url = getClass().getClassLoader().getResource("example1.bb");
-//    assert url != null : "resource not found";
-//    Path o = Files.createTempFile("out", ".bed");
-//    BigBedToBed.main(Paths.get(url.getPath()), o, "", 0, 0, 0);
-//    assertTrue(Files.size(o) > 0);
-//    Files.deleteIfExists(o);
-//  }
-
   public void testRFindChromName() throws Exception {
     final Path inputPath = getExample("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
     String chromName = "chr1";
     Optional<BptNodeLeaf> bptNodeLeaf
-        = Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader, chromName);
+        = Bpt.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
     assertFalse(bptNodeLeaf.isPresent());
     chromName = "chr21";
-    bptNodeLeaf = Bpt.chromFind(bigHeader.filePath, bigHeader.bptHeader, chromName);
+    bptNodeLeaf = Bpt.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(bptNodeLeaf.get().id, 0);
     assertEquals(bptNodeLeaf.get().size, 48129895);
@@ -116,7 +127,6 @@ public class BigBedToBedTest extends TestCase {
       RTreeIndexLeaf block = iter2.next();
 //      System.out.println(block.dataOffset + "  " + block.dataSize);
     }
-
   }
 
   private Path getExample(final String name) throws URISyntaxException {
@@ -125,5 +135,23 @@ public class BigBedToBedTest extends TestCase {
       throw new IllegalStateException("resource not found");
     }
     return Paths.get(url.toURI()).toFile().toPath();
+  }
+
+  /**
+   * Print file content to system output
+   * @param path
+   * @throws Exception
+   */
+  private static void showFileContent(final Path path) throws Exception {
+    InputStream input = new BufferedInputStream(new FileInputStream(path.toFile()));
+    byte[] buffer = new byte[8192];
+
+    try {
+      for (int length = 0; (length = input.read(buffer)) != -1;) {
+        System.out.write(buffer, 0, length);
+      }
+    } finally {
+      input.close();
+    }
   }
 }

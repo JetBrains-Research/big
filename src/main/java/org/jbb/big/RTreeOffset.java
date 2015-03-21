@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 
 /**
- * A (chromsome, offset) pair.
+ * A (chromosome, offset) pair.
  *
  * @author Sergei Lebedev
  * @date 16/03/15

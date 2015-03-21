@@ -35,7 +35,6 @@ public class BigBedToBed {
          BufferedWriter out = Files.newBufferedWriter(outputPath)) {
       // Parse common headers
       final BigHeader bigHeader = BigHeader.parse(s);
-      // FIXME: chromFind не используется сейчас, мб и не надо хранить filePath
 
       // Construct list of chromosomes from B+ tree
       final LinkedList<BptNodeLeaf> chromList = new LinkedList<>();
@@ -43,8 +42,6 @@ public class BigBedToBed {
       Bpt.rTraverse(s, bigHeader.bptHeader, bigHeader.bptHeader.rootOffset, chromList);
       final int itemCount = 0;
 
-      // FIXME: выяснить почему R Tree Index присоединяется только в IntervalQuery.
-      // Надо бы перенести в BigHeader как опциональные заголовки?
       final RTreeIndexHeader rtiHeader
           = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);
 
@@ -103,6 +100,7 @@ public class BigBedToBed {
     s.order(bigHeader.byteOrder);
     Collections.reverse(overlappingBlockList);
 
+    int itemCount = 0;
     final int chromIx = query.left.chromIx;
     final List<BedData> res = Lists.newLinkedList();
     for (final RTreeIndexLeaf node : overlappingBlockList) {
@@ -123,6 +121,12 @@ public class BigBedToBed {
           }
 
           sb.append(ch);
+        }
+
+        itemCount++;
+        // Limit number of items
+        if (maxItems > 0 && itemCount > maxItems) {
+          break;
         }
 
         res.add(new BedData(chromIx, start, end, sb.toString()));
