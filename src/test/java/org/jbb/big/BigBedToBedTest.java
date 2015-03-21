@@ -2,6 +2,7 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,12 +119,11 @@ public class BigBedToBedTest extends TestCase {
 
   }
 
-  private Path getExample(final String name) {
+  private Path getExample(final String name) throws URISyntaxException {
     final URL url = getClass().getClassLoader().getResource(name);
     if (url == null) {
       throw new IllegalStateException("resource not found");
     }
-
-    return Paths.get(url.getPath());
+    return Paths.get(url.toURI()).toFile().toPath();
   }
 }
