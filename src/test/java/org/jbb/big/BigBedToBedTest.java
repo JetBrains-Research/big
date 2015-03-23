@@ -144,10 +144,10 @@ public class BigBedToBedTest extends TestCase {
     final BigHeader bigHeader = BigHeader.parse(s);
     String chromName = "chr1";
     Optional<BPlusLeaf> bptNodeLeaf
-        = BPlusTree.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
+        = BPlusTree.find(inputPath, bigHeader.bptHeader, chromName);
     assertFalse(bptNodeLeaf.isPresent());
     chromName = "chr21";
-    bptNodeLeaf = BPlusTree.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
+    bptNodeLeaf = BPlusTree.find(inputPath, bigHeader.bptHeader, chromName);
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(bptNodeLeaf.get().id, 0);
     assertEquals(bptNodeLeaf.get().size, 48129895);

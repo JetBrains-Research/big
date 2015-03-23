@@ -19,6 +19,7 @@ import java.util.function.Consumer;
  * aren't linked.
  *
  * @author Sergey Zherevchuk
+ * @author Sergei Lebedev
  * @since 13/03/15
  */
 public class BPlusTree {
@@ -31,13 +32,14 @@ public class BPlusTree {
       throws IOException {
     final ByteOrder originalOrder = s.order();
     s.order(bptHeader.byteOrder);
-    traverse(s, bptHeader, bptHeader.rootOffset, consumer);
+    traverseRecursively(s, bptHeader, bptHeader.rootOffset, consumer);
     s.order(originalOrder);
   }
 
-  private static void traverse(final SeekableDataInput s, final BptHeader bptHeader,
-                               final long blockStart,
-                               final Consumer<BPlusLeaf> consumer)
+  private static void traverseRecursively(final SeekableDataInput s,
+                                          final BptHeader bptHeader,
+                                          final long blockStart,
+                                          final Consumer<BPlusLeaf> consumer)
       throws IOException {
     s.seek(blockStart);
 
@@ -56,12 +58,12 @@ public class BPlusTree {
     } else {
       final long fileOffsets[] = new long[childCount];
       for (int i = 0; i < childCount; i++) {
-        s.readFully(keyBuf);  // XXX why can be overwrite it?
+        s.readFully(keyBuf);  // XXX why can we overwrite it?
         fileOffsets[i] = s.readLong();
       }
 
       for (int i = 0; i < childCount; i++) {
-        traverse(s, bptHeader, fileOffsets[i], consumer);
+        traverseRecursively(s, bptHeader, fileOffsets[i], consumer);
       }
     }
   }
@@ -69,9 +71,9 @@ public class BPlusTree {
   /**
    * Find value associated with key. Return BptNodeLeaf if it's found.
    */
-  public static Optional<BPlusLeaf> chromFind(final Path filePath,
-                                              final BptHeader bptHeader,
-                                              final String chromName)
+  public static Optional<BPlusLeaf> find(final Path filePath,
+                                         final BptHeader bptHeader,
+                                         final String chromName)
       throws IOException {
     if (chromName.length() > bptHeader.keySize) {
       return Optional.empty();
