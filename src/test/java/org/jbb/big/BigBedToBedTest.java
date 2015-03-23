@@ -3,9 +3,6 @@ package org.jbb.big;
 import junit.framework.TestCase;
 
 import java.net.URISyntaxException;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -100,7 +97,7 @@ public class BigBedToBedTest extends TestCase {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
       // In example1.bb we have only one chromosome
-      assertEquals(countLines(outputPath), maxItems);
+      assertEquals(Files.lines(outputPath).count(), maxItems);
 //      showFileContent(outputPath);
     } finally {
       Files.deleteIfExists(outputPath);
@@ -109,13 +106,13 @@ public class BigBedToBedTest extends TestCase {
     chromStart = 9508110;
     chromEnd = 9906613;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    System.out.println(countLines(outputPath));
+    System.out.println(Files.lines(outputPath).count());
     try {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
       // In example1.bb we have only one chromosome
-      assertEquals(countLines(outputPath), 5);
-      showFileContent(outputPath);
+      assertEquals(Files.lines(outputPath).count(), 5);
+      Files.copy(outputPath, System.out);
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -189,44 +186,5 @@ public class BigBedToBedTest extends TestCase {
       throw new IllegalStateException("resource not found");
     }
     return Paths.get(url.toURI()).toFile().toPath();
-  }
-
-  /**
-   * Print file content to system output
-   * @param path
-   * @throws Exception
-   */
-  private static void showFileContent(final Path path) throws Exception {
-    InputStream input = new BufferedInputStream(new FileInputStream(path.toFile()));
-    byte[] buffer = new byte[8192];
-
-    try {
-      for (int length = 0; (length = input.read(buffer)) != -1;) {
-        System.out.write(buffer, 0, length);
-      }
-    } finally {
-      input.close();
-    }
-  }
-
-  private static int countLines(Path path) throws Exception {
-    InputStream is = new BufferedInputStream(new FileInputStream(path.toFile()));
-    try {
-      byte[] c = new byte[1024];
-      int count = 0;
-      int readChars = 0;
-      boolean empty = true;
-      while ((readChars = is.read(c)) != -1) {
-        empty = false;
-        for (int i = 0; i < readChars; ++i) {
-          if (c[i] == '\n') {
-            ++count;
-          }
-        }
-      }
-      return (count == 0 && !empty) ? 1 : count;
-    } finally {
-      is.close();
-    }
   }
 }
