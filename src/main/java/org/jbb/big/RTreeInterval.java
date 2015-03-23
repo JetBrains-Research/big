@@ -8,9 +8,9 @@ import java.util.Objects;
  * @author Sergei Lebedev
  * @since 16/03/15
  */
-public class RTreeRange {
-  public static RTreeRange of(final int chromIx, final int startOffset, final int endOffset) {
-    return new RTreeRange(new RTreeOffset(chromIx, startOffset),
+public class RTreeInterval {
+  public static RTreeInterval of(final int chromIx, final int startOffset, final int endOffset) {
+    return new RTreeInterval(new RTreeOffset(chromIx, startOffset),
                           new RTreeOffset(chromIx, endOffset));
   }
 
@@ -19,12 +19,12 @@ public class RTreeRange {
   /** End offset (exclusive). */
   public final RTreeOffset right;
 
-  public RTreeRange(final RTreeOffset left, final RTreeOffset right) {
+  public RTreeInterval(final RTreeOffset left, final RTreeOffset right) {
     this.left = left;
     this.right = right;
   }
 
-  public boolean overlaps(final RTreeRange other) {
+  public boolean overlaps(final RTreeInterval other) {
     return !(other.right.compareTo(left) <= 0
              || right.compareTo(other.left) <= 0);
   }
@@ -37,7 +37,7 @@ public class RTreeRange {
       return false;
     }
 
-    final RTreeRange other = (RTreeRange) obj;
+    final RTreeInterval other = (RTreeInterval) obj;
     return Objects.equals(left, other.left) && Objects.equals(right, other.right);
   }
 

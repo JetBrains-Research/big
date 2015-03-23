@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -69,7 +70,7 @@ public class BPlusTree {
   protected final Header header;
 
   public BPlusTree(final Header header) {
-    this.header = header;
+    this.header = Objects.requireNonNull(header);
   }
 
   /**

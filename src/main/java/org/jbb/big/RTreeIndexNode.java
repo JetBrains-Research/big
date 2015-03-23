@@ -8,7 +8,7 @@ import com.google.common.primitives.Ints;
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-public class RTreeIndexNode extends RTreeRange {
+public class RTreeIndexNode extends RTreeInterval {
   // XXX replace this with #readFrom(SeekableDataInput)?
   public static RTreeIndexNode of(final int startChromIx, final int startOffset,
                                   final int endChromIx, final int endOffset,

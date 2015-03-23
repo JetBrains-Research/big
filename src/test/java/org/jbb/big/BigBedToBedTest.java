@@ -7,9 +7,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Optional;
 
@@ -97,7 +97,7 @@ public class BigBedToBedTest extends TestCase {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
       // In example1.bb we have only one chromosome
-      assertEquals(Files.lines(outputPath).count(), maxItems);
+      assertEquals(maxItems, Files.lines(outputPath).count());
 //      showFileContent(outputPath);
     } finally {
       Files.deleteIfExists(outputPath);
@@ -123,16 +123,16 @@ public class BigBedToBedTest extends TestCase {
     final Path inputPath = getExample("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final long unzoomedIndexOffset = 192771;
-    final RTreeIndexHeader rTreeIndexHeader = RTreeIndexHeader.read(s, unzoomedIndexOffset);
-    assertEquals(rTreeIndexHeader.blockSize, 1024);
-    assertEquals(rTreeIndexHeader.itemCount, 14810);
-    assertEquals(rTreeIndexHeader.startChromIx, 0);
-    assertEquals(rTreeIndexHeader.startBase, 9434178);
-    assertEquals(rTreeIndexHeader.endChromIx, 0);
-    assertEquals(rTreeIndexHeader.endBase, 48099781);
-    assertEquals(rTreeIndexHeader.fileSize, 192771);
-    assertEquals(rTreeIndexHeader.itemsPerSlot, 64);
-    assertEquals(rTreeIndexHeader.rootOffset, 192819);
+    final RTreeIndex rti = RTreeIndex.read(s, unzoomedIndexOffset);
+    assertEquals(rti.header.blockSize, 1024);
+    assertEquals(rti.header.itemCount, 14810);
+    assertEquals(rti.header.startChromIx, 0);
+    assertEquals(rti.header.startBase, 9434178);
+    assertEquals(rti.header.endChromIx, 0);
+    assertEquals(rti.header.endBase, 48099781);
+    assertEquals(rti.header.fileSize, 192771);
+    assertEquals(rti.header.itemsPerSlot, 64);
+    assertEquals(rti.header.rootOffset, 192819);
   }
 
   public void testRFindChromName() throws Exception {
@@ -159,19 +159,14 @@ public class BigBedToBedTest extends TestCase {
     final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
     bigHeader.bPlusTree.traverse(s, chromList::add);
 
-    final RTreeIndexHeader rtiHeader
-        = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);
+    final RTreeIndex rti = RTreeIndex.read(s, bigHeader.unzoomedIndexOffset);
 
     // Loop through chromList in reverse
     final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
     final BPlusLeaf node = iter.next();
-    final LinkedList<RTreeIndexLeaf> overlappingBlockList = new LinkedList<>();
-    s.order(rtiHeader.byteOrder);
-    RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,
-                                      rtiHeader.rootOffset,
-                                      RTreeRange.of(node.id, 0, node.size));
-    Collections.reverse(overlappingBlockList);
-    final ListIterator<RTreeIndexLeaf> iter2 = overlappingBlockList.listIterator();
+    final List<RTreeIndexLeaf> overlappingBlocks
+        = rti.findOverlappingBlocks(s, RTreeInterval.of(node.id, 0, node.size));
+    final ListIterator<RTreeIndexLeaf> iter2 = overlappingBlocks.listIterator();
     while (iter2.hasNext()) {
       RTreeIndexLeaf block = iter2.next();
 //      System.out.println(block.dataOffset + "  " + block.dataSize);

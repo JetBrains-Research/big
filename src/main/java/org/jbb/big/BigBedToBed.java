@@ -1,16 +1,11 @@
 package org.jbb.big;
 
-import com.google.common.collect.Lists;
-
 import java.io.BufferedWriter;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.ListIterator;
 
 /**
@@ -41,8 +36,7 @@ public class BigBedToBed {
       bigHeader.bPlusTree.traverse(s, chromList::add);
       final int itemCount = 0;
 
-      final RTreeIndexHeader rtiHeader
-          = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);
+      final RTreeIndex rti = RTreeIndex.read(s, bigHeader.unzoomedIndexOffset);
 
       // Loop through chromList in reverse
       final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
@@ -64,82 +58,14 @@ public class BigBedToBed {
         final int start = (chromStart != 0) ? chromStart : 0;
         final int end = (chromEnd != 0) ? chromEnd: node.size;
 
-        final RTreeRange query = RTreeRange.of(node.id, start, end);
-        final List<BedData> intervalList
-            = bigBedIntervalQuery(s, bigHeader, rtiHeader, query, itemsLeft);
-
+        final RTreeInterval query = RTreeInterval.of(node.id, start, end);
         // Write data to output file
-        for (final BedData interval : intervalList) {
+        for (final BedData interval : rti.findOverlaps(s, query, itemsLeft)) {
           out.write(node.key + "\t" + interval.start + "\t" +  interval.end + "\t" + interval.rest + "\n");
         }
 //        System.out.println("id: " + node.id + " size: " + node.size);
       }
     }
-  }
-
-  /**
-   * Get data for interval.
-   * @param s Stream
-   * @param bigHeader Common headers
-   * @param rTreeIndexHeader Headers for R-tree index
-   * @param query
-   * @param maxItems Maximum number of items to return, or 0 for all items.
-   * @return
-   * @throws IOException
-   */
-  public static List<BedData> bigBedIntervalQuery(final SeekableDataInput s,
-                                                  final BigHeader bigHeader,
-                                                  final RTreeIndexHeader rTreeIndexHeader,
-                                                  final RTreeRange query,
-                                                  final int maxItems) throws IOException {
-    final LinkedList<RTreeIndexLeaf> overlappingBlockList = new LinkedList<>();
-    s.order(rTreeIndexHeader.byteOrder);
-    RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,
-                                      rTreeIndexHeader.rootOffset, query);
-    s.order(bigHeader.byteOrder);
-    Collections.reverse(overlappingBlockList);
-
-    int itemCount = 0;
-    final int chromIx = query.left.chromIx;
-    final List<BedData> res = Lists.newLinkedList();
-    for (final RTreeIndexLeaf node : overlappingBlockList) {
-      s.seek(node.dataOffset);
-
-      do {
-        if (s.readInt() != chromIx) {
-          throw new IllegalStateException();
-        }
-        final int start = s.readInt();
-        final int end = s.readInt();
-        byte ch;
-        final StringBuilder sb = new StringBuilder();
-        for (; ; ) {
-          ch = s.readByte();
-          if (ch == 0) {
-            break;
-          }
-
-          sb.append(ch);
-        }
-
-        if (start < query.left.offset) {
-          continue;
-        }
-        if (end > query.right.offset) {
-          break;
-        }
-
-        itemCount++;
-        // Limit number of items
-        if (maxItems > 0 && itemCount > maxItems) {
-          break;
-        }
-
-        res.add(new BedData(chromIx, start, end, sb.toString()));
-      } while (s.tell() - node.dataOffset < node.dataSize);
-    }
-
-    return res;
   }
 
   /**
