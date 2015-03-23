@@ -4,70 +4,75 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 
 /**
- * B+ tree class
+ * A B+ tree.
+ *
+ * Big formats use a B+ tree to store a mapping from chromosome
+ * names to (id, size) pairs, where id is a unique positive integer
+ * and size is chromosome length in base pairs.
+ *
+ * Contrary to the original definition the leaves in this B+ tree
+ * aren't linked.
  *
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-public class Bpt {
+public class BPlusTree {
 
   /**
-   * Recursively go across tree, calling callback at leaves.
-   * See tables 9-11 in Supplemental
+   * Recursively goes across tree, calling callback on the leaves.
    */
-  public static void rTraverse(final SeekableDataInput s, final BptHeader bptHeader,
+  public static void traverse(final SeekableDataInput s, final BptHeader bptHeader,
+                              final Consumer<BPlusLeaf> consumer)
+      throws IOException {
+    final ByteOrder originalOrder = s.order();
+    s.order(bptHeader.byteOrder);
+    traverse(s, bptHeader, bptHeader.rootOffset, consumer);
+    s.order(originalOrder);
+  }
+
+  private static void traverse(final SeekableDataInput s, final BptHeader bptHeader,
                                final long blockStart,
-                               final List<BptNodeLeaf> chromList) throws IOException {
+                               final Consumer<BPlusLeaf> consumer)
+      throws IOException {
     s.seek(blockStart);
-    // read node format
+
     final boolean isLeaf = s.readBoolean();
     s.readBoolean(); // reserved
     final short childCount = s.readShort();
 
-    // read items
     final byte[] keyBuf = new byte[bptHeader.keySize];
-    final byte[] valBuf = new byte[bptHeader.valSize];
     if (isLeaf) {
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);
-        s.readFully(valBuf);
-        addChromInfoCallback(chromList, keyBuf, valBuf, bptHeader.byteOrder);
+        final int chromId = s.readInt();
+        final int chromSize = s.readInt();
+        consumer.accept(new BPlusLeaf(new String(keyBuf), chromId, chromSize));
       }
     } else {
       final long fileOffsets[] = new long[childCount];
       for (int i = 0; i < childCount; i++) {
-        s.readFully(keyBuf);
+        s.readFully(keyBuf);  // XXX why can be overwrite it?
         fileOffsets[i] = s.readLong();
       }
-      // traverse call for child nodes
+
       for (int i = 0; i < childCount; i++) {
-        rTraverse(s, bptHeader, fileOffsets[i], chromList);
+        traverse(s, bptHeader, fileOffsets[i], consumer);
       }
     }
   }
 
   /**
-   * Callback that captures chromInfo from bPlusTree and add to head of chromList.
-   */
-  public static void addChromInfoCallback(final List<BptNodeLeaf> chromList, final byte[] key,
-                                          final byte[] val, final ByteOrder byteOrder) {
-    final ByteBuffer b = ByteBuffer.wrap(val).order(byteOrder);
-    final int chromId = b.getInt();
-    final int chromSize = b.getInt();
-    chromList.add(new BptNodeLeaf(new String(key), chromId, chromSize));
-  }
-
-  /**
    * Find value associated with key. Return BptNodeLeaf if it's found.
    */
-  public static Optional<BptNodeLeaf> chromFind(final Path filePath,
-                                                   final BptHeader bptHeader,
-                                                   final String chromName) throws IOException {
+  public static Optional<BPlusLeaf> chromFind(final Path filePath,
+                                              final BptHeader bptHeader,
+                                              final String chromName)
+      throws IOException {
     if (chromName.length() > bptHeader.keySize) {
       return Optional.empty();
     }
@@ -75,7 +80,7 @@ public class Bpt {
     // characters of chromosome name
     // FIXME: А зачем нужна проверка на размер поинтера? Пример (valSize != bpt->valSize)
     // Интересно, как на дереве это отражается
-    final Optional<BptNodeLeaf> bptNodeLeaf;
+    final Optional<BPlusLeaf> bptNodeLeaf;
     try (SeekableDataInput s = SeekableDataInput.of(filePath)) {
       s.order(bptHeader.byteOrder);
       bptNodeLeaf = rFindChromByName(s, bptHeader, bptHeader.rootOffset, chromName);
@@ -86,7 +91,7 @@ public class Bpt {
   /**
    * Find value corresponding to key.
    */
-  private static Optional<BptNodeLeaf> rFindChromByName(final SeekableDataInput s,
+  private static Optional<BPlusLeaf> rFindChromByName(final SeekableDataInput s,
                                                         final BptHeader bptHeader,
                                                         final long blockStart,
                                                         final String chromName) throws IOException {
@@ -106,7 +111,7 @@ public class Bpt {
           final ByteBuffer b = ByteBuffer.wrap(valBuf).order(bptHeader.byteOrder);
           final int chromId = b.getInt();
           final int chromSize = b.getInt();
-          return Optional.of(new BptNodeLeaf(new String(keyBuf), chromId, chromSize));
+          return Optional.of(new BPlusLeaf(new String(keyBuf), chromId, chromSize));
         }
       }
       return Optional.empty();

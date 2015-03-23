@@ -143,11 +143,11 @@ public class BigBedToBedTest extends TestCase {
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
     String chromName = "chr1";
-    Optional<BptNodeLeaf> bptNodeLeaf
-        = Bpt.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
+    Optional<BPlusLeaf> bptNodeLeaf
+        = BPlusTree.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
     assertFalse(bptNodeLeaf.isPresent());
     chromName = "chr21";
-    bptNodeLeaf = Bpt.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
+    bptNodeLeaf = BPlusTree.chromFind(s.filePath(), bigHeader.bptHeader, chromName);
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(bptNodeLeaf.get().id, 0);
     assertEquals(bptNodeLeaf.get().size, 48129895);
@@ -160,16 +160,16 @@ public class BigBedToBedTest extends TestCase {
     final BigHeader bigHeader = BigHeader.parse(s);
 
     // Construct list of chromosomes from B+ tree
-    final LinkedList<BptNodeLeaf> chromList = new LinkedList<>();
+    final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
     s.order(bigHeader.bptHeader.byteOrder);
-    Bpt.rTraverse(s, bigHeader.bptHeader, bigHeader.bptHeader.rootOffset, chromList);
+    BPlusTree.traverse(s, bigHeader.bptHeader, chromList::add);
 
     final RTreeIndexHeader rtiHeader
         = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);
 
     // Loop through chromList in reverse
-    final Iterator<BptNodeLeaf> iter = chromList.descendingIterator();
-    final BptNodeLeaf node = iter.next();
+    final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
+    final BPlusLeaf node = iter.next();
     final LinkedList<RTreeIndexLeaf> overlappingBlockList = new LinkedList<>();
     s.order(rtiHeader.byteOrder);
     RTreeIndex.rFindOverlappingBlocks(overlappingBlockList, s, 0,

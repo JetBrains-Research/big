@@ -1,16 +1,12 @@
 package org.jbb.big;
 
 /**
- * A single node in a B+ tree.
- *
- * Big formats use a B+ tree to store a mapping from chromosome
- * names to (id, size) pairs, where id is a unique positive integer
- * and size is chromosome length in base pairs.
+ * A leaf node in a B+ tree.
  *
  * @author Sergey Zherevchuk
  * @since 10/03/15
  */
-public class BptNodeLeaf {
+public class BPlusLeaf {
   /** Chromosome name, e.g. "chr19" or "chrY". */
   public final String key;
   /** Unique chromosome identifier. */
@@ -18,7 +14,7 @@ public class BptNodeLeaf {
   /** Chromosome length in base pairs. */
   public final int size;
 
-  public BptNodeLeaf(final String key, final int id, final int size) {
+  public BPlusLeaf(final String key, final int id, final int size) {
     this.key = key;
     this.id = id;
     this.size = size;

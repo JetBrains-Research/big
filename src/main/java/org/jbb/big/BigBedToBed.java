@@ -37,18 +37,18 @@ public class BigBedToBed {
       final BigHeader bigHeader = BigHeader.parse(s);
 
       // Construct list of chromosomes from B+ tree
-      final LinkedList<BptNodeLeaf> chromList = new LinkedList<>();
+      final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
       s.order(bigHeader.bptHeader.byteOrder);
-      Bpt.rTraverse(s, bigHeader.bptHeader, bigHeader.bptHeader.rootOffset, chromList);
+      BPlusTree.traverse(s, bigHeader.bptHeader, chromList::add);
       final int itemCount = 0;
 
       final RTreeIndexHeader rtiHeader
           = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);
 
       // Loop through chromList in reverse
-      final Iterator<BptNodeLeaf> iter = chromList.descendingIterator();
+      final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
       while (iter.hasNext()) {
-        final BptNodeLeaf node = iter.next();
+        final BPlusLeaf node = iter.next();
         // Filter by chromosome key
         if (!chromName.isEmpty() && !node.key.equals(chromName)) {
           continue;
