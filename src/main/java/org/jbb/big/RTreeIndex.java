@@ -142,7 +142,7 @@ public class RTreeIndex {
    * {@code query}. Note that since some of the intervals contained in
    * a block might *not* overlap the {@code query}.
    */
-  public List<RTreeIndexLeaf> findOverlappingBlocks(
+  protected List<RTreeIndexLeaf> findOverlappingBlocks(
       final SeekableDataInput s, final RTreeInterval query)
       throws IOException {
     final List<RTreeIndexLeaf> overlappingBlocks = Lists.newArrayList();
@@ -153,11 +153,6 @@ public class RTreeIndex {
     return overlappingBlocks;
   }
 
-  /**
-   * Return list of file blocks that between them contain all items that overlap
-   * start/end on chromIx.  Also there will be likely some non-overlapping items
-   * in these blocks too.
-   */
   private void findOverlappingBlocksRecursively(
       final SeekableDataInput s, final RTreeInterval query, final long offset,
       final List<RTreeIndexLeaf> overlappingBlocks)

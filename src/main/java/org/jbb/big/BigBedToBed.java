@@ -36,8 +36,6 @@ public class BigBedToBed {
       bigHeader.bPlusTree.traverse(s, chromList::add);
       final int itemCount = 0;
 
-      final RTreeIndex rti = RTreeIndex.read(s, bigHeader.unzoomedIndexOffset);
-
       // Loop through chromList in reverse
       final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
       while (iter.hasNext()) {
@@ -60,7 +58,7 @@ public class BigBedToBed {
 
         final RTreeInterval query = RTreeInterval.of(node.id, start, end);
         // Write data to output file
-        for (final BedData interval : rti.findOverlaps(s, query, itemsLeft)) {
+        for (final BedData interval : bigHeader.rTree.findOverlaps(s, query, itemsLeft)) {
           out.write(node.key + "\t" + interval.start + "\t" +  interval.end + "\t" + interval.rest + "\n");
         }
 //        System.out.println("id: " + node.id + " size: " + node.size);

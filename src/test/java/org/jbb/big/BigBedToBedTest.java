@@ -21,9 +21,7 @@ public class BigBedToBedTest extends TestCase {
     final BigHeader bigHeader = BigHeader.parse(s);
     assertTrue(bigHeader.version == 1);
     assertTrue(bigHeader.zoomLevels == 5);
-    assertTrue(bigHeader.chromTreeOffset == 184);
     assertTrue(bigHeader.unzoomedDataOffset == 233);
-    assertTrue(bigHeader.unzoomedIndexOffset == 192771);
     assertTrue(bigHeader.fieldCount == 3);
     assertTrue(bigHeader.definedFieldCount == 3);
     assertTrue(bigHeader.asOffset >= 0);
@@ -159,13 +157,11 @@ public class BigBedToBedTest extends TestCase {
     final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
     bigHeader.bPlusTree.traverse(s, chromList::add);
 
-    final RTreeIndex rti = RTreeIndex.read(s, bigHeader.unzoomedIndexOffset);
-
     // Loop through chromList in reverse
     final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
     final BPlusLeaf node = iter.next();
     final List<RTreeIndexLeaf> overlappingBlocks
-        = rti.findOverlappingBlocks(s, RTreeInterval.of(node.id, 0, node.size));
+        = bigHeader.rTree.findOverlappingBlocks(s, RTreeInterval.of(node.id, 0, node.size));
     final ListIterator<RTreeIndexLeaf> iter2 = overlappingBlocks.listIterator();
     while (iter2.hasNext()) {
       RTreeIndexLeaf block = iter2.next();
