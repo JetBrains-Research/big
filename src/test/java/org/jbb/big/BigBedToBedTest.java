@@ -142,15 +142,15 @@ public class BigBedToBedTest extends TestCase {
     final Path inputPath = getExample("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
-    String chromName = "chr1";
+
     Optional<BPlusLeaf> bptNodeLeaf
-        = BPlusTree.find(inputPath, bigHeader.bptHeader, chromName);
+        = BPlusTree.find(s, bigHeader.bptHeader, "chr1");
     assertFalse(bptNodeLeaf.isPresent());
-    chromName = "chr21";
-    bptNodeLeaf = BPlusTree.find(inputPath, bigHeader.bptHeader, chromName);
+
+    bptNodeLeaf = BPlusTree.find(s, bigHeader.bptHeader, "chr21");
     assertTrue(bptNodeLeaf.isPresent());
-    assertEquals(bptNodeLeaf.get().id, 0);
-    assertEquals(bptNodeLeaf.get().size, 48129895);
+    assertEquals(0, bptNodeLeaf.get().id);
+    assertEquals(48129895, bptNodeLeaf.get().size);
   }
 
   public void testRFindOverlappingBlocks() throws Exception {

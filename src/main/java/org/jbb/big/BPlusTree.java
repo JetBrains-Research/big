@@ -1,9 +1,7 @@
 package org.jbb.big;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -41,6 +39,7 @@ public class BPlusTree {
                                           final long blockStart,
                                           final Consumer<BPlusLeaf> consumer)
       throws IOException {
+    // Invariant: a stream is in bptHeader.byteOrder.
     s.seek(blockStart);
 
     final boolean isLeaf = s.readBoolean();
@@ -69,65 +68,72 @@ public class BPlusTree {
   }
 
   /**
-   * Find value associated with key. Return BptNodeLeaf if it's found.
+   * Recursively traverses a B+ tree looking for a leaf corresponding
+   * to {@code query}.
    */
-  public static Optional<BPlusLeaf> find(final Path filePath,
+  public static Optional<BPlusLeaf> find(final SeekableDataInput s,
                                          final BptHeader bptHeader,
-                                         final String chromName)
+                                         final String query)
       throws IOException {
-    if (chromName.length() > bptHeader.keySize) {
+    if (query.length() > bptHeader.keySize) {
       return Optional.empty();
     }
-    // TODO: Кажется, нужно обрезать chromName по keySize. В таблице 10 речь про first keySize
-    // characters of chromosome name
+
     // FIXME: А зачем нужна проверка на размер поинтера? Пример (valSize != bpt->valSize)
     // Интересно, как на дереве это отражается
-    final Optional<BPlusLeaf> bptNodeLeaf;
-    try (SeekableDataInput s = SeekableDataInput.of(filePath)) {
-      s.order(bptHeader.byteOrder);
-      bptNodeLeaf = rFindChromByName(s, bptHeader, bptHeader.rootOffset, chromName);
-    }
-    return bptNodeLeaf;
+    final ByteOrder originalOrder = s.order();
+    s.order(bptHeader.byteOrder);
+
+    // Trim query to 'keySize' because the spec. guarantees us
+    // that all B+ tree nodes have a fixed-size key.
+    final String trimmedQuery
+        = query.substring(0, Math.min(query.length(), bptHeader.keySize));
+    final Optional<BPlusLeaf> res = findRecursively(s, bptHeader,
+                                                    bptHeader.rootOffset,
+                                                    trimmedQuery);
+    s.order(originalOrder);
+    return res;
   }
 
-  /**
-   * Find value corresponding to key.
-   */
-  private static Optional<BPlusLeaf> rFindChromByName(final SeekableDataInput s,
-                                                        final BptHeader bptHeader,
-                                                        final long blockStart,
-                                                        final String chromName) throws IOException {
+  private static Optional<BPlusLeaf> findRecursively(final SeekableDataInput s,
+                                                     final BptHeader bptHeader,
+                                                     final long blockStart,
+                                                     final String query)
+      throws IOException {
+    // Invariant: a stream is in bptHeader.byteOrder.
     s.seek(blockStart);
-    // Read node format
+
     final boolean isLeaf = s.readBoolean();
     s.readBoolean(); // reserved
     final short childCount = s.readShort();
 
     final byte[] keyBuf = new byte[bptHeader.keySize];
-    final byte[] valBuf = new byte[bptHeader.valSize];
     if (isLeaf) {
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);
-        s.readFully(valBuf);
-        if (chromName.equals(new String(keyBuf))) {
-          final ByteBuffer b = ByteBuffer.wrap(valBuf).order(bptHeader.byteOrder);
-          final int chromId = b.getInt();
-          final int chromSize = b.getInt();
-          return Optional.of(new BPlusLeaf(new String(keyBuf), chromId, chromSize));
+        final int chromId = s.readInt();
+        final int chromSize = s.readInt();
+
+        final String key = new String(keyBuf);
+        if (query.equals(key)) {
+          return Optional.of(new BPlusLeaf(key, chromId, chromSize));
         }
       }
+
       return Optional.empty();
     } else {
       s.readFully(keyBuf);
       long fileOffset = s.readLong();
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);
-        if (chromName.compareTo(new String(keyBuf)) < 0) {
+        if (query.compareTo(new String(keyBuf)) < 0) {
           break;
         }
+
         fileOffset = s.readLong();
       }
-      return rFindChromByName(s, bptHeader, fileOffset, chromName);
+
+      return findRecursively(s, bptHeader, fileOffset, query);
     }
   }
 }
