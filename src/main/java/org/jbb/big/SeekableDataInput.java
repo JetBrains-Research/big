@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
+import java.util.Objects;
 
 /**
  * A byte order-aware seekable complement to {@link java.io.DataInputStream}.
@@ -42,8 +43,8 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
   private ByteOrder order;
 
   private SeekableDataInput(final RandomAccessFile file, final ByteOrder order) {
-    this.file = Preconditions.checkNotNull(file);
-    this.order = Preconditions.checkNotNull(order);
+    this.file = Objects.requireNonNull(file);
+    this.order = Objects.requireNonNull(order);
   }
 
   public ByteOrder order() {
