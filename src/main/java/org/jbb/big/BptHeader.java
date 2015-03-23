@@ -4,9 +4,10 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 
 /**
- * Chromosome B+ tree headers for bigBED.
+ * A header from B+ tree.
  *
  * @author Sergey Zherevchuk
+ * @since 10/03/15
  */
 public class BptHeader {
 

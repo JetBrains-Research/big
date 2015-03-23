@@ -54,7 +54,7 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
     return order;
   }
 
-  public void order(ByteOrder order) {
+  public void order(final ByteOrder order) {
     this.order = Preconditions.checkNotNull(order);
   }
 
@@ -117,11 +117,6 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
   @Override
   public int read() throws IOException {
     return file.read();
-  }
-
-  @Override
-  public int read(byte b[]) throws IOException {
-    return file.read(b, 0, b.length);
   }
 
   @Override

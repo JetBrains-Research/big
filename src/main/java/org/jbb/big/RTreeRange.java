@@ -6,7 +6,7 @@ import java.util.Objects;
  * A semi-closed interval.
  *
  * @author Sergei Lebedev
- * @date 16/03/15
+ * @since 16/03/15
  */
 public class RTreeRange {
   public static RTreeRange of(final int chromIx, final int startOffset, final int endOffset) {

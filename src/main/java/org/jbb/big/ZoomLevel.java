@@ -10,7 +10,6 @@ public class ZoomLevel {
   public final long dataOffset;
   public final long indexOffset;
 
-
   public ZoomLevel(final int reductionLevel, final int reserved,
                    final long dataOffset, final long indexOffset) {
     this.reductionLevel = reductionLevel;

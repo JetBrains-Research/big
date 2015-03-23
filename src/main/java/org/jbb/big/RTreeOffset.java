@@ -10,7 +10,7 @@ import java.util.Objects;
  * A (chromosome, offset) pair.
  *
  * @author Sergei Lebedev
- * @date 16/03/15
+ * @since 16/03/15
  */
 public class RTreeOffset implements Comparable<RTreeOffset> {
   /** Chromosome ID as defined by the B+ index. */
