@@ -51,22 +51,76 @@ public class BigBedToBedTest extends TestCase {
     }
   }
 
-  public void testBigBedToBedRestrictOutput() throws Exception {
+  public void testBigBedToBedFilterByChromosomeName() throws Exception {
     final Path inputPath = getExample("example1.bb");
     final Path outputPath = Files.createTempFile("out", ".bed");
-    // Params restriction
     final int chromStart = 0;
-    final int chromEnd = 33996242;
-    final int maxItems = 5;
-    BigBedToBed.main(inputPath, outputPath, "", chromStart, chromEnd, maxItems);
+    final int chromEnd = 0;
+    final int maxItems = 0;
+    // In example1.bb we have only chr21 chromosome
+    String chromName = "chr22";
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertFalse(Files.size(outputPath) > 0);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+    // This chromosome exist in example bb-file
+    chromName = "chr21";
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
     try {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-//      showFileContent(outputPath);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+    // Get all chromosome from example file
+    chromName = "";
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
     } finally {
       Files.deleteIfExists(outputPath);
     }
   }
+
+  public void testBigBedToBedRestrictOutput() throws Exception {
+    final Path inputPath = getExample("example1.bb");
+    final Path outputPath = Files.createTempFile("out", ".bed");
+    // Params restriction
+    final String chromName = "chr21";
+    int chromStart = 0;
+    int chromEnd = 0;
+    int maxItems = 10;
+    // Check lines count in output file
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+      // In example1.bb we have only one chromosome
+      assertEquals(countLines(outputPath), maxItems);
+//      showFileContent(outputPath);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+    // Restrict intervals
+    chromStart = 9508110;
+    chromEnd = 9906613;
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    System.out.println(countLines(outputPath));
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+      // In example1.bb we have only one chromosome
+      assertEquals(countLines(outputPath), 5);
+      showFileContent(outputPath);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+  }
+
 
   public void testRTreeIndexHeader() throws Exception {
     final Path inputPath = getExample("example1.bb");
@@ -152,6 +206,27 @@ public class BigBedToBedTest extends TestCase {
       }
     } finally {
       input.close();
+    }
+  }
+
+  private static int countLines(Path path) throws Exception {
+    InputStream is = new BufferedInputStream(new FileInputStream(path.toFile()));
+    try {
+      byte[] c = new byte[1024];
+      int count = 0;
+      int readChars = 0;
+      boolean empty = true;
+      while ((readChars = is.read(c)) != -1) {
+        empty = false;
+        for (int i = 0; i < readChars; ++i) {
+          if (c[i] == '\n') {
+            ++count;
+          }
+        }
+      }
+      return (count == 0 && !empty) ? 1 : count;
+    } finally {
+      is.close();
     }
   }
 }

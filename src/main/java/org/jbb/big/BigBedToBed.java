@@ -68,8 +68,8 @@ public class BigBedToBed {
         final RTreeRange query = RTreeRange.of(node.id, start, end);
         final List<BedData> intervalList
             = bigBedIntervalQuery(s, bigHeader, rtiHeader, query, itemsLeft);
-        // Write data to output file
 
+        // Write data to output file
         for (final BedData interval : intervalList) {
           out.write(node.key + "\t" + interval.start + "\t" +  interval.end + "\t" + interval.rest + "\n");
         }
@@ -121,6 +121,13 @@ public class BigBedToBed {
           }
 
           sb.append(ch);
+        }
+
+        if (start < query.left.offset) {
+          continue;
+        }
+        if (end > query.right.offset) {
+          break;
         }
 
         itemCount++;

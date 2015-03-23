@@ -29,6 +29,10 @@ public class BigHeader {
     final int uncompressBufSize = s.readInt();
     final long reserved = s.readLong();  // currently 0.
 
+    if (uncompressBufSize > 0) {
+      throw new IllegalStateException("data compression is not supported");
+    }
+
     if (reserved != 0) {
       throw new IllegalStateException("header extensions are not supported");
     }

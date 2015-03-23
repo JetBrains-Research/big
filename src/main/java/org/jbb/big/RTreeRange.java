@@ -25,7 +25,8 @@ public class RTreeRange {
   }
 
   public boolean overlaps(final RTreeRange other) {
-    return left.compareTo(other.left) >= 0 && right.compareTo(other.right) <= 0;
+    return !(other.right.compareTo(left) <= 0
+             || right.compareTo(other.left) <= 0);
   }
 
   @Override
