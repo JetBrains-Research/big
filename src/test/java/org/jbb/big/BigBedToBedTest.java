@@ -29,11 +29,11 @@ public class BigBedToBedTest extends TestCase {
     assertTrue(bigHeader.asOffset >= 0);
     assertTrue(bigHeader.totalSummaryOffset >= 0);
     assertTrue(bigHeader.uncompressBufSize == 0);
-    assertTrue(bigHeader.bptHeader.blockSize == 1);
-    assertTrue(bigHeader.bptHeader.keySize == 5);
-    assertTrue(bigHeader.bptHeader.valSize == 8);
-    assertTrue(bigHeader.bptHeader.itemCount == 1);
-    assertTrue(bigHeader.bptHeader.rootOffset == 216);
+    assertTrue(bigHeader.bPlusTree.header.blockSize == 1);
+    assertTrue(bigHeader.bPlusTree.header.keySize == 5);
+    assertTrue(bigHeader.bPlusTree.header.valSize == 8);
+    assertTrue(bigHeader.bPlusTree.header.itemCount == 1);
+    assertTrue(bigHeader.bPlusTree.header.rootOffset == 216);
   }
 
   public void testBigBedToBed() throws Exception {
@@ -140,11 +140,10 @@ public class BigBedToBedTest extends TestCase {
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
 
-    Optional<BPlusLeaf> bptNodeLeaf
-        = BPlusTree.find(s, bigHeader.bptHeader, "chr1");
+    Optional<BPlusLeaf> bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr1");
     assertFalse(bptNodeLeaf.isPresent());
 
-    bptNodeLeaf = BPlusTree.find(s, bigHeader.bptHeader, "chr21");
+    bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr21");
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(0, bptNodeLeaf.get().id);
     assertEquals(48129895, bptNodeLeaf.get().size);
@@ -158,8 +157,7 @@ public class BigBedToBedTest extends TestCase {
 
     // Construct list of chromosomes from B+ tree
     final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
-    s.order(bigHeader.bptHeader.byteOrder);
-    BPlusTree.traverse(s, bigHeader.bptHeader, chromList::add);
+    bigHeader.bPlusTree.traverse(s, chromList::add);
 
     final RTreeIndexHeader rtiHeader
         = RTreeIndexHeader.read(s, bigHeader.unzoomedIndexOffset);

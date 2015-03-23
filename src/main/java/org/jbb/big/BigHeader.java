@@ -1,7 +1,6 @@
 package org.jbb.big;
 
 import java.nio.ByteOrder;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +42,7 @@ public class BigHeader {
                                       s.readLong(), s.readLong()));
     }
 
-    final BptHeader bptHeader = BptHeader.read(s, chromTreeOffset);
+    final BPlusTree bptHeader = BPlusTree.read(s, chromTreeOffset);
     return new BigHeader(s.order(), version, zoomLevels, chromTreeOffset,
                          unzoomedDataOffset, unzoomedIndexOffset, fieldCount, definedFieldCount,
                          asOffset, totalSummaryOffset, uncompressBufSize, zoomLevelList, bptHeader);
@@ -61,7 +60,7 @@ public class BigHeader {
   public final long totalSummaryOffset;
   public final int uncompressBufSize;
   public final List<ZoomLevel> zoomLevelList;
-  public final BptHeader bptHeader;
+  public final BPlusTree bPlusTree;
 
   public BigHeader(final ByteOrder byteOrder, final short version,
                    final short zoomLevels, final long chromTreeOffset,
@@ -69,7 +68,7 @@ public class BigHeader {
                    final short fieldCount, final short definedFieldCount, final long asOffset,
                    final long totalSummaryOffset, final int uncompressBufSize,
                    final List<ZoomLevel> zoomLevelList,
-                   final BptHeader bptHeader) {
+                   final BPlusTree bPlusTree) {
     this.byteOrder = byteOrder;
     this.version = version;
     this.zoomLevels = zoomLevels;
@@ -82,6 +81,6 @@ public class BigHeader {
     this.totalSummaryOffset = totalSummaryOffset;
     this.uncompressBufSize = uncompressBufSize;
     this.zoomLevelList = zoomLevelList;
-    this.bptHeader = bptHeader;
+    this.bPlusTree = bPlusTree;
   }
 }

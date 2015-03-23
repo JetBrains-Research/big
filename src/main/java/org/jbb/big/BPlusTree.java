@@ -1,5 +1,7 @@
 package org.jbb.big;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.Optional;
@@ -7,14 +9,14 @@ import java.util.function.Consumer;
 
 
 /**
- * A B+ tree.
+ * A B+ tree mapping chromosome names to (id, size) pairs.
  *
- * Big formats use a B+ tree to store a mapping from chromosome
- * names to (id, size) pairs, where id is a unique positive integer
- * and size is chromosome length in base pairs.
+ * Here {@code id} is a unique positive integer and size is
+ * chromosome length in base pairs. Contrary to the original
+ * definition the leaves in this B+ tree aren't linked.
  *
- * Contrary to the original definition the leaves in this B+ tree
- * aren't linked.
+ * See tables 8-11 in Supplementary Data for byte-to-byte details
+ * on the B+ header and node formats.
  *
  * @author Sergey Zherevchuk
  * @author Sergei Lebedev
@@ -22,31 +24,77 @@ import java.util.function.Consumer;
  */
 public class BPlusTree {
 
+  public static BPlusTree read(final SeekableDataInput s, final long offset)
+      throws IOException {
+    final Header header = Header.read(s, offset);
+    return new BPlusTree(header);
+  }
+
+  @VisibleForTesting
+  protected static class Header {
+
+    private static final int MAGIC = 0x78ca8c91;
+
+    protected final ByteOrder byteOrder;
+    protected final int blockSize;
+    protected final int keySize;
+    protected final int valSize;
+    protected final long itemCount;
+    protected final long rootOffset;
+
+    Header(final ByteOrder byteOrder, final int blockSize, final int keySize,
+                  final int valSize, final long itemCount, final long rootOffset) {
+      this.byteOrder = byteOrder;
+      this.blockSize = blockSize;
+      this.keySize = keySize;
+      this.valSize = valSize;
+      this.itemCount = itemCount;
+      this.rootOffset = rootOffset;
+    }
+
+    static Header read(final SeekableDataInput s, final long offset) throws IOException {
+      s.seek(offset);
+      s.guess(MAGIC);
+      final int blockSize = s.readInt();
+      final int keySize = s.readInt();
+      final int valSize = s.readInt();
+      final long itemCount = s.readLong();
+      s.readLong(); // reserved bytes
+      final long rootOffset = s.tell();
+
+      return new Header(s.order(), blockSize, keySize, valSize, itemCount, rootOffset);
+    }
+  }
+
+  protected final Header header;
+
+  public BPlusTree(final Header header) {
+    this.header = header;
+  }
+
   /**
    * Recursively goes across tree, calling callback on the leaves.
    */
-  public static void traverse(final SeekableDataInput s, final BptHeader bptHeader,
-                              final Consumer<BPlusLeaf> consumer)
+  public void traverse(final SeekableDataInput s, final Consumer<BPlusLeaf> consumer)
       throws IOException {
     final ByteOrder originalOrder = s.order();
-    s.order(bptHeader.byteOrder);
-    traverseRecursively(s, bptHeader, bptHeader.rootOffset, consumer);
+    s.order(header.byteOrder);
+    traverseRecursively(s, header.rootOffset, consumer);
     s.order(originalOrder);
   }
 
-  private static void traverseRecursively(final SeekableDataInput s,
-                                          final BptHeader bptHeader,
-                                          final long blockStart,
-                                          final Consumer<BPlusLeaf> consumer)
+  private void traverseRecursively(final SeekableDataInput s,
+                                   final long blockStart,
+                                   final Consumer<BPlusLeaf> consumer)
       throws IOException {
-    // Invariant: a stream is in bptHeader.byteOrder.
+    // Invariant: a stream is in Header.byteOrder.
     s.seek(blockStart);
 
     final boolean isLeaf = s.readBoolean();
     s.readBoolean(); // reserved
     final short childCount = s.readShort();
 
-    final byte[] keyBuf = new byte[bptHeader.keySize];
+    final byte[] keyBuf = new byte[header.keySize];
     if (isLeaf) {
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);
@@ -62,7 +110,7 @@ public class BPlusTree {
       }
 
       for (int i = 0; i < childCount; i++) {
-        traverseRecursively(s, bptHeader, fileOffsets[i], consumer);
+        traverseRecursively(s, fileOffsets[i], consumer);
       }
     }
   }
@@ -71,43 +119,39 @@ public class BPlusTree {
    * Recursively traverses a B+ tree looking for a leaf corresponding
    * to {@code query}.
    */
-  public static Optional<BPlusLeaf> find(final SeekableDataInput s,
-                                         final BptHeader bptHeader,
-                                         final String query)
+  public Optional<BPlusLeaf> find(final SeekableDataInput s, final String query)
       throws IOException {
-    if (query.length() > bptHeader.keySize) {
+    if (query.length() > header.keySize) {
       return Optional.empty();
     }
 
     // FIXME: А зачем нужна проверка на размер поинтера? Пример (valSize != bpt->valSize)
     // Интересно, как на дереве это отражается
     final ByteOrder originalOrder = s.order();
-    s.order(bptHeader.byteOrder);
+    s.order(header.byteOrder);
 
     // Trim query to 'keySize' because the spec. guarantees us
     // that all B+ tree nodes have a fixed-size key.
     final String trimmedQuery
-        = query.substring(0, Math.min(query.length(), bptHeader.keySize));
-    final Optional<BPlusLeaf> res = findRecursively(s, bptHeader,
-                                                    bptHeader.rootOffset,
-                                                    trimmedQuery);
+        = query.substring(0, Math.min(query.length(), header.keySize));
+    final Optional<BPlusLeaf> res
+        = findRecursively(s, header.rootOffset, trimmedQuery);
     s.order(originalOrder);
     return res;
   }
 
-  private static Optional<BPlusLeaf> findRecursively(final SeekableDataInput s,
-                                                     final BptHeader bptHeader,
-                                                     final long blockStart,
-                                                     final String query)
+  private Optional<BPlusLeaf> findRecursively(final SeekableDataInput s,
+                                              final long blockStart,
+                                              final String query)
       throws IOException {
-    // Invariant: a stream is in bptHeader.byteOrder.
+    // Invariant: a stream is in Header.byteOrder.
     s.seek(blockStart);
 
     final boolean isLeaf = s.readBoolean();
     s.readBoolean(); // reserved
     final short childCount = s.readShort();
 
-    final byte[] keyBuf = new byte[bptHeader.keySize];
+    final byte[] keyBuf = new byte[header.keySize];
     if (isLeaf) {
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);
@@ -133,7 +177,7 @@ public class BPlusTree {
         fileOffset = s.readLong();
       }
 
-      return findRecursively(s, bptHeader, fileOffset, query);
+      return findRecursively(s, fileOffset, query);
     }
   }
 }

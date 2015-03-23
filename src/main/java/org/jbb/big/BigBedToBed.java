@@ -38,8 +38,7 @@ public class BigBedToBed {
 
       // Construct list of chromosomes from B+ tree
       final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
-      s.order(bigHeader.bptHeader.byteOrder);
-      BPlusTree.traverse(s, bigHeader.bptHeader, chromList::add);
+      bigHeader.bPlusTree.traverse(s, chromList::add);
       final int itemCount = 0;
 
       final RTreeIndexHeader rtiHeader
