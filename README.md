@@ -5,6 +5,7 @@
 Useful links
 ------------
 
+* Gitter [chat](https://gitter.im/superbobry/big)
 * Kent et al. [paper] [paper] in Bioinformatics
 * UCSC documentation on [WIG] [wig], [BED] [bed], [BigWIG] [bigwig] and [BigBED] [bigbed]
 * Reference C [implementation](http://hgdownload.cse.ucsc.edu/admin/exe) of both big formats by UCSC
