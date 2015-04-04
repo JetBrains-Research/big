@@ -168,6 +168,7 @@ public class BPlusTree {
     } else {
       s.readFully(keyBuf);
       long fileOffset = s.readLong();
+      // vvv we loop from 1 because we've read the first child above.
       for (int i = 1; i < childCount; i++) {
         s.readFully(keyBuf);
         if (query.compareTo(new String(keyBuf)) < 0) {
