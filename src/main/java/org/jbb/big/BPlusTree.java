@@ -168,7 +168,7 @@ public class BPlusTree {
     } else {
       s.readFully(keyBuf);
       long fileOffset = s.readLong();
-      for (int i = 0; i < childCount; i++) {
+      for (int i = 1; i < childCount; i++) {
         s.readFully(keyBuf);
         if (query.compareTo(new String(keyBuf)) < 0) {
           break;
