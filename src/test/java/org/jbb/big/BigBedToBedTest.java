@@ -2,11 +2,8 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,7 +13,7 @@ import java.util.Optional;
 public class BigBedToBedTest extends TestCase {
   public void testParseBigHeader() throws Exception {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final BigHeader bigHeader = BigHeader.parse(s);
     assertTrue(bigHeader.version == 1);
@@ -35,7 +32,7 @@ public class BigBedToBedTest extends TestCase {
   }
 
   public void testBigBedToBed() throws Exception {
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final Path outputPath = Files.createTempFile("out", ".bed");
     BigBedToBed.main(inputPath, outputPath, "", 0, 0, 0);
     try {
@@ -47,7 +44,7 @@ public class BigBedToBedTest extends TestCase {
   }
 
   public void testBigBedToBedFilterByChromosomeName() throws Exception {
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final Path outputPath = Files.createTempFile("out", ".bed");
     final int chromStart = 0;
     final int chromEnd = 0;
@@ -82,9 +79,10 @@ public class BigBedToBedTest extends TestCase {
   }
 
   public void testBigBedToBedRestrictOutput() throws Exception {
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final Path outputPath = Files.createTempFile("out", ".bed");
     // Params restriction
+    // In example1.bb we have only one chromosome
     final String chromName = "chr21";
     int chromStart = 0;
     int chromEnd = 0;
@@ -94,9 +92,8 @@ public class BigBedToBedTest extends TestCase {
     try {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      // In example1.bb we have only one chromosome
       assertEquals(maxItems, Files.lines(outputPath).count());
-//      showFileContent(outputPath);
+//      Files.copy(outputPath, System.out);
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -104,13 +101,45 @@ public class BigBedToBedTest extends TestCase {
     chromStart = 9508110;
     chromEnd = 9906613;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    System.out.println(Files.lines(outputPath).count());
     try {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      // In example1.bb we have only one chromosome
       assertEquals(Files.lines(outputPath).count(), 5);
-      Files.copy(outputPath, System.out);
+//      Files.copy(outputPath, System.out);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+
+    chromStart = 9508110;
+    chromEnd = 9906612;
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+      assertEquals(Files.lines(outputPath).count(), 4);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+
+    chromStart = 9508110;
+    chromEnd = 9906614;
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+      assertEquals(Files.lines(outputPath).count(), 5);
+    } finally {
+      Files.deleteIfExists(outputPath);
+    }
+
+    chromStart = 9508110;
+    chromEnd = 9903230;
+    maxItems = 3;
+    BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
+    try {
+      assertTrue(Files.exists(outputPath));
+      assertTrue(Files.size(outputPath) > 0);
+      assertEquals(Files.lines(outputPath).count(), 3);
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -118,7 +147,7 @@ public class BigBedToBedTest extends TestCase {
 
 
   public void testRTreeIndexHeader() throws Exception {
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     final long unzoomedIndexOffset = 192771;
     final RTreeIndex rti = RTreeIndex.read(s, unzoomedIndexOffset);
@@ -133,22 +162,8 @@ public class BigBedToBedTest extends TestCase {
     assertEquals(rti.header.rootOffset, 192819);
   }
 
-  public void testRFindChromName() throws Exception {
-    final Path inputPath = getExample("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(inputPath);
-    final BigHeader bigHeader = BigHeader.parse(s);
-
-    Optional<BPlusLeaf> bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr1");
-    assertFalse(bptNodeLeaf.isPresent());
-
-    bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr21");
-    assertTrue(bptNodeLeaf.isPresent());
-    assertEquals(0, bptNodeLeaf.get().id);
-    assertEquals(48129895, bptNodeLeaf.get().size);
-  }
-
   public void testRFindOverlappingBlocks() throws Exception {
-    final Path inputPath = getExample("example1.bb");
+    final Path inputPath = Examples.get("example1.bb");
     final SeekableDataInput s = SeekableDataInput.of(inputPath);
     // Parse common headers
     final BigHeader bigHeader = BigHeader.parse(s);
@@ -169,11 +184,4 @@ public class BigBedToBedTest extends TestCase {
     }
   }
 
-  private Path getExample(final String name) throws URISyntaxException {
-    final URL url = getClass().getClassLoader().getResource(name);
-    if (url == null) {
-      throw new IllegalStateException("resource not found");
-    }
-    return Paths.get(url.toURI()).toFile().toPath();
-  }
 }

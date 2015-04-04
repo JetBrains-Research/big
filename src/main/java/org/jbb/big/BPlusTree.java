@@ -127,7 +127,6 @@ public class BPlusTree {
     }
 
     // FIXME: А зачем нужна проверка на размер поинтера? Пример (valSize != bpt->valSize)
-    // Интересно, как на дереве это отражается
     final ByteOrder originalOrder = s.order();
     s.order(header.byteOrder);
 
