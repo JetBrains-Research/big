@@ -55,6 +55,7 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
   public void skipBytes(final int n) throws IOException {
     file.skipBytes(n);
   }
+
   public void seek(final long pos) throws IOException {
     file.seek(pos);
   }
@@ -92,6 +93,7 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
                     ? Shorts.fromBytes(b[2], b[3])
                     : Shorts.fromBytes(b[3], b[2]));
   }
+
   @Override
   public void writeChar(final int v) throws IOException {
     file.writeChar(v);
@@ -129,6 +131,7 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
   public void writeDouble(final double v) throws IOException {
     writeLong(Double.doubleToLongBits(v));
   }
+
   @Override
   public void writeBytes(final @NotNull String s) throws IOException {
     file.writeBytes(s);

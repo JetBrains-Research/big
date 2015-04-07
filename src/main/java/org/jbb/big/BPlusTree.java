@@ -104,7 +104,7 @@ public class BPlusTree {
         consumer.accept(new BPlusLeaf(new String(keyBuf), chromId, chromSize));
       }
     } else {
-      final long fileOffsets[] = new long[childCount];
+      final long[] fileOffsets = new long[childCount];
       for (int i = 0; i < childCount; i++) {
         s.readFully(keyBuf);  // XXX why can we overwrite it?
         fileOffsets[i] = s.readLong();

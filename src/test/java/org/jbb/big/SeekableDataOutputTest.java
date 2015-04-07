@@ -11,18 +11,32 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Random;
 
 public class SeekableDataOutputTest extends TestCase {
 
-  final short   shortValue = 123;
-  final int     unsignedShortValue = 65534;
-  final int     intValue = 123456789;
-  final long    unsignedIntValue = 3147483648L;
-  final long    longValue = 1234567890123L;
-  final float   floatValue = 9876.654321F;
-  final double  doubleValue = 45697645132.468;
-  final String  utfStringValue = "I'm UTF строка";
-  final String  charsArrayValue = "I'm char array";
+  short shortValue;
+  int unsignedShortValue;
+  int intValue;
+  long unsignedIntValue;
+  long longValue;
+  float floatValue;
+  double doubleValue;
+  final String utfStringValue = "I'm UTF строка";
+  final String charsArrayValue = "I'm char array";
+
+  public SeekableDataOutputTest() {
+    final Random random = new Random();
+    shortValue = (short)random.nextInt();
+    unsignedShortValue = random.nextInt() & ((1 << 16) - 1);
+    unsignedShortValue |= 1 << 15;
+    intValue = random.nextInt();
+    unsignedIntValue = random.nextLong() & ((1L << 32) - 1);
+    unsignedIntValue |= 1L << 31;
+    longValue = random.nextLong();
+    floatValue = random.nextFloat();
+    doubleValue = random.nextDouble();
+  }
 
   private void writeData(final SeekableDataOutput writer) throws IOException {
     writer.writeShort(shortValue);
@@ -37,41 +51,43 @@ public class SeekableDataOutputTest extends TestCase {
   }
 
   private void readData(final SeekableDataInput reader) throws IOException {
-    final short shortValueReader = reader.readShort();
-    assertEquals(shortValue, shortValueReader);
-    final int unsigedShortValueReader = reader.readUnsignedShort();
-    assertEquals(unsignedShortValue, unsigedShortValueReader);
-    final int intValueReader = reader.readInt();
-    assertEquals(intValue, intValueReader);
-    final long unsignedIntValueReader = reader.readUnsignedInt();
-    assertEquals(unsignedIntValue, unsignedIntValueReader);
-    final long longValueReader = reader.readLong();
-    assertEquals(longValue, longValueReader);
-    final float floatValueReader = reader.readFloat();
-    assertEquals(floatValue, floatValueReader);
-    final double doubleValueReader = reader.readDouble();
-    assertEquals(doubleValue, doubleValueReader);
-    final String utfStringReader = reader.readUTF();
-    assertEquals(utfStringValue, utfStringReader);
+    assertEquals(shortValue, reader.readShort());
+    assertEquals(unsignedShortValue, reader.readUnsignedShort());
+    assertEquals(intValue, reader.readInt());
+    assertEquals(unsignedIntValue, reader.readUnsignedInt());
+    assertEquals(longValue, reader.readLong());
+    assertEquals(floatValue, reader.readFloat());
+    assertEquals(doubleValue, reader.readDouble());
+    assertEquals(utfStringValue, reader.readUTF());
 
-    final byte charsArrayValueReader[] = new byte[charsArrayValue.length()];
+    final byte[] charsArrayValueReader = new byte[charsArrayValue.length()];
     reader.readFully(charsArrayValueReader);
     assertTrue(Arrays.equals(charsArrayValue.getBytes(), charsArrayValueReader));
   }
 
   public void testBigEndian() throws IOException {
-    final Path path = Files.createTempFile("seekableBI", ".bed");
-    final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.BIG_ENDIAN);
-    writeData(writer);
-    final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.BIG_ENDIAN);
-    readData(reader);
+    final Path path = Files.createTempFile("seekableBE", ".bed");
+    try {
+      final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.BIG_ENDIAN);
+      writeData(writer);
+      final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.BIG_ENDIAN);
+      readData(reader);
+    }
+    finally {
+      Files.deleteIfExists(path);
+    }
   }
 
   public void testLittleEndian() throws IOException {
-    final Path path = Files.createTempFile("seekableLI", ".bed");
-    final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.LITTLE_ENDIAN);
-    writeData(writer);
-    final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.LITTLE_ENDIAN);
-    readData(reader);
+    final Path path = Files.createTempFile("seekableLE", ".bed");
+    try {
+      final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.LITTLE_ENDIAN);
+      writeData(writer);
+      final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.LITTLE_ENDIAN);
+      readData(reader);
+    }
+    finally {
+      Files.deleteIfExists(path);
+    }
   }
 }
