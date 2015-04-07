@@ -1,6 +1,5 @@
 package org.jbb.big;
 
-import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
@@ -45,8 +44,13 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
     this.order = Objects.requireNonNull(order);
   }
 
-  public ByteOrder order() { return order; }
-  public void order(final ByteOrder order) { this.order = Preconditions.checkNotNull(order);}
+  public ByteOrder order() {
+    return order;
+  }
+
+  public void order(final ByteOrder order) {
+    this.order = Objects.requireNonNull(order);
+  }
 
   public void skipBytes(final int n) throws IOException {
     file.skipBytes(n);
@@ -76,17 +80,17 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
 
   @Override
   public void writeShort(final int v) throws IOException {
-    final byte b[] = Shorts.toByteArray((short)v);
-    file.writeShort(order == ByteOrder.BIG_ENDIAN ?
-                    Shorts.fromBytes(b[0], b[1]) :
-                    Shorts.fromBytes(b[1], b[0]));
+    final byte b[] = Shorts.toByteArray((short) v);
+    file.writeShort(order == ByteOrder.BIG_ENDIAN
+                    ? Shorts.fromBytes(b[0], b[1])
+                    : Shorts.fromBytes(b[1], b[0]));
   }
 
   public void writeUnsignedShort(final int v) throws IOException {
     final byte b[] = Ints.toByteArray(v);
-    file.writeShort(order == ByteOrder.BIG_ENDIAN ?
-                    Shorts.fromBytes(b[2], b[3]) :
-                    Shorts.fromBytes(b[3], b[2]));
+    file.writeShort(order == ByteOrder.BIG_ENDIAN
+                    ? Shorts.fromBytes(b[2], b[3])
+                    : Shorts.fromBytes(b[3], b[2]));
   }
   @Override
   public void writeChar(final int v) throws IOException {
@@ -95,25 +99,25 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
 
   @Override
   public void writeInt(final int v) throws IOException {
-    final byte b[] = Ints.toByteArray(v);
-    file.writeInt(order == ByteOrder.BIG_ENDIAN ?
-                  Ints.fromBytes(b[0], b[1], b[2], b[3]) :
-                  Ints.fromBytes(b[3], b[2], b[1], b[0]));
+    final byte[] b = Ints.toByteArray(v);
+    file.writeInt(order == ByteOrder.BIG_ENDIAN
+                  ? Ints.fromBytes(b[0], b[1], b[2], b[3])
+                  : Ints.fromBytes(b[3], b[2], b[1], b[0]));
   }
 
   public void writeUnsignedInt(final long v) throws IOException {
-    final byte b[] = Longs.toByteArray(v);
-    file.writeInt(order == ByteOrder.BIG_ENDIAN ?
-                  Ints.fromBytes(b[4], b[5], b[6], b[7]) :
-                  Ints.fromBytes(b[7], b[6], b[5], b[4]));
+    final byte[] b = Longs.toByteArray(v);
+    file.writeInt(order == ByteOrder.BIG_ENDIAN
+                  ? Ints.fromBytes(b[4], b[5], b[6], b[7])
+                  : Ints.fromBytes(b[7], b[6], b[5], b[4]));
   }
 
   @Override
   public void writeLong(final long v) throws IOException {
-    final byte b[] = Longs.toByteArray(v);
-    file.writeLong(order == ByteOrder.BIG_ENDIAN ?
-                   Longs.fromBytes(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]) :
-                   Longs.fromBytes(b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0]));
+    final byte[] b = Longs.toByteArray(v);
+    file.writeLong(order == ByteOrder.BIG_ENDIAN
+                   ? Longs.fromBytes(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
+                   : Longs.fromBytes(b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0]));
   }
 
   @Override
@@ -144,5 +148,4 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
   public void write(final int b) throws IOException {
     file.write(b);
   }
-
 }

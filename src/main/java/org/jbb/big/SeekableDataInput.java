@@ -1,6 +1,5 @@
 package org.jbb.big;
 
-import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -52,7 +51,7 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
   }
 
   public void order(final ByteOrder order) {
-    this.order = Preconditions.checkNotNull(order);
+    this.order = Objects.requireNonNull(order);
   }
 
   /** Guess byte order from a given big-endian {@code magic}. */
