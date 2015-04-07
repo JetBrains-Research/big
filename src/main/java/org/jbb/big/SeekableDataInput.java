@@ -150,7 +150,7 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
     final byte b1 = readAndCheckByte();
     final byte b2 = readAndCheckByte();
     return order == ByteOrder.BIG_ENDIAN
-           ? Ints.fromBytes(b1, b2, (byte) 0, (byte) 0)
+           ? Ints.fromBytes((byte) 0, (byte) 0, b1, b2)
            : Ints.fromBytes((byte) 0, (byte) 0, b2, b1);
   }
 
@@ -171,7 +171,7 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
     final byte b3 = readAndCheckByte();
     final byte b4 = readAndCheckByte();
     return order == ByteOrder.BIG_ENDIAN
-           ? Longs.fromBytes(b1, b2, b3, b4, (byte) 0, (byte) 0, (byte) 0, (byte) 0)
+           ? Longs.fromBytes((byte) 0, (byte) 0, (byte) 0, (byte) 0, b1, b2, b3, b4)
            : Longs.fromBytes((byte) 0, (byte) 0, (byte) 0, (byte) 0, b4, b3, b2, b1);
   }
 
