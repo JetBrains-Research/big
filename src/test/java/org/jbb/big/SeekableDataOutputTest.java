@@ -25,7 +25,7 @@ public class SeekableDataOutputTest extends TestCase {
   final String utfStringValue = "I'm UTF строка";
   final String charsArrayValue = "I'm char array";
 
-  public SeekableDataOutputTest() {
+  protected void setUp() {
     final Random random = new Random();
     shortValue = (short)random.nextInt();
     unsignedShortValue = random.nextInt() & ((1 << 16) - 1);
