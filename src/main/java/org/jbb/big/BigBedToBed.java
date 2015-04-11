@@ -1,11 +1,11 @@
 package org.jbb.big;
 
+import com.google.common.base.Joiner;
+
 import java.io.BufferedWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.ListIterator;
 
 /**
@@ -26,25 +26,14 @@ public class BigBedToBed {
   public static void main(final Path inputPath, final Path outputPath,
                           final String chromName, final int chromStart,
                           final int chromEnd, final int maxItems) throws Exception {
-    try (SeekableDataInput s = SeekableDataInput.of(inputPath);
+    try (BigBedFile bf = BigBedFile.parse(inputPath);
          BufferedWriter out = Files.newBufferedWriter(outputPath)) {
-      // Parse common headers
-      final BigHeader bigHeader = BigHeader.parse(s);
-
-      // Construct list of chromosomes from B+ tree
-      final LinkedList<BPlusLeaf> chromList = new LinkedList<>();
-      bigHeader.bPlusTree.traverse(s, chromList::add);
-      final int itemCount = 0;
-
-      // Loop through chromList in reverse
-      final Iterator<BPlusLeaf> iter = chromList.descendingIterator();
-      while (iter.hasNext()) {
-        final BPlusLeaf node = iter.next();
-        // Filter by chromosome key
+      int itemCount = 0;
+      for (final BPlusLeaf node : bf.chromosomes()) {
         if (!chromName.isEmpty() && !node.key.equals(chromName)) {
           continue;
         }
-        // Check items left
+
         int itemsLeft = 0; // zero - no limit
         if (maxItems != 0) {
           itemsLeft = maxItems - itemCount;
@@ -52,16 +41,15 @@ public class BigBedToBed {
             break;
           }
         }
+
         // Set restrictions  for interval
         final int start = (chromStart != 0) ? chromStart : 0;
         final int end = (chromEnd != 0) ? chromEnd: node.size;
-
-        final RTreeInterval query = RTreeInterval.of(node.id, start, end);
-        // Write data to output file
-        for (final BedData interval : bigHeader.rTree.findOverlaps(s, query, itemsLeft)) {
-          out.write(node.key + "\t" + interval.start + "\t" +  interval.end + "\t" + interval.rest + "\n");
+        for (final BedData interval : bf.query(node.key, start, end, itemsLeft)) {
+          out.write(Joiner.on('\t').join(node.key, interval.start, interval.end, interval.rest));
+          out.write('\n');
+          itemCount++;
         }
-//        System.out.println("id: " + node.id + " size: " + node.size);
       }
     }
   }

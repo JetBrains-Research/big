@@ -8,13 +8,12 @@ import java.util.Optional;
 public class BPlusTreeTest extends TestCase {
   public void testFind() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final SeekableDataInput s = SeekableDataInput.of(inputPath);
-    final BigHeader bigHeader = BigHeader.parse(s);
+    final BigBedFile bf = BigBedFile.parse(inputPath);
 
-    Optional<BPlusLeaf> bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr1");
+    Optional<BPlusLeaf> bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1");
     assertFalse(bptNodeLeaf.isPresent());
 
-    bptNodeLeaf = bigHeader.bPlusTree.find(s, "chr21");
+    bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr21");
     assertTrue(bptNodeLeaf.isPresent());
     assertEquals(0, bptNodeLeaf.get().id);
     assertEquals(48129895, bptNodeLeaf.get().size);
