@@ -1,92 +1,75 @@
 package org.jbb.big;
 
-import com.google.common.primitives.Chars;
+import com.google.common.math.IntMath;
+import com.google.common.math.LongMath;
 
 import junit.framework.TestCase;
 
-import java.io.FileNotFoundException;
+import org.junit.Assert;
+
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Random;
 
 public class SeekableDataOutputTest extends TestCase {
-
-  short shortValue;
-  int unsignedShortValue;
-  int intValue;
-  long unsignedIntValue;
-  long longValue;
-  float floatValue;
-  double doubleValue;
-  final String utfStringValue = "I'm UTF строка";
-  final String charsArrayValue = "I'm char array";
-
-  protected void setUp() {
-    final Random random = new Random();
-    shortValue = (short)random.nextInt();
-    unsignedShortValue = random.nextInt() & ((1 << 16) - 1);
-    unsignedShortValue |= 1 << 15;
-    intValue = random.nextInt();
-    unsignedIntValue = random.nextLong() & ((1L << 32) - 1);
-    unsignedIntValue |= 1L << 31;
-    longValue = random.nextLong();
-    floatValue = random.nextFloat();
-    doubleValue = random.nextDouble();
-  }
-
-  private void writeData(final SeekableDataOutput writer) throws IOException {
-    writer.writeShort(shortValue);
-    writer.writeUnsignedShort(unsignedShortValue);
-    writer.writeInt(intValue);
-    writer.writeUnsignedInt(unsignedIntValue);
-    writer.writeLong(longValue);
-    writer.writeFloat(floatValue);
-    writer.writeDouble(doubleValue);
-    writer.writeUTF(utfStringValue);
-    writer.writeBytes(charsArrayValue);
-  }
-
-  private void readData(final SeekableDataInput reader) throws IOException {
-    assertEquals(shortValue, reader.readShort());
-    assertEquals(unsignedShortValue, reader.readUnsignedShort());
-    assertEquals(intValue, reader.readInt());
-    assertEquals(unsignedIntValue, reader.readUnsignedInt());
-    assertEquals(longValue, reader.readLong());
-    assertEquals(floatValue, reader.readFloat());
-    assertEquals(doubleValue, reader.readDouble());
-    assertEquals(utfStringValue, reader.readUTF());
-
-    final byte[] charsArrayValueReader = new byte[charsArrayValue.length()];
-    reader.readFully(charsArrayValueReader);
-    assertTrue(Arrays.equals(charsArrayValue.getBytes(), charsArrayValueReader));
-  }
+  private static final int NUM_ATTEMPTS = 1000;
 
   public void testBigEndian() throws IOException {
-    final Path path = Files.createTempFile("seekableBE", ".bed");
-    try {
-      final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.BIG_ENDIAN);
-      writeData(writer);
-      final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.BIG_ENDIAN);
-      readData(reader);
-    }
-    finally {
-      Files.deleteIfExists(path);
+    for (int i = 0; i < NUM_ATTEMPTS; i++) {
+      testReadWrite(ByteOrder.BIG_ENDIAN);
     }
   }
 
   public void testLittleEndian() throws IOException {
-    final Path path = Files.createTempFile("seekableLE", ".bed");
-    try {
-      final SeekableDataOutput writer = SeekableDataOutput.of(path, ByteOrder.LITTLE_ENDIAN);
-      writeData(writer);
-      final SeekableDataInput reader = SeekableDataInput.of(path, ByteOrder.LITTLE_ENDIAN);
-      readData(reader);
+    for (int i = 0; i < NUM_ATTEMPTS; i++) {
+      testReadWrite(ByteOrder.LITTLE_ENDIAN);
     }
-    finally {
+  }
+
+  public void testReadWrite(final ByteOrder byteOrder)
+      throws IOException {
+    final Random random = new Random();
+    final short shortValue = (short) random.nextInt();
+    final int unsignedShortValue = random.nextInt(IntMath.pow(2, 16));
+    final int intValue = random.nextInt();
+    final long unsignedIntValue = Math.abs(random.nextLong()) % LongMath.pow(2, 32);
+    final long longValue = random.nextLong();
+    final float floatValue = random.nextFloat();
+    final double doubleValue = random.nextDouble();
+    final String utfStringValue = "I'm a UTF строка";
+    final String charsArrayValue = "I'm a char array";
+
+    final Path path = Files.createTempFile(byteOrder.toString(), ".bb");
+    try {
+      try (final SeekableDataOutput w = SeekableDataOutput.of(path, byteOrder)) {
+        w.writeShort(shortValue);
+        w.writeUnsignedShort(unsignedShortValue);
+        w.writeInt(intValue);
+        w.writeUnsignedInt(unsignedIntValue);
+        w.writeLong(longValue);
+        w.writeFloat(floatValue);
+        w.writeDouble(doubleValue);
+        w.writeUTF(utfStringValue);
+        w.writeBytes(charsArrayValue);
+      }
+
+      try (final SeekableDataInput r = SeekableDataInput.of(path, byteOrder)) {
+        assertEquals(shortValue, r.readShort());
+        assertEquals(unsignedShortValue, r.readUnsignedShort());
+        assertEquals(intValue, r.readInt());
+        assertEquals(unsignedIntValue, r.readUnsignedInt());
+        assertEquals(longValue, r.readLong());
+        assertEquals(floatValue, r.readFloat());
+        assertEquals(doubleValue, r.readDouble());
+        assertEquals(utfStringValue, r.readUTF());
+
+        final byte[] charsArrayValueReader = new byte[charsArrayValue.length()];
+        r.readFully(charsArrayValueReader);
+        Assert.assertArrayEquals(charsArrayValue.getBytes(), charsArrayValueReader);
+      }
+    } finally {
       Files.deleteIfExists(path);
     }
   }
