@@ -1,7 +1,7 @@
 package org.jbb.big;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -9,6 +9,7 @@ import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A common superclass for Big files.
@@ -103,9 +104,9 @@ abstract class BigFile implements Closeable, AutoCloseable {
     this.header = BigFile.Header.parse(handle);
   }
 
-  public List<BPlusLeaf> chromosomes() throws IOException {
-    final ImmutableList.Builder<BPlusLeaf> b = ImmutableList.builder();
-    header.bPlusTree.traverse(handle, b::add);
+  public Set<String> chromosomes() throws IOException {
+    final ImmutableSet.Builder<String> b = ImmutableSet.builder();
+    header.bPlusTree.traverse(handle, bpl -> b.add(bpl.key));
     return b.build();
   }
 
