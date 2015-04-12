@@ -25,43 +25,40 @@ public class BigBedFile extends BigFile<BedData> {
   protected List<BedData> queryInternal(final RTreeInterval query, final int maxItems)
       throws IOException {
     final int chromIx = query.left.chromIx;
-    final List<RTreeIndexLeaf> overlappingBlocks
-        = header.rTree.findOverlappingBlocks(handle, query);
-    return header.rTree.within(handle, () -> {
-      final List<BedData> res = Lists.newArrayList();
-      for (final RTreeIndexLeaf block : overlappingBlocks) {
-        handle.seek(block.dataOffset);
+    final List<BedData> res = Lists.newArrayList();
+    header.rTree.findOverlappingBlocks(handle, query, block -> {
+      handle.seek(block.dataOffset);
 
-        do {
-          assert handle.readInt() == chromIx : "interval contains wrong chromosome";
-          if (maxItems > 0 && res.size() == maxItems) {
-            return res;
-          }
+      do {
+        assert handle.readInt() == chromIx : "interval contains wrong chromosome";
+        if (maxItems > 0 && res.size() == maxItems) {
+          // XXX think of a way of terminating the traversal?
+          return;
+        }
 
-          final int startOffset = handle.readInt();
-          final int endOffset = handle.readInt();
-          byte ch;
-          final StringBuilder sb = new StringBuilder();
-          for (; ; ) {
-            ch = handle.readByte();
-            if (ch == 0) {
-              break;
-            }
-
-            sb.append(ch);
-          }
-
-          if (startOffset < query.left.offset) {
-            continue;
-          } else if (endOffset > query.right.offset) {
+        final int startOffset = handle.readInt();
+        final int endOffset = handle.readInt();
+        byte ch;
+        final StringBuilder sb = new StringBuilder();
+        for (; ; ) {
+          ch = handle.readByte();
+          if (ch == 0) {
             break;
           }
 
-          res.add(new BedData(chromIx, startOffset, endOffset, sb.toString()));
-        } while (handle.tell() - block.dataOffset < block.dataSize);
-      }
+          sb.append(ch);
+        }
 
-      return res;
+        if (startOffset < query.left.offset) {
+          continue;
+        } else if (endOffset > query.right.offset) {
+          break;
+        }
+
+        res.add(new BedData(chromIx, startOffset, endOffset, sb.toString()));
+      } while (handle.tell() - block.dataOffset < block.dataSize);
     });
+
+    return res;
   }
 }

@@ -44,7 +44,7 @@ public class BPlusTree {
     protected final long rootOffset;
 
     Header(final ByteOrder byteOrder, final int blockSize, final int keySize,
-                  final int valSize, final long itemCount, final long rootOffset) {
+           final int valSize, final long itemCount, final long rootOffset) {
       this.byteOrder = byteOrder;
       this.blockSize = blockSize;
       this.keySize = keySize;
@@ -69,7 +69,7 @@ public class BPlusTree {
 
   protected final Header header;
 
-  public BPlusTree(final Header header) {
+  private BPlusTree(final Header header) {
     this.header = Objects.requireNonNull(header);
   }
 
