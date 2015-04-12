@@ -1,11 +1,10 @@
 package org.jbb.big;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Just like BED only BIGGER.
@@ -13,7 +12,7 @@ import java.util.Optional;
  * @author Sergei Lebedev
  * @date 11/04/15
  */
-public class BigBedFile extends BigFile {
+public class BigBedFile extends BigFile<BedData> {
   public static BigBedFile parse(final Path path) throws IOException {
     return new BigBedFile(path);
   }
@@ -22,35 +21,47 @@ public class BigBedFile extends BigFile {
     super(path);
   }
 
-  /**
-   * Defaults {@code maxItems} to {@code 0}.
-   */
-  public List<BedData> query(final String chromName, final int startOffset, final int endOffset)
+  @Override
+  protected List<BedData> queryInternal(final RTreeInterval query, final int maxItems)
       throws IOException {
-    return query(chromName, startOffset, endOffset, 0);
-  }
+    final int chromIx = query.left.chromIx;
+    final List<RTreeIndexLeaf> overlappingBlocks
+        = header.rTree.findOverlappingBlocks(handle, query);
+    return header.rTree.within(handle, () -> {
+      final List<BedData> res = Lists.newArrayList();
+      for (final RTreeIndexLeaf block : overlappingBlocks) {
+        handle.seek(block.dataOffset);
 
-  /**
-   * Queries an R+-tree.
-   *
-   * @param chromName human-readable chromosome name, e.g. {@code "chr9"}.
-   * @param startOffset 0-based start offset (inclusive).
-   * @param endOffset 0-based end offset (exclusive), if 0 than all chromosome is used.
-   * @param maxItems upper bound on the number of items to return.
-   * @return a list of intervals overlapping the query.
-   * @throws IOException if the underlying {@link SeekableDataInput} does so.
-   */
-  public List<BedData> query(final String chromName, final int startOffset, final int endOffset,
-                             final int maxItems)
-      throws IOException {
-    final Optional<BPlusLeaf> bpl = header.bPlusTree.find(handle, chromName);
-    if (bpl.isPresent()) {
-      final int chromIx = bpl.get().id;
-      final RTreeInterval target = RTreeInterval.of(
-          chromIx, startOffset, endOffset == 0 ? bpl.get().size : endOffset);
-      return header.rTree.findOverlaps(handle, target, maxItems);
-    } else {
-      return ImmutableList.of();
-    }
+        do {
+          assert handle.readInt() == chromIx : "interval contains wrong chromosome";
+          if (maxItems > 0 && res.size() == maxItems) {
+            return res;
+          }
+
+          final int startOffset = handle.readInt();
+          final int endOffset = handle.readInt();
+          byte ch;
+          final StringBuilder sb = new StringBuilder();
+          for (; ; ) {
+            ch = handle.readByte();
+            if (ch == 0) {
+              break;
+            }
+
+            sb.append(ch);
+          }
+
+          if (startOffset < query.left.offset) {
+            continue;
+          } else if (endOffset > query.right.offset) {
+            break;
+          }
+
+          res.add(new BedData(chromIx, startOffset, endOffset, sb.toString()));
+        } while (handle.tell() - block.dataOffset < block.dataSize);
+      }
+
+      return res;
+    });
   }
 }

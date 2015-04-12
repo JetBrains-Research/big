@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -90,51 +91,27 @@ public class RTreeIndex {
     this.header = Objects.requireNonNull(header);
   }
 
-  // FIXME: return type should be useful for both BED and WIG.
-  public List<BedData> findOverlaps(final SeekableDataInput s,
-                                    final RTreeInterval query,
-                                    final int maxItems)
+  /**
+   * Executes a possibly unsafe computation using a correct byte order
+   * for {@code s}. Original byte order is restored after the {@code callable}
+   * has completed (either normally or by throwing an exception).
+   */
+  <T> T within(final SeekableDataInput s, final Callable<T> callable)
       throws IOException {
     final ByteOrder originalOrder = s.order();
     s.order(header.byteOrder);
-    final List<RTreeIndexLeaf> overlappingBlocks = findOverlappingBlocks(s, query);
 
-    final int chromIx = query.left.chromIx;
-    final List<BedData> res = Lists.newArrayList();
-    for (final RTreeIndexLeaf block : overlappingBlocks) {
-      s.seek(block.dataOffset);
-
-      do {
-        assert s.readInt() == chromIx : "interval contains wrong chromosome";
-        if (maxItems > 0 && res.size() == maxItems) {
-          break;
-        }
-
-        final int startOffset = s.readInt();
-        final int endOffset = s.readInt();
-        byte ch;
-        final StringBuilder sb = new StringBuilder();
-        for (; ;) {
-          ch = s.readByte();
-          if (ch == 0) {
-            break;
-          }
-
-          sb.append(ch);
-        }
-
-        if (startOffset < query.left.offset) {
-          continue;
-        } else if (endOffset > query.right.offset) {
-          break;
-        }
-
-        res.add(new BedData(chromIx, startOffset, endOffset, sb.toString()));
-      } while (s.tell() - block.dataOffset < block.dataSize);
+    try {
+      return callable.call();
+    } catch (final Exception e) {
+      if (e instanceof IOException) {
+        throw (IOException) e;
+      } else {
+        throw new RuntimeException(e);
+      }
+    } finally {
+      s.order(originalOrder);
     }
-
-    s.order(originalOrder);
-    return res;
   }
 
   /**
@@ -145,12 +122,11 @@ public class RTreeIndex {
   protected List<RTreeIndexLeaf> findOverlappingBlocks(
       final SeekableDataInput s, final RTreeInterval query)
       throws IOException {
-    final List<RTreeIndexLeaf> overlappingBlocks = Lists.newArrayList();
-    final ByteOrder originalOrder = s.order();
-    s.order(header.byteOrder);
-    findOverlappingBlocksRecursively(s, query, header.rootOffset, overlappingBlocks);
-    s.order(originalOrder);
-    return overlappingBlocks;
+    return within(s, () -> {
+      final List<RTreeIndexLeaf> overlappingBlocks = Lists.newArrayList();
+      findOverlappingBlocksRecursively(s, query, header.rootOffset, overlappingBlocks);
+      return overlappingBlocks;
+    });
   }
 
   private void findOverlappingBlocksRecursively(
