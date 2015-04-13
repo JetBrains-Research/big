@@ -10,7 +10,7 @@ import java.util.List;
  * Just like BED only BIGGER.
  *
  * @author Sergei Lebedev
- * @date 11/04/15
+ * @since 11/04/15
  */
 public class BigBedFile extends BigFile<BedData> {
   public static BigBedFile parse(final Path path) throws IOException {

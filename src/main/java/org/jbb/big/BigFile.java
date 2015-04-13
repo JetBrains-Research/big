@@ -17,7 +17,8 @@ import java.util.Set;
  * A common superclass for Big files.
  *
  * @author Sergei Lebedev
- * @date 11/04/15
+ * @author Sergey Zherevchuk
+ * @since 11/04/15
  */
 abstract class BigFile<T> implements Closeable, AutoCloseable {
 
