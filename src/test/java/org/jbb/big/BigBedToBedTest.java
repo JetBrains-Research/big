@@ -2,13 +2,20 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 
 public class BigBedToBedTest extends TestCase {
   public void testBigBedToBed() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = Files.createTempFile("out", ".bed");
+    final Path outputPath = createOutputFile();
     BigBedToBed.main(inputPath, outputPath, "", 0, 0, 0);
     try {
       assertTrue(Files.exists(outputPath));
@@ -20,7 +27,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testBigBedToBedFilterByChromosomeName() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = Files.createTempFile("out", ".bed");
+    final Path outputPath = createOutputFile();
     final int chromStart = 0;
     final int chromEnd = 0;
     final int maxItems = 0;
@@ -55,7 +62,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testBigBedToBedRestrictOutput() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = Files.createTempFile("out", ".bed");
+    final Path outputPath = createOutputFile();
     // Params restriction
     // In example1.bb we have only one chromosome
     final String chromName = "chr21";
@@ -117,5 +124,12 @@ public class BigBedToBedTest extends TestCase {
     } finally {
       Files.deleteIfExists(outputPath);
     }
+  }
+
+  @NotNull
+  private Path createOutputFile() throws IOException {
+    final FileAttribute<Set<PosixFilePermission>> attrs = PosixFilePermissions.asFileAttribute(
+        PosixFilePermissions.fromString("rw-------"));
+    return Files.createTempFile("out", ".bed", attrs);
   }
 }
