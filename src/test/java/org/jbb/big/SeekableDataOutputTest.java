@@ -38,7 +38,7 @@ public class SeekableDataOutputTest extends TestCase {
     final long longValue = random.nextLong();
     final float floatValue = random.nextFloat();
     final double doubleValue = random.nextDouble();
-    final String utfStringValue = "I'm a UTF строка";
+    final String utfStringValue = "I'm a UTF \u0441\u0442\u0440\u043e\u043a\u0430";
     final String charsArrayValue = "I'm a char array";
 
     final Path path = Files.createTempFile(byteOrder.toString(), ".bb");
