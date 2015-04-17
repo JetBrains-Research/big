@@ -19,4 +19,9 @@ public class BPlusLeaf {
     this.id = id;
     this.size = size;
   }
+
+  @Override
+  public String toString() {
+    return String.format("[%s] => [%d; %d]", key, id, size);
+  }
 }

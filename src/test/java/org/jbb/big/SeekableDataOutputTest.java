@@ -40,6 +40,11 @@ public class SeekableDataOutputTest extends TestCase {
     final double doubleValue = random.nextDouble();
     final String utfStringValue = "I'm a UTF \u0441\u0442\u0440\u043e\u043a\u0430";
     final String charsArrayValue = "I'm a char array";
+    final char severalSingleChar = 'a';
+    final int severalSingleCharCount = 3;
+
+    final String chromosomeName = "chrom1";
+    final int keySize = 12;
 
     final Path path = Files.createTempFile(byteOrder.toString(), ".bb");
     try {
@@ -53,6 +58,8 @@ public class SeekableDataOutputTest extends TestCase {
         w.writeDouble(doubleValue);
         w.writeUTF(utfStringValue);
         w.writeBytes(charsArrayValue);
+        w.writeByte(severalSingleChar, severalSingleCharCount);
+        w.writeBytes(chromosomeName, keySize);
       }
 
       try (final SeekableDataInput r = SeekableDataInput.of(path, byteOrder)) {
@@ -68,9 +75,25 @@ public class SeekableDataOutputTest extends TestCase {
         final byte[] charsArrayValueReader = new byte[charsArrayValue.length()];
         r.readFully(charsArrayValueReader);
         Assert.assertArrayEquals(charsArrayValue.getBytes(), charsArrayValueReader);
+
+        final byte[] charSingle = new byte[severalSingleCharCount];
+        r.readFully(charSingle);
+        for(final byte b:charSingle) {
+          Assert.assertEquals(severalSingleChar, b);
+        }
+
+        final byte[] chromosomeNameExt = new byte[keySize];
+        r.readFully(chromosomeNameExt);
+        for (int i = 0; i < keySize; ++i) {
+          if(i < chromosomeName.length())
+            Assert.assertEquals(chromosomeName.charAt(i), chromosomeNameExt[i]);
+          else
+            Assert.assertEquals(0, chromosomeNameExt[i]);
+        }
       }
     } finally {
       Files.deleteIfExists(path);
     }
   }
 }
+
