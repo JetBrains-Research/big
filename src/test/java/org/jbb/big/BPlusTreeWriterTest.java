@@ -23,8 +23,8 @@ import java.util.Random;
 
 public class BPlusTreeWriterTest extends TestCase {
 
-  private static final int NUM_ATTEMPTS = 5;
-  private static final int MAX_CHROMOSOME_COUNT = 1000;
+  private static final int NUM_ATTEMPTS = 10;
+  private static final int MAX_CHROMOSOME_COUNT = 100;
   private static final Random random = new Random(5);
 
   private ArrayList<BPlusLeaf> loadBPlusLeafs() throws IOException, URISyntaxException {

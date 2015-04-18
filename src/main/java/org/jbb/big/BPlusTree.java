@@ -287,7 +287,7 @@ public class BPlusTree {
         final int chromId = s.readInt();
         final int chromSize = s.readInt();
 
-        final String key = (new String(keyBuf)).trim();
+        final String key = new String(keyBuf).trim();
         if (query.equals(key)) {
           return Optional.of(new BPlusLeaf(key, chromId, chromSize));
         }

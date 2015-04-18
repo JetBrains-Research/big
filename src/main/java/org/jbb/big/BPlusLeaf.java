@@ -21,15 +21,32 @@ public class BPlusLeaf {
   }
 
   @Override
+  public boolean equals(final Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    final BPlusLeaf bPlusLeaf = (BPlusLeaf) o;
+
+    return id == bPlusLeaf.id &&
+           size == bPlusLeaf.size &&
+           key.equals(bPlusLeaf.key);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = key != null ? key.hashCode() : 0;
+    result = 31 * result + id;
+    result = 31 * result + size;
+    return result;
+  }
+
+  @Override
   public String toString() {
     return String.format("[%s] => [%d; %d]", key, id, size);
   }
 
-  @Override
-  public boolean equals(Object obj) {
-    BPlusLeaf other = (BPlusLeaf) obj;
-    return this.key.equals(other.key) &&
-           this.id == other.id &&
-           this.size == other.size;
-  }
 }
