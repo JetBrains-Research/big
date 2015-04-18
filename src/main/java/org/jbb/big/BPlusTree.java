@@ -198,7 +198,8 @@ public class BPlusTree {
 
   protected final Header header;
 
-  private BPlusTree(final Header header) {
+  @VisibleForTesting
+  BPlusTree(final Header header) {
     this.header = Objects.requireNonNull(header);
   }
 
@@ -230,7 +231,7 @@ public class BPlusTree {
         s.readFully(keyBuf);
         final int chromId = s.readInt();
         final int chromSize = s.readInt();
-        consumer.accept(new BPlusLeaf(new String(keyBuf), chromId, chromSize));
+        consumer.accept(new BPlusLeaf(new String(keyBuf).trim(), chromId, chromSize));
       }
     } else {
       final long[] fileOffsets = new long[childCount];
@@ -286,7 +287,7 @@ public class BPlusTree {
         final int chromId = s.readInt();
         final int chromSize = s.readInt();
 
-        final String key = new String(keyBuf);
+        final String key = (new String(keyBuf)).trim();
         if (query.equals(key)) {
           return Optional.of(new BPlusLeaf(key, chromId, chromSize));
         }
@@ -299,7 +300,7 @@ public class BPlusTree {
       // vvv we loop from 1 because we've read the first child above.
       for (int i = 1; i < childCount; i++) {
         s.readFully(keyBuf);
-        if (query.compareTo(new String(keyBuf)) < 0) {
+        if (query.compareTo(new String(keyBuf).trim()) < 0) {
           break;
         }
 

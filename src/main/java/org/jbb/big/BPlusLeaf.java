@@ -24,4 +24,12 @@ public class BPlusLeaf {
   public String toString() {
     return String.format("[%s] => [%d; %d]", key, id, size);
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    BPlusLeaf other = (BPlusLeaf) obj;
+    return this.key.equals(other.key) &&
+           this.id == other.id &&
+           this.size == other.size;
+  }
 }
