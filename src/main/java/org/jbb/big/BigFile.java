@@ -126,7 +126,8 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
    *
    * @param chromName human-readable chromosome name, e.g. {@code "chr9"}.
    * @param startOffset 0-based start offset (inclusive).
-   * @param endOffset 0-based end offset (exclusive), if 0 than all chromosome is used.
+   * @param endOffset 0-based end offset (exclusive), if 0 than the whole
+   *                  chromosome is used.
    * @param maxItems upper bound on the number of items to return.
    * @return a list of intervals overlapping the query.
    * @throws IOException if the underlying {@link SeekableDataInput} does so.
