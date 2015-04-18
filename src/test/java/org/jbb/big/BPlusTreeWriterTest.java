@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 
 public class BPlusTreeWriterTest extends TestCase {
 
@@ -70,32 +69,32 @@ public class BPlusTreeWriterTest extends TestCase {
   private ArrayList<BPlusLeaf> generateBPlusLeafs() {
     final ArrayList<BPlusLeaf> result = new ArrayList<>();
 
-    int count = random.nextInt(MAX_CHROMOSOME_COUNT);
+    final int count = random.nextInt(MAX_CHROMOSOME_COUNT);
     int id = 0;
-    HashSet<Integer> names = new HashSet<Integer>();
+    final HashSet<Integer> names = new HashSet<>();
     while (names.size() != count) {
       names.add(random.nextInt(MAX_CHROMOSOME_COUNT * 100));
     }
-    Iterator it = names.iterator();
+    final Iterator it = names.iterator();
     for (int i = 0; i < count; ++i) {
-      String chromosomeName = "chr" + it.next();
-      int size = random.nextInt(100000);
+      final String chromosomeName = "chr" + it.next();
+      final int size = random.nextInt(100000);
       result.add(new BPlusLeaf(chromosomeName, id++, size));
     }
     Collections.sort(result, (BPlusLeaf a, BPlusLeaf b) -> (a.key.compareTo(b.key)));
     return result;
   }
 
-  private void checkFind(BPlusTree bplusTree, SeekableDataInput reader, ArrayList<BPlusLeaf> leafs) throws IOException {
+  private void checkFind(final BPlusTree bplusTree, final SeekableDataInput reader, final ArrayList<BPlusLeaf> leafs) throws IOException {
 
-    for (BPlusLeaf leaf: leafs) {
+    for (final BPlusLeaf leaf: leafs) {
       final Optional<BPlusLeaf> findLeaf = bplusTree.find(reader, leaf.key);
       Assert.assertTrue(findLeaf.isPresent());
       Assert.assertTrue(leaf.equals(findLeaf.get()));
     }
   }
 
-  private void checkTraverse(BPlusTree bplusTree, SeekableDataInput reader, ArrayList<BPlusLeaf> leafs)
+  private void checkTraverse(final BPlusTree bplusTree, final SeekableDataInput reader, final ArrayList<BPlusLeaf> leafs)
       throws IOException {
     final ImmutableList.Builder<String> b = ImmutableList.builder();
     bplusTree.traverse(reader, bpl -> b.add(bpl.key));
@@ -113,8 +112,8 @@ public class BPlusTreeWriterTest extends TestCase {
       final ByteOrder byteOrder = ((i & 1) == 0) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
       final SeekableDataOutput writer = SeekableDataOutput.of(path, byteOrder);
 
-      ArrayList<BPlusLeaf> leafs = generateBPlusLeafs();
-      int blockSize = random.nextInt(MAX_CHROMOSOME_COUNT);
+      final ArrayList<BPlusLeaf> leafs = generateBPlusLeafs();
+      final int blockSize = random.nextInt(MAX_CHROMOSOME_COUNT);
 
       BPlusTree.Header.write(writer, leafs, blockSize);
       writer.close();
