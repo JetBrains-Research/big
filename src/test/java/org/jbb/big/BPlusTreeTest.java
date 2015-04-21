@@ -1,13 +1,9 @@
 package org.jbb.big;
 
-import com.google.common.collect.ImmutableList;
-
 import junit.framework.TestCase;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -15,39 +11,33 @@ public class BPlusTreeTest extends TestCase {
 
   public void testFind() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final BigBedFile bf = BigBedFile.parse(inputPath);
+    try (final BigBedFile bf = BigBedFile.parse(inputPath)) {
+      Optional<BPlusLeaf> bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1");
+      assertFalse(bptNodeLeaf.isPresent());
 
-    Optional<BPlusLeaf> bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1");
-    assertFalse(bptNodeLeaf.isPresent());
-
-    bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr21");
-    assertTrue(bptNodeLeaf.isPresent());
-    assertEquals(0, bptNodeLeaf.get().id);
-    assertEquals(48129895, bptNodeLeaf.get().size);
+      bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr21");
+      assertTrue(bptNodeLeaf.isPresent());
+      assertEquals(0, bptNodeLeaf.get().id);
+      assertEquals(48129895, bptNodeLeaf.get().size);
+    }
   }
 
-  private void testFindAllBase(Path path,long chromTreeOffset, String[] chromosomes)
+  private void testFindAllBase(final Path path, final long chromTreeOffset,
+                               final String[] chromosomes)
       throws IOException {
-    SeekableDataInput reader = SeekableDataInput.of(path);
-    BPlusTree.Header header = BPlusTree.Header.read(reader, chromTreeOffset);
-    BPlusTree tree = new BPlusTree(header);
+    try (final SeekableDataInput reader = SeekableDataInput.of(path)) {
+      final BPlusTree.Header header = BPlusTree.Header.read(reader, chromTreeOffset);
+      final BPlusTree tree = new BPlusTree(header);
+      for (final String key : chromosomes) {
+        assertTrue(tree.find(reader, key).isPresent());
+      }
 
-    final ImmutableList.Builder<String> b = ImmutableList.builder();
-    tree.traverse(reader, bpl -> b.add(bpl.key));
-    final ImmutableList<String> chromosomeNames = b.build();
-
-
-    for (String key : chromosomes) {
-      Optional<BPlusLeaf> bptNodeLeaf = tree.find(reader, key);
-      assertTrue(bptNodeLeaf.isPresent());
+      assertFalse(tree.find(reader, "chr_Vasia").isPresent());
     }
-    Optional<BPlusLeaf> bptNodeLeaf = tree.find(reader, "chr_Vasia");
-    assertFalse(bptNodeLeaf.isPresent());
-
   }
 
   public void testFindAllEqualSize() throws URISyntaxException, IOException {
-    String[] chromosomes = {"chr01",
+    final String[] chromosomes = {"chr01",
                             "chr02",
                             "chr03",
                             "chr04",

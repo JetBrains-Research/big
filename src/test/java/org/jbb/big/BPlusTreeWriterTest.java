@@ -7,8 +7,6 @@ import junit.framework.TestCase;
 import org.junit.Assert;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.ByteOrder;
@@ -30,15 +28,16 @@ public class BPlusTreeWriterTest extends TestCase {
   private ArrayList<BPlusLeaf> loadBPlusLeafs() throws IOException, URISyntaxException {
     final ArrayList<BPlusLeaf> result = new ArrayList<>();
     final Path path = Examples.get("f1.chrom.sizes");
-    final BufferedReader reader = new BufferedReader(new FileReader(path.toFile()));
-    String buffer;
-    int id = 0;
-    while ((buffer = reader.readLine()) != null) {
-      final String[] params = buffer.split("\t");
-      result.add(new BPlusLeaf(params[0], id++, Integer.valueOf(params[1])));
+    try (final BufferedReader reader = Files.newBufferedReader(path)) {
+      String buffer;
+      int id = 0;
+      while ((buffer = reader.readLine()) != null) {
+        final String[] params = buffer.split("\t");
+        result.add(new BPlusLeaf(params[0], id++, Integer.parseInt(params[1])));
+      }
     }
-    reader.close();
-    Collections.sort(result, (BPlusLeaf a, BPlusLeaf b) -> (a.key.compareTo(b.key)));
+
+    Collections.sort(result, (BPlusLeaf a, BPlusLeaf b) -> a.key.compareTo(b.key));
     return result;
   }
 
@@ -52,13 +51,11 @@ public class BPlusTreeWriterTest extends TestCase {
       BPlusTree.Header.write(writer, leafs, blockSize);
       writer.close();
 
-
       final SeekableDataInput reader = SeekableDataInput.of(path, byteOrder);
       final BPlusTree bplusTree = BPlusTree.read(reader, 0);
-
       checkFind(bplusTree, reader, leafs);
       checkTraverse(bplusTree, reader, leafs);
-
+      reader.close();
     }
     finally {
       Files.deleteIfExists(path);
@@ -107,7 +104,6 @@ public class BPlusTreeWriterTest extends TestCase {
 
   public void testCheckRandomChromosomes() throws IOException {
     for (int i = 0; i < NUM_ATTEMPTS; ++i) {
-
       final Path path = Files.createTempFile("BPlusTree", ".bb");
       final ByteOrder byteOrder = ((i & 1) == 0) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
       final SeekableDataOutput writer = SeekableDataOutput.of(path, byteOrder);
@@ -121,10 +117,9 @@ public class BPlusTreeWriterTest extends TestCase {
       final SeekableDataInput reader = SeekableDataInput.of(path, byteOrder);
       final BPlusTree bplusTree = BPlusTree.read(reader, 0);
 
-
       checkFind(bplusTree, reader, leafs);
       checkTraverse(bplusTree, reader, leafs);
-
+      reader.close();
     }
   }
 }
