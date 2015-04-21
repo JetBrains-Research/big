@@ -2,20 +2,14 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
-import org.jetbrains.annotations.NotNull;
-
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Set;
+import java.util.stream.Stream;
 
 public class BigBedToBedTest extends TestCase {
   public void testBigBedToBed() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = createOutputFile();
+    final Path outputPath = Files.createTempFile("out", ".bed");
     BigBedToBed.main(inputPath, outputPath, "", 0, 0, 0);
     try {
       assertTrue(Files.exists(outputPath));
@@ -27,7 +21,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testBigBedToBedFilterByChromosomeName() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = createOutputFile();
+    final Path outputPath = Files.createTempFile("out", ".bed");
     final int chromStart = 0;
     final int chromEnd = 0;
     final int maxItems = 0;
@@ -62,7 +56,7 @@ public class BigBedToBedTest extends TestCase {
 
   public void testBigBedToBedRestrictOutput() throws Exception {
     final Path inputPath = Examples.get("example1.bb");
-    final Path outputPath = createOutputFile();
+    final Path outputPath = Files.createTempFile("out", ".bed");
     // Params restriction
     // In example1.bb we have only one chromosome
     final String chromName = "chr21";
@@ -71,10 +65,10 @@ public class BigBedToBedTest extends TestCase {
     int maxItems = 10;
     // Check lines count in output file
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    try {
+    try (final Stream<String> lines = Files.lines(outputPath)) {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      assertEquals(maxItems, Files.lines(outputPath).count());
+      assertEquals(maxItems, lines.count());
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -82,10 +76,10 @@ public class BigBedToBedTest extends TestCase {
     chromStart = 9508110;
     chromEnd = 9906613;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    try {
+    try (final Stream<String> lines = Files.lines(outputPath)) {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      assertEquals(Files.lines(outputPath).count(), 5);
+      assertEquals(5, lines.count());
 //      Files.copy(outputPath, System.out);
     } finally {
       Files.deleteIfExists(outputPath);
@@ -94,10 +88,10 @@ public class BigBedToBedTest extends TestCase {
     chromStart = 9508110;
     chromEnd = 9906612;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    try {
+    try (final Stream<String> lines = Files.lines(outputPath)) {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      assertEquals(Files.lines(outputPath).count(), 4);
+      assertEquals(4, lines.count());
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -105,10 +99,10 @@ public class BigBedToBedTest extends TestCase {
     chromStart = 9508110;
     chromEnd = 9906614;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    try {
+    try (final Stream<String> lines = Files.lines(outputPath)) {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      assertEquals(Files.lines(outputPath).count(), 5);
+      assertEquals(5, lines.count());
     } finally {
       Files.deleteIfExists(outputPath);
     }
@@ -117,19 +111,12 @@ public class BigBedToBedTest extends TestCase {
     chromEnd = 9903230;
     maxItems = 3;
     BigBedToBed.main(inputPath, outputPath, chromName, chromStart, chromEnd, maxItems);
-    try {
+    try (final Stream<String> lines = Files.lines(outputPath)) {
       assertTrue(Files.exists(outputPath));
       assertTrue(Files.size(outputPath) > 0);
-      assertEquals(Files.lines(outputPath).count(), 3);
+      assertEquals(3, lines.count());
     } finally {
       Files.deleteIfExists(outputPath);
     }
-  }
-
-  @NotNull
-  private Path createOutputFile() throws IOException {
-    final FileAttribute<Set<PosixFilePermission>> attrs = PosixFilePermissions.asFileAttribute(
-        PosixFilePermissions.fromString("rw-------"));
-    return Files.createTempFile("out", ".bed", attrs);
   }
 }
