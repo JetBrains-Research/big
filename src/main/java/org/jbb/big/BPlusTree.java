@@ -36,8 +36,9 @@ public class BPlusTree {
   protected static class Header {
 
     private static final int MAGIC = 0x78ca8c91;
-    private static final int bptFileHeaderSize = 32;
-    private static final int bptBlockHeaderSize = 4;
+    private static final int BLOCK_HEADER_SIZE = 4;
+    private static final int CHILD_OFFSET_SIZE = 8;
+    private static final int WRITE_VAL_SIZE = 8; // pair(CromosomeId, size) = 4 + 4 = 8
 
     protected final ByteOrder byteOrder;
     protected final int blockSize;
@@ -69,37 +70,34 @@ public class BPlusTree {
       return new Header(s.order(), blockSize, keySize, valSize, itemCount, rootOffset);
     }
 
-    static int bptCountLevels(final int maxBlockSize, int itemCount) {
+    static int countLevels(final int blockSize, int itemCount) {
       int levels = 1;
-      while (itemCount > maxBlockSize) {
-        itemCount = (itemCount + maxBlockSize - 1) / maxBlockSize;
-        levels += 1;
+      while (itemCount > blockSize) {
+        itemCount = (itemCount + blockSize - 1) / blockSize;
+        ++levels;
       }
       return levels;
     }
 
     static void writeLeafLevel(final SeekableDataOutput s, final int blockSize, final ArrayList<BPlusLeaf> itemArray, final int itemCount,
-                               final int keySize, final int valSize) throws IOException
+                               final int keySize) throws IOException
     /* Write out leaf level blocks. */
     {
       final byte isLeaf = 1;
       final byte reserved = 0;
       int countOne;
       int countLeft = itemCount;
-      for (int i=0; i<itemCount; i += countOne)
+      for (int i = 0; i< itemCount; i += countOne)
       {
         /* Write block header */
-        if (countLeft > blockSize)
-          countOne = blockSize;
-        else
-          countOne = countLeft;
+        countOne = Math.min(countLeft, blockSize);
 
         s.writeByte(isLeaf);
         s.writeByte(reserved);
         s.writeShort(countOne);
 
         /* Write out position in genome and in file for each item. */
-        for (int j=0; j<countOne; ++j)
+        for (int j = 0; j < countOne; ++j)
         {
           s.writeBytes(itemArray.get(i+j).key, keySize);
           s.writeInt(itemArray.get(i + j).id);
@@ -107,8 +105,8 @@ public class BPlusTree {
         }
 
         /* Pad out any unused bits of last block with zeroes. */
-        final int slotSize = keySize + valSize;
-        for (int j=countOne; j<blockSize; ++j)
+        final int slotSize = keySize + WRITE_VAL_SIZE;
+        for (int j = countOne; j < blockSize; ++j)
           s.writeByte(0, slotSize);
 
         countLeft -= countOne;
@@ -116,56 +114,47 @@ public class BPlusTree {
     }
     static long writeIndexLevel(final SeekableDataOutput s, final int blockSize, final ArrayList<BPlusLeaf> itemArray, final int itemCount,
                                   final long indexOffset, final int level,
-                                  final int keySize, final int valSize) throws IOException
-    /* Write out a non-leaf level. */
+                                  final int keySize) throws IOException
     {
-/* Calculate number of nodes to write at this level. */
+      /* Calculate number of nodes to write at this level. */
       final int slotSizePer = (int)Math.pow(blockSize, level);   // Number of items per slot in node
       final int nodeSizePer = slotSizePer * blockSize;  // Number of items per node
-      final int nodeCount = (itemCount + nodeSizePer - 1)/nodeSizePer;
+      final int nodeCount = (itemCount + nodeSizePer - 1) / nodeSizePer;
 
 
-/* Calculate sizes and offsets. */
-      final int bytesInIndexBlock = (bptBlockHeaderSize + blockSize * (keySize + 8)); // 8=sizeof(long)
-      final int bytesInLeafBlock = (bptBlockHeaderSize + blockSize * (keySize+valSize));
+      /* Calculate sizes and offsets. */
+      final int bytesInIndexBlock = (BLOCK_HEADER_SIZE + blockSize * (keySize + CHILD_OFFSET_SIZE));
+      final int bytesInLeafBlock = (BLOCK_HEADER_SIZE + blockSize * (keySize + WRITE_VAL_SIZE));
       final long bytesInNextLevelBlock = (level == 1 ? bytesInLeafBlock : bytesInIndexBlock);
       final long levelSize = nodeCount * bytesInIndexBlock;
       final long endLevel = indexOffset + levelSize;
       long nextChild = endLevel;
 
-
       final byte isLeaf = 0;
       final byte reserved = 0;
 
-      for (int i=0; i<itemCount; i += nodeSizePer)
+      for (int i = 0; i < itemCount; i += nodeSizePer)
       {
         /* Calculate size of this block */
-        int countOne = (itemCount - i + slotSizePer - 1)/slotSizePer;
-        if (countOne > blockSize)
-          countOne = blockSize;
-        final int shortCountOne = countOne;
+        final int countOne = Math.min((itemCount - i + slotSizePer - 1) / slotSizePer, blockSize);
 
         /* Write block header. */
         s.writeByte(isLeaf);
         s.writeByte(reserved);
-        s.writeShort(shortCountOne);
+        s.writeShort(countOne);
 
         /* Write out the slots that are used one by one, and do sanity check. */
-        int slotsUsed = 0;
-        int endIx = i + nodeSizePer;
-        if (endIx > itemCount)
-          endIx = itemCount;
-        for (int j=i; j<endIx; j += slotSizePer)
+        final int endIx = Math.min(i + nodeSizePer, itemCount);
+        for (int j = i; j < endIx; j += slotSizePer)
         {
           s.writeBytes(itemArray.get(j).key, keySize);
           s.writeLong(nextChild);
           nextChild += bytesInNextLevelBlock;
-          ++slotsUsed;
         }
 
         /* Write out empty slots as all zero. */
-        final int slotSize = keySize + 8;//8 = sizeof(bits64);
-        for (int j=countOne; j<blockSize; ++j)
+        final int slotSize = keySize + CHILD_OFFSET_SIZE;
+        for (int j = countOne; j < blockSize; ++j)
           s.writeByte(0, slotSize);
       }
       return endLevel;
@@ -173,26 +162,24 @@ public class BPlusTree {
     static void write(final SeekableDataOutput s, final ArrayList<BPlusLeaf> itemArray,
                       final int blockSize) throws IOException {
       final int itemCount = itemArray.size();
-      int keySize = 0;
-      for(final BPlusLeaf item :itemArray) keySize = Math.max(keySize, item.key.length());
-      final int valSize = 8;
+      final int keySize = itemArray.
+          stream().
+          sorted((l1, l2) -> -Integer.compare(l1.key.length(), l2.key.length())).
+          findFirst().get().key.length();
 
       s.writeInt(MAGIC);
       s.writeInt(blockSize);
       s.writeInt(keySize);
-      s.writeInt(valSize);
+      s.writeInt(WRITE_VAL_SIZE);
       s.writeLong(itemCount);
       s.writeLong(0L); // reserved
       long indexOffset = s.tell();
 
-      final int levels = bptCountLevels(blockSize, itemCount);
-      for (int i = levels-1; i > 0; --i)  {
-        final long endLevelOffset = writeIndexLevel(s, blockSize, itemArray, itemCount, indexOffset,
-                                                i, keySize, valSize);
-        indexOffset = s.tell();
+      final int levels = countLevels(blockSize, itemCount);
+      for (int level = levels - 1; level > 0; --level)  {
+        indexOffset = writeIndexLevel(s, blockSize, itemArray, itemCount, indexOffset, level, keySize);
       }
-      writeLeafLevel(s, blockSize, itemArray, itemCount, keySize, valSize);
-
+      writeLeafLevel(s, blockSize, itemArray, itemCount, keySize);
     }
   }
 

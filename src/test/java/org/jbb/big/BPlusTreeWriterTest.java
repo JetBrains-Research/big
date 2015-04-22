@@ -45,7 +45,7 @@ public class BPlusTreeWriterTest extends TestCase {
     final Path path = Files.createTempFile("BPlusTree", ".bb");
     final ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
     try {
-      final int blockSize = 4;
+      final int blockSize = 3;
       final SeekableDataOutput writer = SeekableDataOutput.of(path, byteOrder);
       final ArrayList<BPlusLeaf> leafs = loadBPlusLeafs();
       BPlusTree.Header.write(writer, leafs, blockSize);
