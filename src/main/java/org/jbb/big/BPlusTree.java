@@ -38,7 +38,7 @@ public class BPlusTree {
     private static final int MAGIC = 0x78ca8c91;
     private static final int BLOCK_HEADER_SIZE = 4;
     private static final int CHILD_OFFSET_SIZE = 8;
-    private static final int WRITE_VAL_SIZE = 8; // pair(CromosomeId, size) = 4 + 4 = 8
+    private static final int VAL_SIZE = 8; // pair(CromosomeId, size) = 4 + 4 = 8
 
     protected final ByteOrder byteOrder;
     protected final int blockSize;
@@ -52,6 +52,9 @@ public class BPlusTree {
       this.byteOrder = byteOrder;
       this.blockSize = blockSize;
       this.keySize = keySize;
+      if (valSize != VAL_SIZE) {
+        throw new IllegalStateException("Support only valSize = 8");
+      }
       this.valSize = valSize;
       this.itemCount = itemCount;
       this.rootOffset = rootOffset;
@@ -105,7 +108,7 @@ public class BPlusTree {
         }
 
         /* Pad out any unused bits of last block with zeroes. */
-        final int slotSize = keySize + WRITE_VAL_SIZE;
+        final int slotSize = keySize + VAL_SIZE;
         for (int j = countOne; j < blockSize; ++j)
           s.writeByte(0, slotSize);
 
@@ -124,7 +127,7 @@ public class BPlusTree {
 
       /* Calculate sizes and offsets. */
       final int bytesInIndexBlock = (BLOCK_HEADER_SIZE + blockSize * (keySize + CHILD_OFFSET_SIZE));
-      final int bytesInLeafBlock = (BLOCK_HEADER_SIZE + blockSize * (keySize + WRITE_VAL_SIZE));
+      final int bytesInLeafBlock = (BLOCK_HEADER_SIZE + blockSize * (keySize + VAL_SIZE));
       final long bytesInNextLevelBlock = (level == 1 ? bytesInLeafBlock : bytesInIndexBlock);
       final long levelSize = nodeCount * bytesInIndexBlock;
       final long endLevel = indexOffset + levelSize;
@@ -170,7 +173,7 @@ public class BPlusTree {
       s.writeInt(MAGIC);
       s.writeInt(blockSize);
       s.writeInt(keySize);
-      s.writeInt(WRITE_VAL_SIZE);
+      s.writeInt(VAL_SIZE);
       s.writeLong(itemCount);
       s.writeLong(0L); // reserved
       long indexOffset = s.tell();
