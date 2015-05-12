@@ -13,12 +13,20 @@ import java.util.List;
  * @since 11/04/15
  */
 public class BigBedFile extends BigFile<BedData> {
+
+  public static final int MAGIC = 0x8789f2eb;
+
   public static BigBedFile parse(final Path path) throws IOException {
     return new BigBedFile(path);
   }
 
   protected BigBedFile(final Path path) throws IOException {
     super(path);
+  }
+
+  @Override
+  public int getHeaderMagic() {
+    return MAGIC;
   }
 
   @Override

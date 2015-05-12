@@ -24,10 +24,9 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
 
   @VisibleForTesting
   protected static class Header {
-    public static final int BED_MAGIC = 0x8789f2eb;
 
-    static Header parse(final SeekableDataInput s) throws IOException {
-      s.guess(BED_MAGIC);
+    static Header parse(final SeekableDataInput s, final int magic) throws IOException {
+      s.guess(magic);
 
       final short version = s.readShort();
       final short zoomLevels = s.readShort();
@@ -104,7 +103,7 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
 
   protected BigFile(final Path path) throws IOException {
     this.handle = SeekableDataInput.of(path);
-    this.header = BigFile.Header.parse(handle);
+    this.header = BigFile.Header.parse(handle, getHeaderMagic());
   }
 
   public Set<String> chromosomes() throws IOException {
@@ -145,6 +144,8 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
       return ImmutableList.of();
     }
   }
+
+  public abstract int getHeaderMagic();
 
   protected abstract List<T> queryInternal(RTreeInterval query, int maxItems)
       throws IOException;

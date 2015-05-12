@@ -6,7 +6,7 @@ public class BigFileTest extends TestCase {
   public void testParseHeader() throws Exception {
     // http://genome.ucsc.edu/goldenpath/help/bigBed.html
     try (final SeekableDataInput s = SeekableDataInput.of(Examples.get("example1.bb"))) {
-      final BigFile.Header bigHeader = BigFile.Header.parse(s);
+      final BigFile.Header bigHeader = BigFile.Header.parse(s, BigBedFile.MAGIC);
       assertTrue(bigHeader.version == 1);
       assertTrue(bigHeader.zoomLevels == 5);
       assertTrue(bigHeader.unzoomedDataOffset == 233);
