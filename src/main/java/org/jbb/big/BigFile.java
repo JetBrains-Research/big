@@ -41,7 +41,9 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
       final long reserved = s.readLong();  // currently 0.
 
       if (uncompressBufSize > 0) {
-        throw new IllegalStateException("data compression is not supported");
+        // TODO: Try to use BigFile.supportsCompression() or implement for BigBed
+        // TODO: Check version is >= 3 - see corresponding table in "Supplementary Data".
+//        throw new IllegalStateException("data compression is not supported");
       }
 
       if (reserved != 0) {
@@ -146,6 +148,10 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
   }
 
   public abstract int getHeaderMagic();
+
+  public boolean isCompressed() {
+    return header.uncompressBufSize > 0;
+  }
 
   protected abstract List<T> queryInternal(RTreeInterval query, int maxItems)
       throws IOException;

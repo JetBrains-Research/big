@@ -38,27 +38,44 @@ public class BigWigFile extends BigFile<WigData> {
     header.rTree.findOverlappingBlocks(handle, query, block -> {
       handle.seek(block.dataOffset);
 
-      // TODO: Do we need to merge WigData instances with subsequent headers?
-      // TODO: Investigate bigWigToWig output and source code.
-      WigSectionHeader header = WigSectionHeader.read(handle);
-
-      switch (header.type) {
-        case WigSectionHeader.FIXED_STEP_TYPE:
-          result.add(FixedStepWigData.read(header, handle));
-          break;
-        case WigSectionHeader.VARIABLE_STEP_TYPE:
-          result.add(VariableStepWigData.read(header, handle));
-          break;
-        case WigSectionHeader.BED_GRAPH_TYPE:
-          throw new IllegalStateException("bedGraph sections are not supported in bigWig files");
-        default:
-          throw new IllegalStateException("unknown section type " + header.type);
+      if (isCompressed()) {
+        handle.startCompressedBlock(block.dataSize);
+      }
+      try {
+        // TODO: Do we need to merge WigData instances with subsequent headers?
+        // TODO: Investigate bigWigToWig output and source code.
+        result.add(readWigData());
+      } finally {
+        if (isCompressed()) {
+          handle.endCompressedBlock();
+        }
       }
 
       Preconditions.checkState(handle.tell() - block.dataOffset == block.dataSize,
                                "wig section read incorrectly - %s, %s, %s", handle.tell(),
                                block.dataOffset, block.dataSize);
     });
+
+    return result;
+  }
+
+  @NotNull
+  private WigData readWigData() throws IOException {
+    final WigData result;
+    final WigSectionHeader header = WigSectionHeader.read(handle);
+
+    switch (header.type) {
+      case WigSectionHeader.FIXED_STEP_TYPE:
+        result = FixedStepWigData.read(header, handle);
+        break;
+      case WigSectionHeader.VARIABLE_STEP_TYPE:
+        result = VariableStepWigData.read(header, handle);
+        break;
+      case WigSectionHeader.BED_GRAPH_TYPE:
+        throw new IllegalStateException("bedGraph sections are not supported in bigWig files");
+      default:
+        throw new IllegalStateException("unknown section type " + header.type);
+    }
 
     return result;
   }

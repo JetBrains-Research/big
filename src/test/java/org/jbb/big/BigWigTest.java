@@ -2,6 +2,10 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
@@ -10,8 +14,16 @@ import java.util.Set;
  */
 public class BigWigTest extends TestCase {
 
-  public void testBigWigVariableStepParse() throws Exception {
-    final BigWigFile file = BigWigFile.parse(Examples.get("example2_uncompressed.bw"));
+  public void testVariableStepParse() throws Exception {
+    assertExample2(Examples.get("example2_uncompressed.bw"));
+  }
+
+  public void testCompressedVariableStepParse() throws Exception {
+    assertExample2(Examples.get("example2.bw"));
+  }
+
+  private void assertExample2(@NotNull final Path path) throws IOException {
+    final BigWigFile file = BigWigFile.parse(path);
     final Set<String> chromosomes = file.chromosomes();
 
     assertEquals(1, chromosomes.size());
