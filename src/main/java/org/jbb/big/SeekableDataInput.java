@@ -8,12 +8,14 @@ import com.google.common.primitives.Shorts;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
+import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -39,11 +41,15 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
   }
 
   private final RandomAccessFile file;
+  @NotNull private final StreamWithCompressedBlocks stream;
   private ByteOrder order;
 
   private SeekableDataInput(final RandomAccessFile file, final ByteOrder order) {
     this.file = Objects.requireNonNull(file);
     this.order = Objects.requireNonNull(order);
+
+    // TODO: Buffered?
+    stream = new StreamWithCompressedBlocks(Channels.newInputStream(file.getChannel()));
   }
 
   public ByteOrder order() {
@@ -52,6 +58,14 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
 
   public void order(final ByteOrder order) {
     this.order = Objects.requireNonNull(order);
+  }
+
+  public void startCompressedBlock(final long size) {
+    stream.startCompressedBlock(size);
+  }
+
+  public void endCompressedBlock() {
+    stream.endCompressedBlock();
   }
 
   /** Guess byte order from a given big-endian {@code magic}. */
@@ -89,7 +103,7 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
 
   @Override
   public int skipBytes(final int n) throws IOException {
-    return file.skipBytes(n);
+    return getUnderlyingDataStream().skipBytes(n);
   }
 
   public void seek(final long pos) throws IOException {
@@ -107,32 +121,33 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
 
   @Override
   public void close() throws IOException {
+    stream.close();
     file.close();
   }
 
   @Override
   public int read() throws IOException {
-    return file.read();
+    return getUnderlyingDataStream().read();
   }
 
   @Override
   public boolean readBoolean() throws IOException {
-    return file.readBoolean();
+    return getUnderlyingDataStream().readBoolean();
   }
 
   @Override
   public byte readByte() throws IOException {
-    return file.readByte();
+    return getUnderlyingDataStream().readByte();
   }
 
   @Override
   public int readUnsignedByte() throws IOException {
-    return file.readUnsignedByte();
+    return getUnderlyingDataStream().readUnsignedByte();
   }
 
   @Override
   public char readChar() throws IOException {
-    return file.readChar();
+    return getUnderlyingDataStream().readChar();
   }
 
   @Override
@@ -201,15 +216,20 @@ public class SeekableDataInput extends InputStream implements AutoCloseable, Dat
 
   @Override
   public @NotNull String readUTF() throws IOException {
-    return file.readUTF();
+    return getUnderlyingDataStream().readUTF();
   }
 
   private byte readAndCheckByte() throws IOException {
-    final int b = file.read();
+    final int b = getUnderlyingDataStream().read();
     if (b == -1) {
       throw new EOFException();
     }
 
     return (byte) b;
+  }
+
+  @NotNull
+  private DataInputStream getUnderlyingDataStream() {
+    return stream.getDataStream();
   }
 }
