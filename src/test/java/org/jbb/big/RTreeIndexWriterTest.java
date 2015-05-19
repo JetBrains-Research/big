@@ -101,6 +101,228 @@ public class RTreeIndexWriterTest extends TestCase {
     }
   }
 
+  void slAddHead(rTree listPt, rTree node)
+/* Add new node to start of list.
+ * Usage:
+ *    slAddHead(&list, node);
+ * where list and nodes are both pointers to structure
+ * that begin with a next pointer.
+ */
+  {
+    node.next = listPt;
+    listPt = node;
+  }
+
+  lmBlock newBlock(lm lm, int reqSize)
+/* Allocate a new block of at least reqSize */
+  {
+    int size = (reqSize > lm.blockSize ? reqSize : lm.blockSize);
+    int fullSize = size + 32; //sizeof(struct lmBlock);
+    lmBlock mb = new lmBlock(); // Потенциальная засада! Нужно выделить кусок памяти равным fullSize байт//needLargeZeroedMem(fullSize);
+
+    // Поля free и end пока не используются
+    //mb.free = (char *)(mb+1);
+    //mb.end = ((char *)mb) + fullSize;
+
+    mb.next = lm.blocks;
+    lm.blocks = mb;
+    return mb;
+  }
+  void slReverse(rTree listPt)
+/* Reverse order of a list.
+ * Usage:
+ *    slReverse(&list);
+ */
+  {
+    rTree newList = null;
+    rTree el, next;
+
+    next = listPt;
+    while (next != null)
+    {
+      el = next;
+      next = el.next;
+      el.next = newList;
+      newList = el;
+    }
+    listPt = newList;
+  }
+
+  rTree rTreeFromChromRangeArray( lm lm, int blockSize, int itemsPerSlot,
+                                  bbiBoundsArray itemArray[], int itemSize, long itemCount,
+                                  long endFileOffset,
+                                  wrapObject retLevelCount) {
+
+    if (itemCount == 0)
+      return null;
+    rTree el = null, list = null, tree = null;
+
+/* Make first level above leaf. */
+    long nextOffset = itemArray[0].offset;
+    int oneSize = 0;
+    for (int i=0; i<itemCount; i += oneSize)
+    {
+
+    /* Allocate element and put on list. */
+      el = new rTree(); //lmAllocVar(lm, el);
+      slAddHead(list, el);
+
+    /* Fill out most of element from first item in element. */
+      cirTreeRange key = itemArray[i].range;
+      el.startChromIx = el.endChromIx = key.chromIx;
+      el.startBase = key.start;
+      el.endBase = key.end;
+      el.startFileOffset = nextOffset;
+
+      oneSize = 1;
+
+      int j;
+      for (j=i+1; j<itemCount; ++j) {
+        nextOffset = itemArray[j].offset;//(*fetchOffset)(endItem, context);
+        if (nextOffset != el.startFileOffset)
+          break;
+        else
+          oneSize++;
+      }
+      if (j == itemCount) {
+        nextOffset = endFileOffset;
+      }
+
+      el.endFileOffset = nextOffset;
+
+    /* Expand area spanned to include all items in block. */
+      for (j=1; j<oneSize; ++j)
+      {
+        key = itemArray[i+j].range;
+        if (key.chromIx < el.startChromIx)
+        {
+          el.startChromIx = key.chromIx;
+          el.startBase = key.start;
+        }
+        else if (key.chromIx == el.startChromIx)
+        {
+          if (key.start < el.startBase)
+            el.startBase = key.start;
+        }
+        if (key.chromIx > el.endChromIx)
+        {
+          el.endChromIx = key.chromIx;
+          el.endBase = key.end;
+        }
+        else if (key.chromIx == el.endChromIx)
+        {
+          if (key.end > el.endBase)
+            el.endBase = key.end;
+        }
+      }
+    }
+    slReverse(list);
+
+/* Now iterate through making more and more condensed versions until have just one. */
+    int levelCount = 1;
+    tree = list;
+    while (tree.next != null || levelCount < 2)
+    {
+      list = null;
+      int slotsUsed = blockSize;
+      rTree parent = null, next;
+      for (el = tree; el != null; el = next)
+      {
+        next = el.next;
+        if (slotsUsed >= blockSize)
+        {
+          slotsUsed = 1;
+          parent = new rTree(el); //lmCloneMem(lm, el, sizeof(*el));
+          parent.children = el;
+          el.parent = parent;
+          el.next = null;
+          slAddHead(list, parent);
+        }
+        else
+        {
+          ++slotsUsed;
+          slAddHead(parent.children, el);
+          el.parent = parent;
+          if (el.startChromIx < parent.startChromIx)
+          {
+            parent.startChromIx = el.startChromIx;
+            parent.startBase = el.startBase;
+          }
+          else if (el.startChromIx == parent.startChromIx)
+          {
+            if (el.startBase < parent.startBase)
+              parent.startBase = el.startBase;
+          }
+          if (el.endChromIx > parent.endChromIx)
+          {
+            parent.endChromIx = el.endChromIx;
+            parent.endBase = el.endBase;
+          }
+          else if (el.endChromIx == parent.endChromIx)
+          {
+            if (el.endBase > parent.endBase)
+              parent.endBase = el.endBase;
+          }
+        }
+      }
+
+      slReverse(list);
+      for (el = list; el != null; el = el.next)
+        slReverse(el.children);
+      tree = list;
+      levelCount += 1;
+    }
+    retLevelCount.data = Integer.valueOf(levelCount);
+    return tree;
+  }
+
+  lm lmInit(int blockSize)
+/* Create a local memory pool. */
+  {
+    lm lm = new lm();
+
+    int aliSize = 8;
+
+    lm.blocks = null;
+    if (blockSize <= 0)
+      blockSize = (1<<14);    /* 16k default. */
+    lm.blockSize = blockSize;
+    lm.allignAdd = (aliSize-1);
+    lm.allignMask = ~lm.allignAdd;
+    newBlock(lm, blockSize);
+    return lm;
+  }
+
+  private void cirTreeFileBulkIndexToOpenFile(bbiBoundsArray itemArray[], int itemSize, long itemCount,
+                                              int blockSize, int itemsPerSlot,
+                                              long endFileOffset, SeekableDataOutput writer) {
+    wrapObject levelCount = new wrapObject();
+    lm lm = lmInit(0);
+    rTree tree = rTreeFromChromRangeArray(lm, blockSize, itemsPerSlot,
+                                          itemArray, itemSize, itemCount, endFileOffset,
+                                          levelCount);
+    // TODO
+    /*
+    struct rTree dummyTree = {.startBase=0};
+    if (tree == NULL)
+      tree = &dummyTree;	// Work for empty files....
+    bits32 magic = cirTreeSig;
+    bits32 reserved = 0;
+    writeOne(f, magic);
+    writeOne(f, blockSize);
+    writeOne(f, itemCount);
+    writeOne(f, tree->startChromIx);
+    writeOne(f, tree->startBase);
+    writeOne(f, tree->endChromIx);
+    writeOne(f, tree->endBase);
+    writeOne(f, endFileOffset);
+    writeOne(f, itemsPerSlot);
+    writeOne(f, reserved);
+    if (tree != &dummyTree)
+      writeTreeToOpenFile(tree, blockSize, levelCount, f);
+    lmCleanup(&lm);*/
+
+  }
   private void writeBlocks(ArrayList<bbiChromUsage> usageList, Path bedFilePath,
                            int itemsPerSlot, bbiBoundsArray bounds[],
                            int sectionCount, boolean doCompress, SeekableDataOutput writer,
@@ -281,6 +503,7 @@ public class RTreeIndexWriterTest extends TestCase {
     Path bedFilePath = Examples.get("bedExample01.txt");
     Path pathBigBedFile = Files.createTempFile("BPlusTree", ".bb");;
 
+    int blockSize = 4; // задается для B+ tree
     Hashtable<String, Integer> chromSizesHash = bbiChromSizesFromFile(chromSizes);
     wrapObject minDiff = new wrapObject();
     wrapObject aveSize = new wrapObject(), bedCount = new wrapObject();
@@ -306,6 +529,13 @@ public class RTreeIndexWriterTest extends TestCase {
     writeBlocks(usageList, bedFilePath, itemsPerSlot, boundsArray, blockCount, doCompress, writer,
         resTryCount, resScales, resSizes,
         bedCount.toInt(), fieldCount, maxBlockSize);
+
+    /* Write out primary data index. */
+    long indexOffset = writer.tell();
+    int itemSize = 24;
+    cirTreeFileBulkIndexToOpenFile(boundsArray, itemSize, blockCount,
+                                   blockSize, 1,
+                                   indexOffset, writer);
 
 
 
