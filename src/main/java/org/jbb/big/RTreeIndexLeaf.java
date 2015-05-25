@@ -1,5 +1,7 @@
 package org.jbb.big;
 
+import java.util.Objects;
+
 /**
  * Chromosome R-tree external node format
  *
@@ -13,5 +15,27 @@ public class RTreeIndexLeaf {
   public RTreeIndexLeaf(final long dataOffset, final long dataSize) {
     this.dataOffset = dataOffset;
     this.dataSize = dataSize;
+  }
+
+  @Override
+  public boolean equals(final Object obj) {
+    if (this == obj)
+      return true;
+    if (!(obj instanceof RTreeIndexLeaf))
+      return false;
+
+    final RTreeIndexLeaf other = (RTreeIndexLeaf) obj;
+    return other.dataOffset == dataOffset &&
+           other.dataSize == dataSize;
+  }
+
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return super.toString();
   }
 }
