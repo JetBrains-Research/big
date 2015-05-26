@@ -4,7 +4,9 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Objects;
 
@@ -81,9 +83,48 @@ class RTreeIndex {
       return new Header(s.order(), blockSize, itemCount, startChromIx, startBase,
                         endChromIx, endBase, fileSize, itemsPerSlot, rootOffset);
     }
+    public static long write(final SeekableDataOutput writer, final Path chromSizesPath, final Path bedFilePath, final int blockSize, final int itemsPerSlot, final short fieldCount) throws IOException {
+      final Hashtable<String, Integer> chromSizesHash = RTreeIndexDetails.bbiChromSizesFromFile(chromSizesPath);
+      final wrapObject minDiff = new wrapObject();
+      final wrapObject aveSize = new wrapObject(), bedCount = new wrapObject();
+      final ArrayList<bbiChromUsage> usageList = RTreeIndexDetails.bbiChromUsageFromBedFile(bedFilePath,
+                                                                                      chromSizesHash,
+                                                                                      minDiff,
+                                                                                      aveSize,
+                                                                                      bedCount);
+
+      final int resScales[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];
+      final int resSizes[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];
+      final int resTryCount = RTreeIndexDetails.bbiCalcResScalesAndSizes(aveSize.toInt(), resScales,
+                                                                   resSizes);
+
+
+      final int blockCount = RTreeIndexDetails.bbiCountSectionsNeeded(usageList, itemsPerSlot);
+      final bbiBoundsArray boundsArray[] = new bbiBoundsArray[blockCount];
+      for (int i = 0; i < blockCount; i++ ) boundsArray[i] = new bbiBoundsArray();
+
+      final boolean doCompress = false;
+
+      final wrapObject maxBlockSize = new wrapObject();
+
+
+      RTreeIndexDetails.writeBlocks(usageList, bedFilePath, itemsPerSlot, boundsArray, blockCount,
+                                    doCompress, writer,
+                                    resTryCount, resScales, resSizes,
+                                    bedCount.toInt(), fieldCount, maxBlockSize);
+
+    /* Write out primary data index. */
+      final long indexOffset = writer.tell();
+      final int itemSize = 24;
+      RTreeIndexDetails.cirTreeFileBulkIndexToOpenFile(boundsArray, itemSize, blockCount,
+                                                       blockSize, 1,
+                                                       indexOffset, writer);
+
+      return indexOffset;
+    }
   }
 
-  protected final Header header;
+  public final Header header;
 
   public RTreeIndex(final Header header) {
     this.header = Objects.requireNonNull(header);
