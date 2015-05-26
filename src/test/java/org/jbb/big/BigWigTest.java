@@ -14,34 +14,82 @@ import java.util.Set;
  */
 public class BigWigTest extends TestCase {
 
-  public void testVariableStepParse() throws Exception {
-    assertExample2(Examples.get("example2_uncompressed.bw"));
+  public void testCompressedExample2() throws Exception {
+    assertVariableStep(Examples.get("example2.bw"), "chr21", 9411191, 50f, 48119895, 60f);
   }
 
-  public void testCompressedVariableStepParse() throws Exception {
-    assertExample2(Examples.get("example2.bw"));
+  public void testVariableStep() throws Exception {
+    assertVariableStep(Examples.get("variable_step.bw"), "chr2", 300701, 12.5f, 300705, 12.5f);
   }
 
-  private void assertExample2(@NotNull final Path path) throws IOException {
+  public void testVariableStepWithSpan() throws Exception {
+    assertVariableStep(Examples.get("variable_step_with_span.bw"), "chr2", 300701, 12.5f, 300705,
+                       12.5f);
+  }
+
+  public void testFixedStep() throws Exception {
+    assertFixedStep(Examples.get("fixed_step.bw"), "chr3", 400601, 11f, 400801, 33f);
+  }
+
+  public void testFixedStepWithSpan() throws Exception {
+    assertFixedStep(Examples.get("fixed_step_with_span.bw"), "chr3", 400601, 11f, 400805, 33f);
+  }
+
+  private void assertVariableStep(@NotNull final Path path, @NotNull final String chromosome,
+                                  final int position1, final float value1, final int position2,
+                                  final float value2) throws IOException {
+    final List<WigData> steps = assertChromosome(path, chromosome);
+
+    assertVariableStep(steps.get(0), steps.get(steps.size() - 1), position1, value1,
+                       position2, value2);
+  }
+
+  private void assertFixedStep(@NotNull final Path path, @NotNull final String chromosome,
+                               final int position1, final float value1, final int position2,
+                               final float value2) throws IOException {
+    final List<WigData> steps = assertChromosome(path, chromosome);
+
+    assertFixedStep(steps.get(0), steps.get(steps.size() - 1), position1, value1,
+                    position2, value2);
+  }
+
+  @NotNull
+  private List<WigData> assertChromosome(@NotNull final Path path, @NotNull final String chromosome)
+      throws IOException {
     final BigWigFile file = BigWigFile.parse(path);
     final Set<String> chromosomes = file.chromosomes();
 
     assertEquals(1, chromosomes.size());
-    assertEquals("chr21", chromosomes.iterator().next());
+    assertEquals(chromosome, chromosomes.iterator().next());
 
-    final List<WigData> steps = file.query("chr21", 0, 0);
+    final List<WigData> steps = file.query(chromosome, 0, 0);
 
     assertTrue(steps.size() > 0);
 
-    final WigData first = steps.get(0);
-    final WigData last = steps.get(steps.size() - 1);
+    return steps;
+  }
 
-    assertTrue(first instanceof VariableStepWigData);
-    assertTrue(last instanceof VariableStepWigData);
+  private void assertVariableStep(@NotNull final WigData firstStep, @NotNull final WigData lastStep,
+                                  final int position1, final float value1, final int position2,
+                                  final float value2) {
+    assertTrue(firstStep instanceof VariableStepWigData);
+    assertTrue(lastStep instanceof VariableStepWigData);
 
-    assertEquals(9411191, first.header.start + 1);
-    assertEquals(50f, ((VariableStepWigData) first).values[0]);
-    assertEquals(48119891, ((VariableStepWigData) last).positions[last.header.count - 1] + 1);
-    assertEquals(60f, ((VariableStepWigData) last).values[last.header.count - 1]);
+    assertEquals(position1, firstStep.header.start + 1);
+    assertEquals(value1, ((VariableStepWigData) firstStep).values[0]);
+    assertEquals(position2, lastStep.header.end);
+    assertEquals(value2, ((VariableStepWigData) lastStep).values[lastStep.header.count - 1]);
+  }
+
+  private void assertFixedStep(@NotNull final WigData firstStep, @NotNull final WigData lastStep,
+                               final int position1, final float value1, final int position2,
+                               final float value2) {
+    assertTrue(firstStep instanceof FixedStepWigData);
+    assertTrue(lastStep instanceof FixedStepWigData);
+
+    assertEquals(position1, firstStep.header.start + 1);
+    assertEquals(value1, ((FixedStepWigData) firstStep).values[0]);
+    assertEquals(position2, lastStep.header.end);
+    assertEquals(value2, ((FixedStepWigData) lastStep).values[lastStep.header.count - 1]);
   }
 }
