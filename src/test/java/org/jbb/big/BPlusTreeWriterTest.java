@@ -4,11 +4,8 @@ import com.google.common.collect.ImmutableList;
 
 import junit.framework.TestCase;
 
-import org.junit.Assert;
-
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,17 +13,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
 public class BPlusTreeWriterTest extends TestCase {
-
   private static final int NUM_ATTEMPTS = 10;
   private static final int MAX_CHROMOSOME_COUNT = 100;
   private static final Random random = new Random(5);
 
-  private ArrayList<BPlusLeaf> loadBPlusLeafs() throws IOException, URISyntaxException {
-    final ArrayList<BPlusLeaf> result = new ArrayList<>();
+  private List<BPlusLeaf> loadBPlusLeafs() throws IOException {
+    final List<BPlusLeaf> result = new ArrayList<>();
     final Path path = Examples.get("f1.chrom.sizes");
     try (final BufferedReader reader = Files.newBufferedReader(path)) {
       String buffer;
@@ -47,7 +44,7 @@ public class BPlusTreeWriterTest extends TestCase {
     try {
       final int blockSize = 3;
       final SeekableDataOutput writer = SeekableDataOutput.of(path, byteOrder);
-      final ArrayList<BPlusLeaf> leafs = loadBPlusLeafs();
+      final List<BPlusLeaf> leafs = loadBPlusLeafs();
       BPlusTree.Header.write(writer, leafs, blockSize);
       writer.close();
 
@@ -56,11 +53,9 @@ public class BPlusTreeWriterTest extends TestCase {
       checkFind(bplusTree, reader, leafs);
       checkTraverse(bplusTree, reader, leafs);
       reader.close();
-    }
-    finally {
+    } finally {
       Files.deleteIfExists(path);
     }
-
   }
 
   private ArrayList<BPlusLeaf> generateBPlusLeafs() {
@@ -82,23 +77,25 @@ public class BPlusTreeWriterTest extends TestCase {
     return result;
   }
 
-  private void checkFind(final BPlusTree bplusTree, final SeekableDataInput reader, final ArrayList<BPlusLeaf> leafs) throws IOException {
-
+  private void checkFind(final BPlusTree bplusTree, final SeekableDataInput reader,
+                         final List<BPlusLeaf> leafs)
+      throws IOException {
     for (final BPlusLeaf leaf: leafs) {
       final Optional<BPlusLeaf> findLeaf = bplusTree.find(reader, leaf.key);
-      Assert.assertTrue(findLeaf.isPresent());
-      Assert.assertTrue(leaf.equals(findLeaf.get()));
+      assertTrue(findLeaf.isPresent());
+      assertTrue(leaf.equals(findLeaf.get()));
     }
   }
 
-  private void checkTraverse(final BPlusTree bplusTree, final SeekableDataInput reader, final ArrayList<BPlusLeaf> leafs)
+  private void checkTraverse(final BPlusTree bplusTree, final SeekableDataInput reader,
+                             final List<BPlusLeaf> leafs)
       throws IOException {
-    final ImmutableList.Builder<String> b = ImmutableList.builder();
-    bplusTree.traverse(reader, bpl -> b.add(bpl.key));
-    final ImmutableList<String> chromosomeNames = b.build();
-    Assert.assertEquals(leafs.size(), chromosomeNames.size());
+    final ImmutableList.Builder<String> builder = ImmutableList.builder();
+    bplusTree.traverse(reader, bpl -> builder.add(bpl.key));
+    final ImmutableList<String> chromosomeNames = builder.build();
+    assertEquals(leafs.size(), chromosomeNames.size());
     for (int i = 0; i < leafs.size(); ++i) {
-      Assert.assertEquals(leafs.get(i).key, chromosomeNames.get(i));
+      assertEquals(leafs.get(i).key, chromosomeNames.get(i));
     }
   }
 

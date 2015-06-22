@@ -4,7 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -82,7 +82,7 @@ public class BPlusTree {
       return levels;
     }
 
-    static void writeLeafLevel(final SeekableDataOutput s, final int blockSize, final ArrayList<BPlusLeaf> itemArray, final int itemCount,
+    static void writeLeafLevel(final SeekableDataOutput s, final int blockSize, final List<BPlusLeaf> itemArray, final int itemCount,
                                final int keySize) throws IOException
     /* Write out leaf level blocks. */
     {
@@ -115,7 +115,7 @@ public class BPlusTree {
         countLeft -= countOne;
       }
     }
-    static long writeIndexLevel(final SeekableDataOutput s, final int blockSize, final ArrayList<BPlusLeaf> itemArray, final int itemCount,
+    static long writeIndexLevel(final SeekableDataOutput s, final int blockSize, final List<BPlusLeaf> itemArray, final int itemCount,
                                   final long indexOffset, final int level,
                                   final int keySize) throws IOException
     {
@@ -162,13 +162,13 @@ public class BPlusTree {
       }
       return endLevel;
     }
-    static void write(final SeekableDataOutput s, final ArrayList<BPlusLeaf> itemArray,
+    static void write(final SeekableDataOutput s, final List<BPlusLeaf> itemArray,
                       final int blockSize) throws IOException {
       final int itemCount = itemArray.size();
-      final int keySize = itemArray.
-          stream().
-          sorted((l1, l2) -> -Integer.compare(l1.key.length(), l2.key.length())).
-          findFirst().get().key.length();
+      final int keySize = itemArray.stream()
+          .sorted((l1, l2) -> -Integer.compare(l1.key.length(), l2.key.length()))
+          .findFirst()
+          .get().key.length();
 
       s.writeInt(MAGIC);
       s.writeInt(blockSize);

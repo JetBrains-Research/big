@@ -10,15 +10,18 @@ import java.nio.file.Paths;
  * @since 04.04.15
  */
 public class Examples {
-
-  public static Path get(final String name) throws URISyntaxException {
+  public static Path get(final String name) {
     final URL url = Examples.class.getClassLoader().getResource(name);
     if (url == null) {
       throw new IllegalStateException("resource not found");
     }
-    return Paths.get(url.toURI()).toFile().toPath();
-  }
 
+    try {
+      return Paths.get(url.toURI()).toFile().toPath();
+    } catch (final URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
+  }
 }
 
 
