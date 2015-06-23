@@ -20,11 +20,10 @@ import static org.jbb.big.BPlusTree.read;
 
 public class BPlusTreeTest extends TestCase {
   private final Random RANDOM = new Random();
-  private final int NUM_RANDOM_TRIALS = 1000;
 
   public void testFind() throws IOException {
-    final Path inputPath = Examples.get("example1.bb");
-    try (final BigBedFile bf = BigBedFile.parse(inputPath)) {
+    final Path path = Examples.get("example1.bb");
+    try (final BigBedFile bf = BigBedFile.parse(path)) {
       Optional<BPlusItem> bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1");
       assertFalse(bptNodeLeaf.isPresent());
 
@@ -41,11 +40,8 @@ public class BPlusTreeTest extends TestCase {
         "chr08", "chr09", "chr10", "chr11",
     };
 
-    // blockSize = 3
-    testFindAllExample("example2.bb", chromosomes);
-
-    // blockSize = 4
-    testFindAllExample("example3.bb", chromosomes);
+    testFindAllExample("example2.bb", chromosomes);  // blockSize = 3.
+    testFindAllExample("example3.bb", chromosomes);  // blockSize = 4.
   }
 
   public void testFindAllDifferentSize() throws IOException {
@@ -54,8 +50,7 @@ public class BPlusTreeTest extends TestCase {
         "chr6", "chr7", "chr8", "chr9"
     };
 
-    // blockSize = 4;
-    testFindAllExample("example4.bb", chromosomes);
+    testFindAllExample("example4.bb", chromosomes);  // blockSize = 4.
   }
 
   private void testFindAllExample(final String example, final String[] chromosomes)

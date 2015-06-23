@@ -110,7 +110,6 @@ public class BPlusTree {
         output.writeByte(0b0);  // isLeaf.
         output.writeByte(0b0);  // reserved.
         output.writeShort(childCount);
-        // TODO: loop over childCount?
         for (int j = i; j < Math.min(i + itemsPerNode, itemCount); j += itemsPerSlot) {
           final BPlusItem item = items.get(j);
           output.writeBytes(item.key, keySize);
