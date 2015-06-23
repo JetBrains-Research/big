@@ -3,8 +3,6 @@ package org.jbb.big;
 import junit.framework.TestCase;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,20 +24,20 @@ public class RTreeIndexWriterTest extends TestCase {
       assertTrue(result.get(i).equals(target.get(i)));
     }
   }
-  public void test0() throws URISyntaxException, IOException {
+  public void test0() throws IOException {
     final Path chromSizesPath = Examples.get("f2.chrom.sizes");
     final Path bedFilePath = Examples.get("bedExample01.txt");
     final Path pathBigBedFile = Files.createTempFile("BPlusTree", ".bb");
 
-    final SeekableDataOutput writer = SeekableDataOutput.of(pathBigBedFile, ByteOrder.BIG_ENDIAN);
+    final SeekableDataOutput output = SeekableDataOutput.of(pathBigBedFile);
     final int blockSize = 4; // задается для B+ tree /* Number of items to bundle in r-tree.  1024 is good. */
     final int itemsPerSlot = 3; /* Number of items in lowest level of tree.  64 is good. */
     final short fieldCount = 3; // Берется из as данных: bits16 fieldCount = slCount(as->columnList);
-    final long rTreeHeaderOffset = RTreeIndex.Header.write(writer, chromSizesPath, bedFilePath, blockSize, itemsPerSlot, fieldCount);
-    writer.close();
+    final long rTreeHeaderOffset = RTreeIndex.Header.write(output, chromSizesPath, bedFilePath, blockSize, itemsPerSlot, fieldCount);
+    output.close();
 
-    try (final SeekableDataInput reader = SeekableDataInput.of(pathBigBedFile)) {
-      final RTreeIndex rti = RTreeIndex.read(reader, rTreeHeaderOffset);
+    try (final SeekableDataInput input = SeekableDataInput.of(pathBigBedFile)) {
+      final RTreeIndex rti = RTreeIndex.read(input, rTreeHeaderOffset);
 
       assertEquals(rti.header.blockSize, 4);
       assertEquals(rti.header.itemCount, 13);
@@ -57,12 +55,12 @@ public class RTreeIndexWriterTest extends TestCase {
       left = new RTreeOffset(chrom0, 9434178);
       right = new RTreeOffset(chrom0, 9434611);
       target = Arrays.asList(new RTreeIndexLeaf(0, 39), new RTreeIndexLeaf(39, 13));
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
 
       left = new RTreeOffset(chrom0, 9508110);
       right = new RTreeOffset(chrom0, 9516987);
       target = new ArrayList<>();
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
 
       final int chrom1 = 1;
       left = new RTreeOffset(chrom1, 9508110);
@@ -70,20 +68,20 @@ public class RTreeIndexWriterTest extends TestCase {
       target = new ArrayList<>();
       target.add(new RTreeIndexLeaf(52, 26));
 
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
 
       final int chrom2 = 2;
       left = new RTreeOffset(chrom2, 9907597);
       right = new RTreeOffset(chrom2, 10148590);
       target = new ArrayList<>();
       target.add(new RTreeIndexLeaf(78, 39));
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
 
       left = new RTreeOffset(chrom2, 9908258);
       right = new RTreeOffset(chrom2, 10148590);
       target = new ArrayList<>();
       target.add(new RTreeIndexLeaf(78, 39));
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
 
 
       final int chrom10 = 10;
@@ -91,7 +89,7 @@ public class RTreeIndexWriterTest extends TestCase {
       right = new RTreeOffset(chrom10, 13058276);
       target = new ArrayList<>();
       target.add(new RTreeIndexLeaf(286, 13));
-      checkQuery(rti, reader, left, right, target);
+      checkQuery(rti, input, left, right, target);
     }
   }
 }

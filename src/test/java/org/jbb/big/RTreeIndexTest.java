@@ -2,10 +2,11 @@ package org.jbb.big;
 
 import junit.framework.TestCase;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 public class RTreeIndexTest extends TestCase {
-  public void testParseHeader() throws Exception {
+  public void testParseHeader() throws IOException {
     final Path inputPath = Examples.get("example1.bb");
     try (final SeekableDataInput s = SeekableDataInput.of(inputPath)) {
       final long unzoomedIndexOffset = 192771;

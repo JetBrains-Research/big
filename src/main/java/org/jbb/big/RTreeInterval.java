@@ -1,5 +1,7 @@
 package org.jbb.big;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Objects;
 
 /**
@@ -10,8 +12,14 @@ import java.util.Objects;
  */
 public class RTreeInterval {
   public static RTreeInterval of(final int chromIx, final int startOffset, final int endOffset) {
-    return new RTreeInterval(new RTreeOffset(chromIx, startOffset),
-                          new RTreeOffset(chromIx, endOffset));
+    return of(chromIx, startOffset, chromIx, endOffset);
+  }
+
+  @VisibleForTesting
+  protected static RTreeInterval of(final int startChromIx, final int startOffset,
+                                    final int endChromIx, final int endOffset) {
+    return new RTreeInterval(new RTreeOffset(startChromIx, startOffset),
+                             new RTreeOffset(endChromIx, endOffset));
   }
 
   /** Start offset (inclusive). */
