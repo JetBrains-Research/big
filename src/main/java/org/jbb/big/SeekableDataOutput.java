@@ -1,6 +1,5 @@
 package org.jbb.big;
 
-import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
@@ -81,8 +80,8 @@ public class SeekableDataOutput extends OutputStream implements AutoCloseable, D
   }
 
   public void writeByte(final int v, final int count) throws IOException {
-    if (count > 0) {
-      file.writeBytes(Strings.repeat(Character.toString((char) v), count));
+    for (int i = 0; i < count; i++) {
+      writeByte(v);
     }
   }
 

@@ -1,12 +1,12 @@
 package org.jbb.big;
 
 /**
- * A leaf node in a B+ tree.
+ * An item in a B+ tree.
  *
  * @author Sergey Zherevchuk
  * @since 10/03/15
  */
-public class BPlusLeaf {
+public class BPlusItem {
   /** Chromosome name, e.g. "chr19" or "chrY". */
   public final String key;
   /** Unique chromosome identifier. */
@@ -14,7 +14,7 @@ public class BPlusLeaf {
   /** Chromosome length in base pairs. */
   public final int size;
 
-  public BPlusLeaf(final String key, final int id, final int size) {
+  public BPlusItem(final String key, final int id, final int size) {
     this.key = key;
     this.id = id;
     this.size = size;
@@ -29,11 +29,11 @@ public class BPlusLeaf {
       return false;
     }
 
-    final BPlusLeaf bPlusLeaf = (BPlusLeaf) o;
+    final BPlusItem bPlusItem = (BPlusItem) o;
 
-    return id == bPlusLeaf.id &&
-           size == bPlusLeaf.size &&
-           key.equals(bPlusLeaf.key);
+    return id == bPlusItem.id &&
+           size == bPlusItem.size &&
+           key.equals(bPlusItem.key);
   }
 
   @Override
@@ -46,7 +46,7 @@ public class BPlusLeaf {
 
   @Override
   public String toString() {
-    return String.format("[%s] => [%d; %d]", key, id, size);
+    return String.format("%s => (%d; %d)", key, id, size);
   }
 
 }

@@ -83,7 +83,10 @@ class RTreeIndex {
       return new Header(s.order(), blockSize, itemCount, startChromIx, startBase,
                         endChromIx, endBase, fileSize, itemsPerSlot, rootOffset);
     }
-    public static long write(final SeekableDataOutput writer, final Path chromSizesPath, final Path bedFilePath, final int blockSize, final int itemsPerSlot, final short fieldCount) throws IOException {
+
+    public static long write(final SeekableDataOutput writer, final Path chromSizesPath,
+                             final Path bedFilePath, final int blockSize,
+                             final int itemsPerSlot, final short fieldCount) throws IOException {
       final Hashtable<String, Integer> chromSizesHash = RTreeIndexDetails.bbiChromSizesFromFile(chromSizesPath);
       final wrapObject minDiff = new wrapObject();
       final wrapObject aveSize = new wrapObject(), bedCount = new wrapObject();

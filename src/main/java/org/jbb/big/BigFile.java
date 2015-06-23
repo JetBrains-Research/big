@@ -136,7 +136,7 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
   public List<T> query(final String chromName, final int startOffset, final int endOffset,
                        final int maxItems)
       throws IOException {
-    final Optional<BPlusLeaf> bpl = header.bPlusTree.find(handle, chromName);
+    final Optional<BPlusItem> bpl = header.bPlusTree.find(handle, chromName);
     if (bpl.isPresent()) {
       final int chromIx = bpl.get().id;
       final RTreeInterval query = RTreeInterval.of(
