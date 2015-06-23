@@ -64,7 +64,7 @@ class RTreeIndex {
       this.rootOffset = rootOffset;
     }
 
-    public static Header read(final SeekableDataInput s, final long offset)
+    private static Header read(final SeekableDataInput s, final long offset)
         throws IOException {
       s.seek(offset);
       s.guess(MAGIC);

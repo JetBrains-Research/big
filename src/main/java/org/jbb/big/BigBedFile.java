@@ -48,7 +48,7 @@ public class BigBedFile extends BigFile<BedData> {
         final int endOffset = handle.readInt();
         byte ch;
         final StringBuilder sb = new StringBuilder();
-        for (; ; ) {
+        for (; ;) {
           ch = handle.readByte();
           if (ch == 0) {
             break;

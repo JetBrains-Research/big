@@ -1,5 +1,9 @@
 package org.jbb.big;
 
+import com.google.common.base.MoreObjects;
+
+import java.util.Objects;
+
 /**
  * A minimal representation of a BED file entry.
  *
@@ -21,5 +25,33 @@ public class BedData {
     this.start = start;
     this.end = end;
     this.rest = rest;
+  }
+
+  @Override
+  public boolean equals(final Object obj) {
+    if (this == obj) {
+      return true;
+    } else if (obj == null || getClass() != obj.getClass()) {
+      return false;
+    }
+
+    final BedData other = (BedData) obj;
+    return id == other.id && start == other.start && end == other.end &&
+           rest.equals(other.rest);
+
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, start, end, rest);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("id", id)
+        .add("start", start)
+        .add("end", end)
+        .toString();
   }
 }
