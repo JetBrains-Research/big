@@ -21,8 +21,10 @@ public class RTreeIndexWriterTest extends TestCase {
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       // We don't compare the intervals, because 'expected' holds dummies.
-      assertEquals(expected.get(i).dataOffset, actual.get(i).dataOffset);
-      assertEquals(expected.get(i).dataSize, actual.get(i).dataSize);
+      assertEquals(expected.get(i).getDataOffset(),
+                   actual.get(i).getDataOffset());
+      assertEquals(expected.get(i).getDataSize(),
+                   actual.get(i).getDataSize());
     }
   }
 

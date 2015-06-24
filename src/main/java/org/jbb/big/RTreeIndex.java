@@ -192,7 +192,7 @@ class RTreeIndex {
       }
 
       for (final RTreeIndexNode node : children) {
-        findOverlappingBlocksRecursively(s, query, node.dataOffset, consumer);
+        findOverlappingBlocksRecursively(s, query, node.getDataOffset(), consumer);
       }
     }
   }

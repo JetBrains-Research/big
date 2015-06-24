@@ -43,7 +43,7 @@ public class RTreeIndexTest extends TestCase {
             0, items.get(left).start, items.get(right).end);
 
         rti.findOverlappingBlocks(
-            bbf.handle, query, leaf -> assertTrue(leaf.interval.overlaps(query)));
+            bbf.handle, query, leaf -> assertTrue(leaf.getInterval().overlaps(query)));
       }
     }
   }
