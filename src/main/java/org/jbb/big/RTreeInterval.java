@@ -37,6 +37,12 @@ public class RTreeInterval {
              || right.compareTo(other.left) <= 0);
   }
 
+  @VisibleForTesting
+  protected boolean contains(final RTreeInterval other) {
+    return other.left.compareTo(left) >= 0
+           && other.right.compareTo(right) <= 0;
+  }
+
   @Override
   public boolean equals(final Object obj) {
     if (this == obj) {

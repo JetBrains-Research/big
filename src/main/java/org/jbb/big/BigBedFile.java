@@ -57,9 +57,11 @@ public class BigBedFile extends BigFile<BedData> {
           sb.append(ch);
         }
 
-        if (startOffset < query.left.offset) {
+        // This was somewhat tricky to get right, please make sure
+        // you understand the code before modifying it.
+        if (startOffset < query.left.offset || endOffset > query.right.offset) {
           continue;
-        } else if (endOffset > query.right.offset) {
+        } else if (startOffset > query.right.offset) {
           break;
         }
 
