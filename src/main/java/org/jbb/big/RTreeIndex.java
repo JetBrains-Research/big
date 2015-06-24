@@ -6,8 +6,8 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -87,14 +87,12 @@ class RTreeIndex {
     public static long write(final SeekableDataOutput writer, final Path chromSizesPath,
                              final Path bedFilePath, final int blockSize,
                              final int itemsPerSlot, final short fieldCount) throws IOException {
-      final Hashtable<String, Integer> chromSizesHash = RTreeIndexDetails.bbiChromSizesFromFile(chromSizesPath);
+      final Map<String, Integer> chromSizes = Internals.readChromosomeSizes(chromSizesPath);
+
       final wrapObject minDiff = new wrapObject();
       final wrapObject aveSize = new wrapObject(), bedCount = new wrapObject();
-      final ArrayList<bbiChromUsage> usageList = RTreeIndexDetails.bbiChromUsageFromBedFile(bedFilePath,
-                                                                                      chromSizesHash,
-                                                                                      minDiff,
-                                                                                      aveSize,
-                                                                                      bedCount);
+      final List<bbiChromUsage> usageList = RTreeIndexDetails.bbiChromUsageFromBedFile(
+          bedFilePath, chromSizes, minDiff, aveSize, bedCount);
 
       final int resScales[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];
       final int resSizes[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];

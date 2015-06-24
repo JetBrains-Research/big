@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 public class RTreeIndexDetails {
 
@@ -18,7 +20,7 @@ public class RTreeIndexDetails {
   final static int leafSlotSize = 32;       /* Size of startChrom,startBase,endChrom,endBase,offset,size */
   final static int nodeHeaderSize = 4;	/* Size of rTree node header. isLeaf,reserved,childCount. */
 
-  public static void writeBlocks(final ArrayList<bbiChromUsage> usageList, final Path bedFilePath,
+  public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedFilePath,
                            final int itemsPerSlot, final bbiBoundsArray bounds[],
                            final int sectionCount, final boolean doCompress, final SeekableDataOutput writer,
                            final int resTryCount, final int resScales[], final int resSizes[],
@@ -157,7 +159,7 @@ public class RTreeIndexDetails {
       retMaxBlockSize.data = maxBlockSize;
     }
   }
-  public static int bbiCountSectionsNeeded(final ArrayList<bbiChromUsage> usageList, final int itemsPerSlot) {
+  public static int bbiCountSectionsNeeded(final List<bbiChromUsage> usageList, final int itemsPerSlot) {
     int count = 0;
     for(final bbiChromUsage usage: usageList) {
       final int countOne = (usage.itemCount + itemsPerSlot - 1)/itemsPerSlot;
@@ -194,24 +196,11 @@ public class RTreeIndexDetails {
     return resTryCount;
   }
 
-  // chromName to chromSize
-  public static Hashtable<String, Integer> bbiChromSizesFromFile(final Path chromSizes) throws IOException {
-    final Hashtable<String, Integer> result = new Hashtable<>();
-    try (final BufferedReader reader = Files.newBufferedReader(chromSizes)) {
-      String buffer;
-      while ((buffer = reader.readLine()) != null) {
-        final String[] params = buffer.split("\t");
-        result.put(params[0], Integer.parseInt(params[1]));
-      }
-    }
-    return result;
-  }
-
-  public static ArrayList<bbiChromUsage> bbiChromUsageFromBedFile(final Path bedFilePath,
-                                                            final Hashtable<String, Integer> chromSizesHash,
-                                                            final wrapObject retMinDiff,
-                                                            final wrapObject retAveSize,
-                                                            final wrapObject retBedCount) {
+  public static List<bbiChromUsage> bbiChromUsageFromBedFile(final Path bedPath,
+                                                             final Map<String, Integer> chromSizes,
+                                                             final wrapObject retMinDiff,
+                                                             final wrapObject retAveSize,
+                                                             final wrapObject retBedCount) {
     final int maxRowSize = 3;
     final Hashtable<String, Integer> uniqHash = new Hashtable<>();
     final ArrayList<bbiChromUsage> usageList = new ArrayList<>();
@@ -220,7 +209,7 @@ public class RTreeIndexDetails {
     int id = 0;
     long totalBases = 0, bedCount = 0;
     int minDiff = Integer.MAX_VALUE;
-    try (BufferedReader reader = Files.newBufferedReader(bedFilePath)){
+    try (BufferedReader reader = Files.newBufferedReader(bedPath)){
       String buffer;
       while((buffer = reader.readLine()) != null) {
         final String[] row = buffer.split("\t");
@@ -237,7 +226,7 @@ public class RTreeIndexDetails {
             throw new IllegalStateException(String.format("bed file is not sorted. Duplicate chrom(%s)", chrom));
           }
           uniqHash.put(chrom, 1);
-          final Integer chromSize = chromSizesHash.get(chrom);
+          final Integer chromSize = chromSizes.get(chrom);
           if (chromSize == null) {
             throw new IllegalStateException(String.format("%s is not found in chromosome sizes file", chrom));
           }
