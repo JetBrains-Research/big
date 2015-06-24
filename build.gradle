@@ -1,4 +1,15 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:0.12.+'
+    }
+}
+
 apply plugin: 'java'
+apply plugin: 'kotlin'
 
 repositories {
     mavenCentral()
@@ -7,5 +18,7 @@ repositories {
 dependencies {
     compile 'com.google.guava:guava:18.+'
     compile 'com.intellij:annotations:12.+'
+    compile 'org.jetbrains.kotlin:kotlin-stdlib:0.12.+'
+
     testCompile 'junit:junit:4.+'
 }
