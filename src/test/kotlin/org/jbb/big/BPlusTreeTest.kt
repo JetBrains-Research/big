@@ -12,6 +12,17 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class BPlusTreeTest {
+    Test fun testParseHeader() {
+        BigBedFile.parse(Examples.get("example1.bb")).use { bf ->
+            val bpt = bf.header.bPlusTree
+            assertEquals(1, bpt.header.blockSize)
+            assertEquals(5, bpt.header.keySize)
+            assertEquals(8, bpt.header.valSize)
+            assertEquals(1L, bpt.header.itemCount)
+            assertEquals(216L, bpt.header.rootOffset)
+        }
+    }
+    
     Test fun testFind() {
         BigBedFile.parse(Examples.get("example1.bb")).use { bf ->
             var bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1")
