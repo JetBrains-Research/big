@@ -11,7 +11,7 @@ import kotlin.platform.platformStatic
  * @author Konstantin Kolosovsky
  * @since 12/05/15
  */
-public class BigWigFile @throws(IOException::class) protected constructor(path: Path) :
+public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigData>(path) {
 
     override fun getHeaderMagic(): Int = MAGIC
@@ -65,3 +65,91 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
     }
 }
 
+public abstract class WigData protected constructor(val header: WigSectionHeader) {
+    abstract val values: FloatArray
+}
+
+public class VariableStepWigData protected constructor(header: WigSectionHeader) :
+        WigData(header) {
+
+    /**
+     * Note. Currently all positions are excluded - +1 should be added
+     * to get correct position (for instance to convert from bigWig to
+     * WIG format). It is raw representation of bigWig data. Possibly
+     * such representation will give some other bonuses. If not this
+     * representation could be revised.
+     */
+    public val positions: IntArray = IntArray(header.count.toInt())
+    public override val values: FloatArray = FloatArray(header.count.toInt())
+
+    public fun set(index: Int, position: Int, value: Float) {
+        positions[index] = position
+        values[index] = value
+    }
+
+    companion object {
+        throws(IOException::class)
+        public fun read(header: WigSectionHeader, input: SeekableDataInput): VariableStepWigData {
+            val data = VariableStepWigData(header)
+            for (i in 0..header.count - 1) {
+                val position = input.readInt()
+                data[i, position] = input.readFloat()
+            }
+
+            return data
+        }
+    }
+}
+
+public class FixedStepWigData protected constructor(header: WigSectionHeader) :
+        WigData(header) {
+
+    public override val values: FloatArray = FloatArray(header.count.toInt())
+
+    public fun set(index: Int, value: Float) {
+        values[index] = value
+    }
+
+    companion object {
+        throws(IOException::class)
+        public fun read(header: WigSectionHeader, input: SeekableDataInput): FixedStepWigData {
+            val data = FixedStepWigData(header)
+            for (i in 0..header.count - 1) {
+                val value = input.readFloat()
+                data[i] = value
+            }
+
+            return data
+        }
+    }
+}
+
+public class WigSectionHeader(public val id: Int,
+                              /** Start position (exclusive). */
+                              public val start: Int,
+                              /** End position (inclusive). */
+                              public val end: Int,
+                              public val step: Int,
+                              public val span: Int,
+                              public val type: Byte,
+                              public val reserved: Byte,
+                              public val count: Short) {
+    companion object {
+        public val BED_GRAPH_TYPE: Byte = 1
+        public val VARIABLE_STEP_TYPE: Byte = 2
+        public val FIXED_STEP_TYPE: Byte = 3
+
+        throws(IOException::class)
+        public fun read(input: SeekableDataInput): WigSectionHeader {
+            val id = input.readInt()
+            val start = input.readInt()
+            val end = input.readInt()
+            val step = input.readInt()
+            val span = input.readInt()
+            val type = input.readByte()
+            val reserved = input.readByte()
+            val count = input.readShort()
+            return WigSectionHeader(id, start, end, step, span, type, reserved, count)
+        }
+    }
+}

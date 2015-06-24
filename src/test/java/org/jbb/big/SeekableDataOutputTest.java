@@ -86,9 +86,9 @@ public class SeekableDataOutputTest extends TestCase {
         r.readFully(chromosomeNameExt);
         for (int i = 0; i < keySize; ++i) {
           if(i < chromosomeName.length())
-            Assert.assertEquals(chromosomeName.charAt(i), chromosomeNameExt[i]);
+            assertEquals(chromosomeName.charAt(i), chromosomeNameExt[i]);
           else
-            Assert.assertEquals(0, chromosomeNameExt[i]);
+            assertEquals(0, chromosomeNameExt[i]);
         }
       }
     } finally {
