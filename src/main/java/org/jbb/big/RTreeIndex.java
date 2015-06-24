@@ -171,12 +171,12 @@ class RTreeIndex {
         final int endOffset = s.readInt();
         final long dataOffset = s.readLong();
         final long dataSize = s.readLong();
-        final RTreeIndexNode node
-            = RTreeIndexNode.of(startChromIx, startOffset, endChromIx, endOffset,
-                                dataOffset);
-        if (node.overlaps(query)) {
+        final RTreeInterval interval = RTreeInterval.of(
+            startChromIx, startOffset, endChromIx, endOffset);
+
+        if (interval.overlaps(query)) {
           final long backup = s.tell();
-          consumer.consume(new RTreeIndexLeaf(dataOffset, dataSize));
+          consumer.consume(new RTreeIndexLeaf(interval, dataOffset, dataSize));
           s.seek(backup);
         }
       }
@@ -188,13 +188,13 @@ class RTreeIndex {
         final int endChromIx = s.readInt();
         final int endBase = s.readInt();
         final long dataOffset = s.readLong();
-        final RTreeIndexNode node = RTreeIndexNode.of(
-            startChromIx, startBase, endChromIx, endBase, dataOffset);
+        final RTreeInterval interval = RTreeInterval.of(
+            startChromIx, startBase, endChromIx, endBase);
 
         // XXX only add overlapping children, because there's no point
         // in storing all of them.
-        if (node.overlaps(query)) {
-          children.add(node);
+        if (interval.overlaps(query)) {
+          children.add(new RTreeIndexNode(interval, dataOffset));
         }
       }
 

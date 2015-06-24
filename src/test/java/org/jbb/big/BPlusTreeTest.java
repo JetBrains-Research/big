@@ -19,7 +19,7 @@ import java.util.stream.IntStream;
 import static org.jbb.big.BPlusTree.read;
 
 public class BPlusTreeTest extends TestCase {
-  private final Random RANDOM = new Random();
+  private static final Random RANDOM = new Random();
 
   public void testFind() throws IOException {
     final Path path = Examples.get("example1.bb");

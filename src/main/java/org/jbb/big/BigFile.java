@@ -131,7 +131,6 @@ abstract class BigFile<T> implements Closeable, AutoCloseable {
    *                  chromosome is used.
    * @param maxItems upper bound on the number of items to return.
    * @return a list of intervals completely contained within the query.
-   * @see RTreeInterval#contains(RTreeInterval).
    * @throws IOException if the underlying {@link SeekableDataInput} does so.
    */
   public List<T> query(final String chromName, final int startOffset, final int endOffset,

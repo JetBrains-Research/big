@@ -1,5 +1,7 @@
 package org.jbb.big;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.Objects;
 
 /**
@@ -8,11 +10,14 @@ import java.util.Objects;
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-public class RTreeIndexLeaf {
+class RTreeIndexLeaf {
+  public final RTreeInterval interval;
   public final long dataOffset;
   public final long dataSize;
 
-  public RTreeIndexLeaf(final long dataOffset, final long dataSize) {
+  RTreeIndexLeaf(final RTreeInterval interval,
+                 final long dataOffset, final long dataSize) {
+    this.interval = interval;
     this.dataOffset = dataOffset;
     this.dataSize = dataSize;
   }
@@ -25,17 +30,22 @@ public class RTreeIndexLeaf {
       return false;
 
     final RTreeIndexLeaf other = (RTreeIndexLeaf) obj;
-    return other.dataOffset == dataOffset &&
+    return other.interval.equals(interval) &&
+           other.dataOffset == dataOffset &&
            other.dataSize == dataSize;
   }
 
   @Override
   public int hashCode() {
-    return super.hashCode();
+    return Objects.hash(interval, dataOffset, dataSize);
   }
 
   @Override
   public String toString() {
-    return super.toString();
+    return MoreObjects.toStringHelper(this)
+        .addValue(interval)
+        .add("dataOffset", dataOffset)
+        .add("dataSize", dataSize)
+        .toString();
   }
 }
