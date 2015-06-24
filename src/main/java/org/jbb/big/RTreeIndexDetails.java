@@ -4,11 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 public class RTreeIndexDetails {
 
@@ -194,72 +191,6 @@ public class RTreeIndexDetails {
       res *= resIncrement;
     }
     return resTryCount;
-  }
-
-  public static List<bbiChromUsage> bbiChromUsageFromBedFile(final Path bedPath,
-                                                             final Map<String, Integer> chromSizes,
-                                                             final wrapObject retMinDiff,
-                                                             final wrapObject retAveSize,
-                                                             final wrapObject retBedCount) {
-    final int maxRowSize = 3;
-    final Hashtable<String, Integer> uniqHash = new Hashtable<>();
-    final ArrayList<bbiChromUsage> usageList = new ArrayList<>();
-    bbiChromUsage usage = null;
-    int lastStart = -1;
-    int id = 0;
-    long totalBases = 0, bedCount = 0;
-    int minDiff = Integer.MAX_VALUE;
-    try (BufferedReader reader = Files.newBufferedReader(bedPath)){
-      String buffer;
-      while((buffer = reader.readLine()) != null) {
-        final String[] row = buffer.split("\t");
-        final String chrom = row[0];
-        final int start = Integer.parseInt(row[1]);
-        final int end = Integer.parseInt(row[2]);
-        if (start > end) {
-          throw new IllegalStateException(String.format("end (%d) before start (%d)", end, start));
-        }
-        ++bedCount;
-        totalBases += (end - start);
-        if (usage == null || !usage.name.equals(chrom)) {
-          if (uniqHash.get(chrom) != null) {
-            throw new IllegalStateException(String.format("bed file is not sorted. Duplicate chrom(%s)", chrom));
-          }
-          uniqHash.put(chrom, 1);
-          final Integer chromSize = chromSizes.get(chrom);
-          if (chromSize == null) {
-            throw new IllegalStateException(String.format("%s is not found in chromosome sizes file", chrom));
-          }
-          usage = new bbiChromUsage(chrom, id++, chromSize);
-          usageList.add(usage);
-          lastStart = -1;
-        }
-        if (end > usage.size) {
-          throw new IllegalStateException(String.format("End coordinate %d bigger than %s size", end, usage.name));
-        }
-        usage.itemCount += 1;
-        if (lastStart >= 0)
-        {
-          final int diff = start - lastStart;
-          if (diff < minDiff)
-          {
-            if (diff < 0) {
-              throw new IllegalStateException("bed file is not sorted");
-            }
-            minDiff = diff;
-          }
-        }
-        lastStart = start;
-      }
-
-      retAveSize.data = (int)(totalBases / bedCount);
-      retMinDiff.data = minDiff;
-      retBedCount.data = (int)bedCount;
-
-    } catch (final IOException e) {
-      e.printStackTrace();
-    }
-    return usageList;
   }
 
   // void slAddHead(rTree listPt, rTree node)

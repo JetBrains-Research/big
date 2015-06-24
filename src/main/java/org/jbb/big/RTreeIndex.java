@@ -85,20 +85,18 @@ class RTreeIndex {
     }
 
     public static long write(final SeekableDataOutput writer, final Path chromSizesPath,
-                             final Path bedFilePath, final int blockSize,
+                             final Path bedPath, final int blockSize,
                              final int itemsPerSlot, final short fieldCount) throws IOException {
       final Map<String, Integer> chromSizes = Internals.readChromosomeSizes(chromSizesPath);
 
-      final wrapObject minDiff = new wrapObject();
-      final wrapObject aveSize = new wrapObject(), bedCount = new wrapObject();
-      final List<bbiChromUsage> usageList = RTreeIndexDetails.bbiChromUsageFromBedFile(
-          bedFilePath, chromSizes, minDiff, aveSize, bedCount);
+      final BedSummary bedSummary = BedSummary.of(bedPath, chromSizes);
+      final List<bbiChromUsage> usageList = bedSummary.toList();
 
       final int resScales[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];
       final int resSizes[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];
-      final int resTryCount = RTreeIndexDetails.bbiCalcResScalesAndSizes(aveSize.toInt(), resScales,
-                                                                   resSizes);
-
+      final int resTryCount = RTreeIndexDetails.bbiCalcResScalesAndSizes(
+          bedSummary.getBaseCount() / bedSummary.getItemCount(),
+          resScales, resSizes);
 
       final int blockCount = RTreeIndexDetails.bbiCountSectionsNeeded(usageList, itemsPerSlot);
       final bbiBoundsArray boundsArray[] = new bbiBoundsArray[blockCount];
@@ -109,10 +107,10 @@ class RTreeIndex {
       final wrapObject maxBlockSize = new wrapObject();
 
 
-      RTreeIndexDetails.writeBlocks(usageList, bedFilePath, itemsPerSlot, boundsArray, blockCount,
+      RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, boundsArray, blockCount,
                                     doCompress, writer,
                                     resTryCount, resScales, resSizes,
-                                    bedCount.toInt(), fieldCount, maxBlockSize);
+                                    bedSummary.getItemCount(), fieldCount, maxBlockSize);
 
     /* Write out primary data index. */
       final long indexOffset = writer.tell();
