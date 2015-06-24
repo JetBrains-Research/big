@@ -252,6 +252,7 @@ public class RTreeIndexDetails {
     lm.blocks.add(mb);
     return mb;
   }
+
   private static rTree rTreeFromChromRangeArray( final lm lm, final int blockSize, final int itemsPerSlot,
                                   final bbiBoundsArray itemArray[], final int itemSize, final long itemCount,
                                   final long endFileOffset,
@@ -443,12 +444,7 @@ public class RTreeIndexDetails {
     }
     return len;
   }
-  private static void repeatCharOut(final SeekableDataOutput writer, final char c, int count) throws IOException
-/* Write character to file repeatedly. */
-  {
-    while (--count >= 0)
-      writer.writeChar((int)c);
-  }
+
   private static long rWriteIndexLevel(final int blockSize, final int childNodeSize,
                                 final rTree tree, final int curLevel, final int destLevel,
                                 final long offsetOfFirstChild, final SeekableDataOutput writer)
@@ -482,7 +478,7 @@ public class RTreeIndexDetails {
     /* Write out zeroes for empty slots in node. */
       int i;
       for (i=countOne; i<blockSize; ++i)
-        repeatCharOut(writer, (char) 0, indexSlotSize);
+        writer.writeByte((char) 0, indexSlotSize);
     }
     else
     {
@@ -523,7 +519,7 @@ public class RTreeIndexDetails {
     /* Write out zeroes for empty slots in node. */
       int i;
       for (i=countOne; i<itemsPerSlot; ++i)
-        repeatCharOut(writer, (char)0, indexSlotSize);
+        writer.writeByte((char) 0, indexSlotSize);
     }
     else
     {

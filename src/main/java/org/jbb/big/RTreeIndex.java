@@ -7,7 +7,6 @@ import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -87,9 +86,7 @@ class RTreeIndex {
     public static long write(final SeekableDataOutput writer, final Path chromSizesPath,
                              final Path bedPath, final int blockSize,
                              final int itemsPerSlot, final short fieldCount) throws IOException {
-      final Map<String, Integer> chromSizes = Internals.readChromosomeSizes(chromSizesPath);
-
-      final BedSummary bedSummary = BedSummary.of(bedPath, chromSizes);
+      final BedSummary bedSummary = BedSummary.of(bedPath, chromSizesPath);
       final List<bbiChromUsage> usageList = bedSummary.toList();
 
       final int resScales[] = new int[RTreeIndexDetails.bbiMaxZoomLevels];

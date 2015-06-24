@@ -44,7 +44,16 @@ class BedSummary(private val chromSizes: Map<String, Int>) {
     private data class Entry(var baseCount: Int = 0, var itemCount: Int = 0)
 
     companion object {
-        platformStatic fun of(bedPath: Path, chromSizes: Map<String, Int>): BedSummary {
+        /**
+         * Computes [BedSummary] from a given BED file.
+         *
+         * Path to chromosome sizes file is currently required, because of
+         * the way the code uses [bbiChromUsage]. In theory, we can compute
+         * "effective" chromosome sizes from the BED file and use these
+         * instead of "real" ones.
+         */
+        platformStatic fun of(bedPath: Path, chromSizesPath: Path): BedSummary {
+            val chromSizes = readChromosomeSizes(chromSizesPath);
             val summary = BedSummary(chromSizes)
             for (line in Files.lines(bedPath)) {
                 // XXX we can use a more sophisticated BED parser here.

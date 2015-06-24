@@ -14,13 +14,10 @@ import kotlin.platform.platformStatic
  * @author Sergei Lebedev
  * @since 24/06/15
  */
-object Internals {
-    /**
-     * Reads chromosome sizes from a tab-delimited two-column file.
-     */
-    throws(IOException::class)
-    platformStatic fun readChromosomeSizes(path: Path): Map<String, Int> {
-        return Files.lines(path).map { it.split('\t') }
-                .collect(Collectors.toMap({ it[0] }, { it[1].toInt() }))
-    }
-}
+
+/**
+ * Reads chromosome sizes from a tab-delimited two-column file.
+ */
+fun readChromosomeSizes(path: Path): Map<String, Int> = Files.lines(path)
+        .map { it.split('\t') }
+        .collect(Collectors.toMap({ it[0] }, { it[1].toInt() }))
