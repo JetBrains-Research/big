@@ -8,8 +8,13 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.jfrog.bintray' version '1.2'
+}
+
 apply plugin: 'java'
 apply plugin: 'kotlin'
+apply plugin: 'maven-publish'
 
 repositories {
     mavenCentral()
@@ -21,4 +26,51 @@ dependencies {
     compile 'org.jetbrains.kotlin:kotlin-stdlib:0.12.+'
 
     testCompile 'junit:junit:4.+'
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+publishing {
+    group = groupId
+    version = project.version
+
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            artifact sourcesJar
+            artifact javadocJar
+        }
+    }
+}
+
+bintray {
+    user = bintrayUser
+    key = bintrayApiKey
+    publications = ['mavenJava']
+    pkg {
+        repo = 'maven'
+        name = 'big'
+        licenses = ['MIT']
+        version {
+            name = project.version.toString()
+        }
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.4'
 }
