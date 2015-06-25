@@ -83,6 +83,15 @@ class RTreeIndex {
                         endChromIx, endBase, fileSize, itemsPerSlot, rootOffset);
     }
 
+    public static int countBlocks(final List<bbiChromUsage> usageList, final int itemsPerSlot) {
+      int count = 0;
+      for(final bbiChromUsage usage: usageList) {
+        final int countOne = (usage.itemCount + itemsPerSlot - 1)/itemsPerSlot;
+        count += countOne;
+      }
+      return count;
+    }
+
     public static long write(final SeekableDataOutput writer, final Path chromSizesPath,
                              final Path bedPath, final int blockSize,
                              final int itemsPerSlot, final short fieldCount) throws IOException {
@@ -95,7 +104,7 @@ class RTreeIndex {
           bedSummary.getBaseCount() / bedSummary.getItemCount(),
           resScales, resSizes);
 
-      final int blockCount = RTreeIndexDetails.bbiCountSectionsNeeded(usageList, itemsPerSlot);
+      final int blockCount = countBlocks(usageList, itemsPerSlot);
       final bbiBoundsArray boundsArray[] = new bbiBoundsArray[blockCount];
       for (int i = 0; i < blockCount; i++ ) boundsArray[i] = new bbiBoundsArray();
 

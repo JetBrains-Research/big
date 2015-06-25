@@ -7,7 +7,7 @@ import java.io.IOException;
  * throw an {@link java.io.IOException}.
  *
  * @author Sergei Lebedev
- * @date 12/04/15
+ * @since 12/04/15
  */
 public interface UnsafeConsumer<T> {
   void consume(T value) throws IOException;

@@ -156,14 +156,6 @@ public class RTreeIndexDetails {
       retMaxBlockSize.data = maxBlockSize;
     }
   }
-  public static int bbiCountSectionsNeeded(final List<bbiChromUsage> usageList, final int itemsPerSlot) {
-    int count = 0;
-    for(final bbiChromUsage usage: usageList) {
-      final int countOne = (usage.itemCount + itemsPerSlot - 1)/itemsPerSlot;
-      count += countOne;
-    }
-    return count;
-  }
 
   public static int bbiCalcResScalesAndSizes(final int aveSize, final int resScales[],
                                        final int resSizes[])
