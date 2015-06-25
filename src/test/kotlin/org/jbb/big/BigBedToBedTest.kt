@@ -121,13 +121,13 @@ public class BigBedToBedTest {
             Files.deleteIfExists(outputPath)
         }
     }
-}
 
-// XXX that is to overcome the lack of AutoCloseable in Kotlin.
-private class Wrapper<T : AutoCloseable>(public val wrapped: T) : Closeable {
-    override fun close() = wrapped.close()
-}
+    // XXX that is to overcome the lack of AutoCloseable in Kotlin.
+    private class Wrapper<T : AutoCloseable>(public val wrapped: T) : Closeable {
+        override fun close() = wrapped.close()
+    }
 
-private fun lines(path: Path): Wrapper<java.util.stream.Stream<String>> {
-    return Wrapper(Files.lines(path))
+    private fun lines(path: Path): Wrapper<java.util.stream.Stream<String>> {
+        return Wrapper(Files.lines(path))
+    }
 }

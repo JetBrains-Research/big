@@ -5,6 +5,7 @@ import com.google.common.math.IntMath
 import org.junit.Test
 import java.nio.file.Files
 import java.util.Random
+import java.util.function.Consumer
 import java.util.stream.Collectors
 import java.util.stream.IntStream
 import kotlin.test.assertEquals
@@ -12,8 +13,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class BPlusTreeTest {
-    Test fun testParseHeader() {
-        BigBedFile.parse(Examples.get("example1.bb")).use { bf ->
+    Test fun testReadHeader() {
+        BigBedFile.read(Examples.get("example1.bb")).use { bf ->
             val bpt = bf.header.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
@@ -24,7 +25,7 @@ public class BPlusTreeTest {
     }
     
     Test fun testFind() {
-        BigBedFile.parse(Examples.get("example1.bb")).use { bf ->
+        BigBedFile.read(Examples.get("example1.bb")).use { bf ->
             var bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1")
             assertFalse(bptNodeLeaf.isPresent())
 
@@ -87,9 +88,9 @@ public class BPlusTreeTest {
     }
 
     Test fun testWriteReadRandom() {
-        for (i in 0..9) {
+        for (i in 0 until 10) {
             val blockSize = RANDOM.nextInt(64) + 1
-            testWriteRead(blockSize, getRandomItems(RANDOM.nextInt(1024) + 1))
+            testWriteRead(blockSize, getRandomItems(RANDOM.nextInt(512) + 1))
         }
     }
 
@@ -130,7 +131,7 @@ public class BPlusTreeTest {
                 }
 
                 val actual = Sets.newHashSet<BPlusItem>()
-                bpt.traverse(input) { actual.add(it) }
+                bpt.traverse(input, Consumer { actual.add(it) })
                 assertEquals(items.toSet(), actual)
             }
         } finally {

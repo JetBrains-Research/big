@@ -1,8 +1,10 @@
 package org.jbb.big
 
+import com.google.common.base.MoreObjects
 import com.google.common.collect.Lists
 import java.io.IOException
 import java.nio.file.Path
+import java.util.*
 import kotlin.platform.platformStatic
 
 /**
@@ -61,6 +63,23 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         public val MAGIC: Int = 0x8789F2EB.toInt()
 
         throws(IOException::class)
-        public platformStatic fun parse(path: Path): BigBedFile = BigBedFile(path)
+        public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
     }
+}
+
+/**
+ * A minimal representation of a BED file entry.
+ *
+ * @author Sergey Zherevchik
+ * @since 15/03/15
+ */
+public data class BedData(
+        /** Chromosome id as defined by B+ tree.  */
+        public val id: Int,
+        /** 0-based start offset (inclusive).  */
+        public val start: Int,
+        /** 0-based end offset (exclusive).  */
+        public val end: Int,
+        /** Comma-separated string of additional BED values.  */
+        public val rest: String) {
 }

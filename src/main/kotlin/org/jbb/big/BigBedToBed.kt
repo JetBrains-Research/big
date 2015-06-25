@@ -25,7 +25,7 @@ public object BigBedToBed {
      */
     public fun main(inputPath: Path, outputPath: Path, queryChromName: String,
                     queryStart: Int, queryEnd: Int, maxItems: Int) {
-        BigBedFile.parse(inputPath).use { bf ->
+        BigBedFile.read(inputPath).use { bf ->
             Files.newBufferedWriter(outputPath).use { out ->
                 var itemCount = 0
                 for (chromName in bf.chromosomes()) {

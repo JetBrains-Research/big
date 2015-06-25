@@ -61,7 +61,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         public val MAGIC: Int = 0x888FFC26.toInt()
 
         throws(IOException::class)
-        public platformStatic fun parse(path: Path): BigWigFile = BigWigFile(path)
+        public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
     }
 }
 

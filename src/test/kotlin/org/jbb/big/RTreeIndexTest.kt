@@ -13,7 +13,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class RTreeIndexTest {
-    Test fun testParseHeader() {
+    Test fun testReadHeader() {
         exampleFile.use { bbf ->
             val rti = bbf.header.rTree
             assertEquals(1024, rti.header.blockSize)
@@ -47,7 +47,7 @@ public class RTreeIndexTest {
     }
 
     private val exampleFile: BigBedFile get() {
-        return BigBedFile.parse(Examples.get("example1.bb"))
+        return BigBedFile.read(Examples.get("example1.bb"))
     }
 
     private val exampleItems: List<BedData> by Delegates.lazy {

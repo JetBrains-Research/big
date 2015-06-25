@@ -46,7 +46,7 @@ public class BigBedFileTest {
     }
 
     private val exampleFile: BigBedFile get() {
-        return BigBedFile.parse(Examples.get("example1.bb"))
+        return BigBedFile.read(Examples.get("example1.bb"))
     }
 
     private val exampleItems: List<RawBedData> by Delegates.lazy {

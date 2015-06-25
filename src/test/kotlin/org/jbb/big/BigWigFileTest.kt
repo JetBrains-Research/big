@@ -49,7 +49,7 @@ public class BigWigTest {
     }
 
     private fun assertChromosome(path: Path, chromosome: String): List<WigData> {
-        val file = BigWigFile.parse(path)
+        val file = BigWigFile.read(path)
         val chromosomes = file.chromosomes()
 
         assertEquals(1, chromosomes.size())
