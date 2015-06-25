@@ -28,8 +28,24 @@ fun Int.divCeiling(other: Int) = IntMath.divide(this, other, RoundingMode.CEILIN
 // Remove once KT-8248 is done.
 fun Int.pow(other: Int) = IntMath.pow(this, other)
 
+/**
+ * Computes the value n such that base^n <= this.
+ */
+fun Int.logCeiling(base: Int): Int {
+    require(this > 0, "non-positive number")
+    require(base > 0, "non-positive base")
+
+    var rem = this
+    var acc = 1
+    while (rem > base) {
+        rem = rem divCeiling base
+        acc++
+    }
+
+    return acc
+}
+
 // Remove once KT-4665 is done.
 fun Int.until(other: Int) = this..other - 1
 
-// Remove once KT-8249 is done.
 fun String.trimZeros() = trimEnd { it == '\u0000' }

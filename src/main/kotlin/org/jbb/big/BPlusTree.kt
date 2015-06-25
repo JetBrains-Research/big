@@ -185,23 +185,16 @@ public class BPlusTree(val header: BPlusTree.Header) {
          *    these are called blocks
          *
          * Conceptually, each B+ tree node consists of a number of
-         * slots each holding {@code blockSize^level} items. So the
+         * slots each holding `blockSize^level` items. So the
          * total number of items in a node can be calculated as
-         * {@code blockSize^level * blockSize}
+         * `blockSize^level * blockSize`.
          *
          * @param blockSize number of slots in a B+ tree node.
          * @param itemCount total number of leaves in a B+ tree
          * @return required number of levels.
          */
         fun countLevels(blockSize: Int, itemCount: Int): Int {
-            var acc = itemCount
-            var levels = 1
-            while (acc > blockSize) {
-                acc = acc divCeiling blockSize
-                levels++
-            }
-
-            return levels
+            return itemCount.logCeiling(blockSize)
         }
 
         throws(IOException::class)

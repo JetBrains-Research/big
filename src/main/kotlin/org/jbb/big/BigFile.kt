@@ -11,6 +11,9 @@ import java.util.function.Consumer
 /**
  * A common superclass for Big files.
  *
+ * TODO: cache chromosome mapping instead of querying the B+ tree
+ * every time.
+ *
  * @author Sergei Lebedev
  * @author Sergey Zherevchuk
  * @since 11/04/15
