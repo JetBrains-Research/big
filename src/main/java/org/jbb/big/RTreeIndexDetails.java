@@ -157,7 +157,7 @@ public class RTreeIndexDetails {
   }
 
   public static int bbiCalcResScalesAndSizes(final int aveSize, final int resScales[],
-                                       final int resSizes[])
+                                             final int resSizes[])
 
 /* Fill in resScales with amount to zoom at each level, and zero out resSizes based
  * on average span. Returns the number of zoom levels we actually will use. */
@@ -184,54 +184,9 @@ public class RTreeIndexDetails {
     return resTryCount;
   }
 
-  // void slAddHead(rTree listPt, rTree node)
-/* Add new node to start of list.
- * Usage:
- *    slAddHead(&list, node);
- * where list and nodes are both pointers to structure
- * that begin with a next pointer.
- */
- /* {
-    node.next = listPt;
-    listPt = node;
-  }*/
-
-  private static rTree slReverse(final rTree list)
-/* Reverse order of a list.
- * Usage:
- *    slReverse(&list);
- */
-  {
-    rTree newList = null;
-
-    rTree cur = list;
-    while (cur != null) {
-      final rTree prv = new rTree(cur);
-      prv.next = newList;
-      newList = prv;
-      cur = cur.next;
-    }
-    return newList;
-    /*
-    rTree newList = null;
-    rTree el, next;
-
-    next = list;
-    while (next != null)
-    {
-      el = next;
-      next = el.next;
-      el.next = newList;
-      newList = el;
-    }
-
-    return newList;*/
-  }
-
   private static rTree rTreeFromChromRangeArray(final int blockSize,
-                                                final int itemsPerSlot,
                                                 final bbiBoundsArray itemArray[],
-                                                final int itemSize, final long itemCount,
+                                                final long itemCount,
                                                 final long endFileOffset,
                                                 final wrapObject retLevelCount) {
 
@@ -405,6 +360,20 @@ public class RTreeIndexDetails {
     return len;
   }
 
+  private static rTree slReverse(final rTree list)
+  {
+    rTree newList = null;
+
+    rTree cur = list;
+    while (cur != null) {
+      final rTree prv = new rTree(cur);
+      prv.next = newList;
+      newList = prv;
+      cur = cur.next;
+    }
+    return newList;
+  }
+
   private static long rWriteIndexLevel(final int blockSize, final int childNodeSize,
                                 final rTree tree, final int curLevel, final int destLevel,
                                 final long offsetOfFirstChild, final SeekableDataOutput writer)
@@ -449,8 +418,11 @@ public class RTreeIndexDetails {
     }
     return offset;
   }
-  private static void rWriteLeaves(final int itemsPerSlot, final int lNodeSize, final rTree tree, final int curLevel,
-                            final int leafLevel, final SeekableDataOutput writer) throws IOException
+
+  private static void rWriteLeaves(final int itemsPerSlot, final rTree tree,
+                                   final int curLevel, final int leafLevel,
+                                   final SeekableDataOutput writer)
+      throws IOException
 /* Write out leaf-level nodes. */
   {
     if (curLevel == leafLevel)
@@ -486,22 +458,10 @@ public class RTreeIndexDetails {
     /* Otherwise recurse on children. */
       rTree el;
       for (el = tree.children; el != null; el = el.next)
-        rWriteLeaves(itemsPerSlot, lNodeSize, el, curLevel+1, leafLevel, writer);
+        rWriteLeaves(itemsPerSlot, el, curLevel+1, leafLevel, writer);
     }
   }
-  private static void writeLeaves(final int itemsPerSlot, final int lNodeSize, final rTree tree, final int leafLevel, final SeekableDataOutput writer)
-      throws IOException
-/* Write out leaf-level nodes. */
-  {
-    rWriteLeaves(itemsPerSlot, lNodeSize, tree, 0, leafLevel, writer);
-  }
-  private static void writeIndexLevel(final int blockSize, final int childNodeSize,
-                               final rTree tree, final long offsetOfFirstChild, final int level, final SeekableDataOutput writer)
-      throws IOException
-/* Write out a non-leaf level nodes at given level. */
-  {
-    rWriteIndexLevel(blockSize, childNodeSize, tree, 0, level, offsetOfFirstChild, writer);
-  }
+
   private static void writeTreeToOpenFile(final rTree tree, final int blockSize, final int levelCount, final SeekableDataOutput writer)
       throws IOException
 /* Write out tree to a file that is open already - writing out index nodes from
@@ -530,23 +490,23 @@ public class RTreeIndexDetails {
     for (i=0; i<=finalLevel; ++i)
     {
       final long childNodeSize = (i==finalLevel ? lNodeSize : iNodeSize);
-      writeIndexLevel(blockSize, (int)childNodeSize, tree,
-                      levelOffsets[i+1], i, writer);
+      rWriteIndexLevel(blockSize, (int)childNodeSize, tree, 0, i, levelOffsets[i+1], writer);
     }
 
 /* Write out leaf level. */
     final int leafLevel = levelCount - 2;
-    writeLeaves(blockSize, leafNodeSize(blockSize), tree, leafLevel, writer);
+    rWriteLeaves(blockSize, tree, 0, leafLevel, writer);
   }
 
-  public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[], final int itemSize,
+  public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[],
                                                     final long itemCount,
                                                     final int blockSize, final int itemsPerSlot,
-                                                    final long endFileOffset, final SeekableDataOutput writer)
+                                                    final long endFileOffset,
+                                                    final SeekableDataOutput writer)
       throws IOException {
     final wrapObject levelCount = new wrapObject();
-    rTree tree = rTreeFromChromRangeArray(blockSize, itemsPerSlot,
-                                          itemArray, itemSize, itemCount, endFileOffset,
+    rTree tree = rTreeFromChromRangeArray(blockSize,
+                                          itemArray, itemCount, endFileOffset,
                                           levelCount);
 
     final rTree dummyTree = new rTree();

@@ -156,10 +156,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
                 /* Write out primary data index. */
                 val indexOffset = output.tell()
-                val itemSize = 24
                 RTreeIndexDetails.cirTreeFileBulkIndexToOpenFile(
-                        boundsArray, itemSize, blockCount.toLong(), blockSize,
-                        1, indexOffset, output)
+                        boundsArray, blockCount.toLong(), blockSize, 1, indexOffset, output)
 
                 return indexOffset
             }
@@ -194,6 +192,9 @@ data class RTreeIndexNode(public val interval: RTreeInterval, public val dataOff
 
 /**
  * A semi-closed interval.
+ *
+ * TODO: a more sound approach would be to separate the single-
+ * multi- chromosome use-cases.
  *
  * @author Sergei Lebedev
  * @since 16/03/15
