@@ -1,7 +1,6 @@
 package org.jbb.big
 
 import com.google.common.collect.ImmutableList
-import junit.framework.TestCase
 import org.junit.Test
 import java.io.IOException
 import java.nio.file.Files
@@ -86,15 +85,15 @@ public class RTreeIndexWriterTest {
         SeekableDataInput.of(bigBedPath).use { input ->
             val rti = RTreeIndex.read(input, rTreeHeaderOffset)
 
-            TestCase.assertEquals(rti.header.blockSize, 4)
-            TestCase.assertEquals(rti.header.itemCount, 13)
-            TestCase.assertEquals(rti.header.startChromIx, 0)
-            TestCase.assertEquals(rti.header.startBase, 9434178)
-            TestCase.assertEquals(rti.header.endChromIx, 10)
-            TestCase.assertEquals(rti.header.endBase, 13058276)
-            TestCase.assertEquals(rti.header.fileSize, 299)
-            TestCase.assertEquals(rti.header.itemsPerSlot, 1)
-            TestCase.assertEquals(rti.header.rootOffset, 347)
+            assertEquals(rti.header.blockSize, 4)
+            assertEquals(rti.header.itemCount, 13L)
+            assertEquals(rti.header.startChromIx, 0)
+            assertEquals(rti.header.startBase, 9434178)
+            assertEquals(rti.header.endChromIx, 10)
+            assertEquals(rti.header.endBase, 13058276)
+            assertEquals(rti.header.fileSize, 299L)
+            assertEquals(rti.header.itemsPerSlot, 1)
+            assertEquals(rti.header.rootOffset, 347L)
 
             val dummy = RTreeInterval.of(0, 0, 0)
             checkQuery(rti, input, RTreeInterval.of(0, 9434178, 9434611),
