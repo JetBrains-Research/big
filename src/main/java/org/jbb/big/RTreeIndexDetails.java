@@ -21,7 +21,7 @@ public class RTreeIndexDetails {
                            final int itemsPerSlot, final bbiBoundsArray bounds[],
                            final int sectionCount, final boolean doCompress, final SeekableDataOutput writer,
                            final int resTryCount, final int resScales[], final int resSizes[],
-                           final int bedCount, final short fieldCount, final wrapObject retMaxBlockSize)
+                           final int bedCount, final short fieldCount)
       throws IOException {
 
     int maxBlockSize = 0;
@@ -153,7 +153,6 @@ public class RTreeIndexDetails {
         }
 
       }
-      retMaxBlockSize.data = maxBlockSize;
     }
   }
 

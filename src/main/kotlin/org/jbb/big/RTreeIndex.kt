@@ -125,7 +125,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             public fun countBlocks(usageList: List<bbiChromUsage>, itemsPerSlot: Int): Int {
                 var count = 0
                 for (usage in usageList) {
-                    count += IntMath.divide(usage.itemCount, itemsPerSlot, RoundingMode.CEILING)
+                    count += usage.itemCount divCeiling itemsPerSlot
                 }
                 return count
             }
@@ -149,12 +149,10 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 }
 
                 val doCompress = false
-                val maxBlockSize = wrapObject()
-
                 RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, boundsArray,
                                               blockCount, doCompress, writer, resTryCount,
                                               resScales, resSizes, bedSummary.itemCount,
-                                              fieldCount, maxBlockSize)
+                                              fieldCount)
 
                 /* Write out primary data index. */
                 val indexOffset = writer.tell()
