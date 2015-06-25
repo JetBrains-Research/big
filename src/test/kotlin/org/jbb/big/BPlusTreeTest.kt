@@ -131,7 +131,7 @@ public class BPlusTreeTest {
                 }
 
                 val actual = Sets.newHashSet<BPlusItem>()
-                bpt.traverse(input, Consumer { actual.add(it) })
+                bpt.traverse(input, { actual.add(it) })
                 assertEquals(items.toSet(), actual)
             }
         } finally {

@@ -28,7 +28,7 @@ public object BigBedToBed {
         BigBedFile.read(inputPath).use { bf ->
             Files.newBufferedWriter(outputPath).use { out ->
                 var itemCount = 0
-                for (chromName in bf.chromosomes()) {
+                for (chromName in bf.chromosomes) {
                     if (!queryChromName.isEmpty() && chromName != queryChromName) {
                         continue
                     }

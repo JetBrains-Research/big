@@ -6,7 +6,6 @@ import com.google.common.primitives.Shorts
 import java.io.IOException
 import java.nio.ByteOrder
 import java.util.Optional
-import java.util.function.Consumer
 import kotlin.platform.platformStatic
 
 /**
@@ -28,7 +27,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
      * Recursively goes across tree, calling callback on the leaves.
      */
     throws(IOException::class)
-    public fun traverse(input: SeekableDataInput, consumer: Consumer<BPlusItem>) {
+    public fun traverse(input: SeekableDataInput, consumer: (BPlusItem) -> Unit) {
         val originalOrder = input.order()
         input.order(header.byteOrder)
         traverseRecursively(input, header.rootOffset, consumer)
@@ -37,7 +36,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
     throws(IOException::class)
     private fun traverseRecursively(input: SeekableDataInput, blockStart: Long,
-                                    consumer: Consumer<BPlusItem>) {
+                                    consumer: (BPlusItem) -> Unit) {
         // Invariant: a stream is in Header.byteOrder.
         input.seek(blockStart)
 
@@ -51,7 +50,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 input.readFully(keyBuf)
                 val chromId = input.readInt()
                 val chromSize = input.readInt()
-                consumer.accept(BPlusItem(String(keyBuf).trimZeros(), chromId, chromSize))
+                consumer(BPlusItem(String(keyBuf).trimZeros(), chromId, chromSize))
             }
         } else {
             val fileOffsets = LongArray(childCount)

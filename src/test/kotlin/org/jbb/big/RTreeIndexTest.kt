@@ -50,11 +50,7 @@ public class RTreeIndexTest {
     }
 
     private val exampleItems: List<BedData> by Delegates.lazy {
-        Files.lines(Examples.get("example1.bed")).map { line ->
-            val chunks = line.split('\t', limit = 3)
-            BedData(0, // doesn't matter.
-                    chunks[1].toInt(), chunks[2].toInt(), "")
-        }.collect(Collectors.toList<BedData>())
+        BedFile.read(Examples.get("example1.bed")).toList()
     }
 
     companion object {

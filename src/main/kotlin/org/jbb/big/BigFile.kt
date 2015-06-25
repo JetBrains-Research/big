@@ -1,12 +1,11 @@
 package org.jbb.big
 
 import com.google.common.collect.ImmutableList
-import com.google.common.collect.ImmutableSet
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.function.Consumer
+import kotlin.properties.Delegates
 
 /**
  * A common superclass for Big files.
@@ -26,11 +25,10 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     val handle: SeekableDataInput = SeekableDataInput.of(path)
     val header: Header = Header.read(handle, getHeaderMagic())
 
-    throws(IOException::class)
-    public fun chromosomes(): Set<String> {
-        val b = ImmutableSet.builder<String>()
-        header.bPlusTree.traverse(handle, Consumer { b.add(it.key) })
-        return b.build()
+    public val chromosomes: List<String> by Delegates.lazy {
+        val b = ImmutableList.builder<String>()
+        header.bPlusTree.traverse(handle, { b.add(it.key) })
+        b.build()
     }
 
     /**
@@ -58,6 +56,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
         }
     }
 
+    // TODO: these can be fields.
     public abstract fun getHeaderMagic(): Int
 
     public fun isCompressed(): Boolean = header.uncompressBufSize > 0

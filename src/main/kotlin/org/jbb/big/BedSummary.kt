@@ -55,10 +55,8 @@ class BedSummary(private val chromSizes: Map<String, Int>) {
         platformStatic fun of(bedPath: Path, chromSizesPath: Path): BedSummary {
             val chromSizes = readChromosomeSizes(chromSizesPath);
             val summary = BedSummary(chromSizes)
-            for (line in Files.lines(bedPath)) {
-                // XXX we can use a more sophisticated BED parser here.
-                val chunks = line.split('\t')
-                summary.add(chunks[0], chunks[1].toInt(), chunks[2].toInt())
+            for (item in BedFile.read(bedPath)) {
+                summary.add(item.name, item.start, item.end)
             }
 
             return summary
