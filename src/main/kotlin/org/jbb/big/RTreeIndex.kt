@@ -131,7 +131,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             throws(IOException::class)
-            public fun write(writer: SeekableDataOutput, chromSizesPath: Path,
+            public fun write(output: SeekableDataOutput, chromSizesPath: Path,
                              bedPath: Path, blockSize: Int, itemsPerSlot: Int,
                              fieldCount: Short): Long {
                 val bedSummary = BedSummary.of(bedPath, chromSizesPath)
@@ -150,16 +150,16 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
                 val doCompress = false
                 RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, boundsArray,
-                                              blockCount, doCompress, writer, resTryCount,
+                                              blockCount, doCompress, output, resTryCount,
                                               resScales, resSizes, bedSummary.itemCount,
                                               fieldCount)
 
                 /* Write out primary data index. */
-                val indexOffset = writer.tell()
+                val indexOffset = output.tell()
                 val itemSize = 24
                 RTreeIndexDetails.cirTreeFileBulkIndexToOpenFile(
                         boundsArray, itemSize, blockCount.toLong(), blockSize,
-                        1, indexOffset, writer)
+                        1, indexOffset, output)
 
                 return indexOffset
             }

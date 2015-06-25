@@ -228,26 +228,12 @@ public class RTreeIndexDetails {
     return newList;*/
   }
 
-  private static lmBlock newBlock(final lm lm, final int reqSize)
-/* Allocate a new block of at least reqSize */
-  {
-    final int size = (reqSize > lm.blockSize ? reqSize : lm.blockSize);
-    final int fullSize = size + 32; //sizeof(struct lmBlock);
-    final lmBlock mb = new lmBlock(); // Потенциальная засада! Нужно выделить кусок памяти равным fullSize байт//needLargeZeroedMem(fullSize);
-
-    // Поля free и end пока не используются
-    //mb.free = (char *)(mb+1);
-    //mb.end = ((char *)mb) + fullSize;
-
-    //mb.next = lm.blocks;
-    lm.blocks.add(mb);
-    return mb;
-  }
-
-  private static rTree rTreeFromChromRangeArray( final lm lm, final int blockSize, final int itemsPerSlot,
-                                  final bbiBoundsArray itemArray[], final int itemSize, final long itemCount,
-                                  final long endFileOffset,
-                                  final wrapObject retLevelCount) {
+  private static rTree rTreeFromChromRangeArray(final int blockSize,
+                                                final int itemsPerSlot,
+                                                final bbiBoundsArray itemArray[],
+                                                final int itemSize, final long itemCount,
+                                                final long endFileOffset,
+                                                final wrapObject retLevelCount) {
 
     if (itemCount == 0)
       return null;
@@ -379,23 +365,6 @@ public class RTreeIndexDetails {
     }
     retLevelCount.data = levelCount;
     return tree;
-  }
-
-  private static lm lmInit(int blockSize)
-/* Create a local memory pool. */
-  {
-    final lm lm = new lm();
-
-    final int aliSize = 8;
-
-    //lm.blocks = null;
-    if (blockSize <= 0)
-      blockSize = (1<<14);    /* 16k default. */
-    lm.blockSize = blockSize;
-    lm.allignAdd = (aliSize-1);
-    lm.allignMask = ~lm.allignAdd;
-    newBlock(lm, blockSize);
-    return lm;
   }
 
   private static void calcLevelSizes(final rTree tree, final int levelSizes[], final int level, final int maxLevel)
@@ -570,13 +539,13 @@ public class RTreeIndexDetails {
     writeLeaves(blockSize, leafNodeSize(blockSize), tree, leafLevel, writer);
   }
 
-  public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[], final int itemSize, final long itemCount,
-                                              final int blockSize, final int itemsPerSlot,
-                                              final long endFileOffset, final SeekableDataOutput writer)
+  public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[], final int itemSize,
+                                                    final long itemCount,
+                                                    final int blockSize, final int itemsPerSlot,
+                                                    final long endFileOffset, final SeekableDataOutput writer)
       throws IOException {
     final wrapObject levelCount = new wrapObject();
-    final lm lm = lmInit(0);
-    rTree tree = rTreeFromChromRangeArray(lm, blockSize, itemsPerSlot,
+    rTree tree = rTreeFromChromRangeArray(blockSize, itemsPerSlot,
                                           itemArray, itemSize, itemCount, endFileOffset,
                                           levelCount);
 
