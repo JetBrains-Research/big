@@ -146,7 +146,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
             /** Number of bytes used for this header. */
             val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
             /** Magic number used for determining [ByteOrder]. */
-            val MAGIC = 0x78CA8C91
+            private val MAGIC = 0x78CA8C91
 
             throws(IOException::class)
             fun read(input: SeekableDataInput, offset: Long): Header = with(input) {

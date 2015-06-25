@@ -21,6 +21,53 @@ import java.util.function.Consumer
 abstract class BigFile<T> throws(IOException::class) protected constructor(path: Path) :
         Closeable, AutoCloseable {
 
+    // XXX maybe we should make it a DataIO instead of separate
+    // Input/Output classes?
+    val handle: SeekableDataInput = SeekableDataInput.of(path)
+    val header: Header = Header.read(handle, getHeaderMagic())
+
+    throws(IOException::class)
+    public fun chromosomes(): Set<String> {
+        val b = ImmutableSet.builder<String>()
+        header.bPlusTree.traverse(handle, Consumer { b.add(it.key) })
+        return b.build()
+    }
+
+    /**
+     * Queries an R+-tree.
+     *
+     * @param chromName human-readable chromosome name, e.g. `"chr9"`.
+     * @param startOffset 0-based start offset (inclusive).
+     * @param endOffset 0-based end offset (exclusive), if 0 than the whole
+     *                  chromosome is used.
+     * @param maxItems upper bound on the number of items to return.
+     * @return a list of intervals completely contained within the query.
+     * @throws IOException if the underlying [SeekableDataInput] does so.
+     */
+    throws(IOException::class)
+    public jvmOverloads fun query(chromName: String, startOffset: Int, endOffset: Int,
+                                  maxItems: Int = 0): List<T> {
+        val res = header.bPlusTree.find(handle, chromName)
+        return if (res.isPresent()) {
+            val (_key, chromIx, size) = res.get()
+            val query = RTreeInterval.of(chromIx, startOffset,
+                                         if (endOffset == 0) size else endOffset)
+            queryInternal(query, maxItems)
+        } else {
+            listOf()
+        }
+    }
+
+    public abstract fun getHeaderMagic(): Int
+
+    public fun isCompressed(): Boolean = header.uncompressBufSize > 0
+
+    throws(IOException::class)
+    protected abstract fun queryInternal(query: RTreeInterval, maxItems: Int): List<T>
+
+    throws(IOException::class)
+    override fun close() = handle.close()
+
     class Header protected constructor(public val byteOrder: ByteOrder,
                                        public val version: Short,
                                        public val unzoomedDataOffset: Long,
@@ -69,53 +116,6 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
             }
         }
     }
-
-    // XXX maybe we should make it a DataIO instead of separate
-    // Input/Output classes?
-    val handle: SeekableDataInput = SeekableDataInput.of(path)
-    val header: Header = Header.read(handle, getHeaderMagic())
-
-    throws(IOException::class)
-    public fun chromosomes(): Set<String> {
-        val b = ImmutableSet.builder<String>()
-        header.bPlusTree.traverse(handle, Consumer { b.add(it.key) })
-        return b.build()
-    }
-
-    /**
-     * Queries an R+-tree.
-     *
-     * @param chromName human-readable chromosome name, e.g. `"chr9"`.
-     * @param startOffset 0-based start offset (inclusive).
-     * @param endOffset 0-based end offset (exclusive), if 0 than the whole
-     *                  chromosome is used.
-     * @param maxItems upper bound on the number of items to return.
-     * @return a list of intervals completely contained within the query.
-     * @throws IOException if the underlying [SeekableDataInput] does so.
-     */
-    throws(IOException::class)
-    public jvmOverloads fun query(chromName: String, startOffset: Int, endOffset: Int,
-                                  maxItems: Int = 0): List<T> {
-        val res = header.bPlusTree.find(handle, chromName)
-        return if (res.isPresent()) {
-            val (_key, chromIx, size) = res.get()
-            val query = RTreeInterval.of(chromIx, startOffset,
-                                         if (endOffset == 0) size else endOffset)
-            queryInternal(query, maxItems)
-        } else {
-            listOf()
-        }
-    }
-
-    public abstract fun getHeaderMagic(): Int
-
-    public fun isCompressed(): Boolean = header.uncompressBufSize > 0
-
-    throws(IOException::class)
-    protected abstract fun queryInternal(query: RTreeInterval, maxItems: Int): List<T>
-
-    throws(IOException::class)
-    override fun close() = handle.close()
 }
 
 data class ZoomLevel(public val reductionLevel: Int,

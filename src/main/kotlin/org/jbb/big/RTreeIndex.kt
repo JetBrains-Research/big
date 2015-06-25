@@ -94,18 +94,12 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    companion object {
-        throws(IOException::class)
-        public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
-            return RTreeIndex(Header.read(input, offset))
-        }
-    }
-
     class Header(val byteOrder: ByteOrder, val blockSize: Int, val itemCount: Long,
                  val startChromIx: Int, val startBase: Int,
                  val endChromIx: Int, val endBase: Int,
                  val fileSize: Long, val itemsPerSlot: Int, val rootOffset: Long) {
         companion object {
+            /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ace0
 
             throws(IOException::class)
@@ -157,7 +151,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 val doCompress = false
                 val maxBlockSize = wrapObject()
 
-
                 RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, boundsArray,
                                               blockCount, doCompress, writer, resTryCount,
                                               resScales, resSizes, bedSummary.itemCount,
@@ -172,6 +165,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
                 return indexOffset
             }
+        }
+    }
+
+    companion object {
+        throws(IOException::class)
+        public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
+            return RTreeIndex(Header.read(input, offset))
         }
     }
 }
