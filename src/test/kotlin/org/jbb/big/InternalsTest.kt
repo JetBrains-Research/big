@@ -15,7 +15,7 @@ public class InternalsTest {
 
         for (i in 0 until 100) {
             val a = RANDOM.nextInt(4096) + 1
-            val b = RANDOM.nextInt(a) + 1
+            val b = RANDOM.nextInt(a) + 2
             val n = a.logCeiling(b)
             assertTrue(b pow n >= a, "ceil(log($a, base = $b)) /= $n")
         }
