@@ -9,8 +9,6 @@ import java.nio.file.Path
  * A converter from BigBED to BED format.
  *
  * @link https://genome.ucsc.edu/FAQ/FAQformat.html#format1
- * @author Sergey Zherevchuk
- * @since 11/03/15
  */
 public object BigBedToBed {
     /**

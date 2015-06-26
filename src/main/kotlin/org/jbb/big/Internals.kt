@@ -12,9 +12,6 @@ import java.util.stream.Collectors
  * Various internal helpers.
  *
  * You shouldn't be using them outside of `big`.
- *
- * @author Sergei Lebedev
- * @since 24/06/15
  */
 
 /**
@@ -54,9 +51,6 @@ fun String.trimZeros() = trimEnd { it == '\u0000' }
 
 /**
  * A semi-closed interval.
- *
- * @author Sergei Lebedev
- * @since 16/03/15
  */
 interface Interval {
     /** Start offset (inclusive).  */
@@ -114,9 +108,6 @@ data class MultiInterval(public override val left: Offset,
 
 /**
  * A (chromosome, offset) pair.
- *
- * @author Sergei Lebedev
- * @since 16/03/15
  */
 data class Offset(
         /** Chromosome ID as defined by the B+ index.  */

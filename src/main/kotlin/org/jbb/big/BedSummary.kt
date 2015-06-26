@@ -9,9 +9,6 @@ import kotlin.platform.platformStatic
  * A summary of a single BED file.
  *
  * Used in [RTreeIndex] construction.
- *
- * @author Sergei Lebedev
- * @since 24/06/15
  */
 class BedSummary(private val chromSizes: Map<String, Int>) {
     private val entries: MutableMap<String, Entry> = LinkedHashMap()

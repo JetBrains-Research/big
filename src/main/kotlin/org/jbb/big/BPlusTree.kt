@@ -17,10 +17,6 @@ import kotlin.platform.platformStatic
  *
  * See tables 8-11 in Supplementary Data for byte-to-byte details
  * on the B+ header and node formats.
- *
- * @author Sergey Zherevchuk
- * @author Sergei Lebedev
- * @since 13/03/15
  */
 public class BPlusTree(val header: BPlusTree.Header) {
     /**
@@ -270,9 +266,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
 /**
  * An item in a B+ tree.
- *
- * @author Sergey Zherevchuk
- * @since 10/03/15
  */
 data class BPlusItem(
         /** Chromosome name, e.g. "chr19" or "chrY". */

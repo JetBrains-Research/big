@@ -7,9 +7,6 @@ import kotlin.platform.platformStatic
 
 /**
  * Bigger brother of good old WIG format.
- *
- * @author Konstantin Kolosovsky
- * @since 12/05/15
  */
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigData>(path) {

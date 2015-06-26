@@ -29,13 +29,9 @@ import java.util.Collections
  * Prior to building the tree the intervals are combined into
  * super-intervals of size `itemsPerSlot`. The R+ tree is then built
  * over these super-intervals.
- * 
+ *
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
- *
- * @author Sergey Zherevchuk
- * @author Sergei Lebedev
- * @since 13/03/15
  */
 class RTreeIndex(val header: RTreeIndex.Header) {
     /**

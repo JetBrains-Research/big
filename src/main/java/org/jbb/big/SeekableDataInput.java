@@ -21,9 +21,6 @@ import java.util.Objects;
 
 /**
  * A byte order-aware seekable complement to {@link java.io.DataInputStream}.
- *
- * @author Sergei Lebedev
- * @since 11/03/15
  */
 public class SeekableDataInput extends InputStream implements AutoCloseable, DataInput {
   /**

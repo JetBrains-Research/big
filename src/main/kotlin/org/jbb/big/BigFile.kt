@@ -12,10 +12,6 @@ import kotlin.properties.Delegates
  *
  * TODO: cache chromosome mapping instead of querying the B+ tree
  * every time.
- *
- * @author Sergei Lebedev
- * @author Sergey Zherevchuk
- * @since 11/04/15
  */
 abstract class BigFile<T> throws(IOException::class) protected constructor(path: Path) :
         Closeable, AutoCloseable {

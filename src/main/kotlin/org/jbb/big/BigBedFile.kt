@@ -9,9 +9,6 @@ import kotlin.platform.platformStatic
 
 /**
  * Just like BED only BIGGER.
- *
- * @author Sergei Lebedev
- * @since 11/04/15
  */
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedData>(path) {

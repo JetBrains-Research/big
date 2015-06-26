@@ -10,9 +10,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.InflaterInputStream;
 
-/**
- * @author Konstantin Kolosovsky.
- */
 public class StreamWithCompressedBlocks extends InflaterInputStream {
 
   private boolean closed;

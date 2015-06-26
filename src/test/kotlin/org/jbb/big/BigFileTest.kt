@@ -3,7 +3,6 @@ package org.jbb.big
 import org.junit.Test
 import kotlin.test.assertEquals
 
-
 public class BigFileTest {
     Test fun testReadHeader() {
         // http://genome.ucsc.edu/goldenpath/help/bigBed.html
