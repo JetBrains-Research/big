@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class RTreeIndexDetails {
 
@@ -183,11 +182,6 @@ public class RTreeIndexDetails {
                                         final bbiBoundsArray itemArray[],
                                         final long dataEndOffset,
                                         final wrapObject retLevelCount) {
-    final List<Interval> intervals = Arrays.stream(itemArray)
-        .map(b -> new ChromosomeInterval(b.range.chromIx, b.range.start, b.range.end))
-        .collect(Collectors.toList());
-    RTreeIndexWrapper.Companion.of(intervals, blockSize);
-
     final int itemCount = itemArray.length;
     if (itemCount == 0) {
       return null;
@@ -310,28 +304,6 @@ public class RTreeIndexDetails {
     return tree;
   }
 
-  private static void calcLevelSizes(final rTree tree, final int levelSizes[], final int level,
-                                     final int maxLevel)
-/* Recursively count sizes of levels and add to appropriate slots of levelSizes */ {
-    rTree el;
-    for (el = tree; el != null; el = el.next) {
-      levelSizes[level]++;
-      if (level < maxLevel) {
-        calcLevelSizes(el.children, levelSizes, level + 1, maxLevel);
-      }
-    }
-  }
-
-  private static int indexNodeSize(final int blockSize)
-/* Return size of an index node. */ {
-    return nodeHeaderSize + indexSlotSize * blockSize;
-  }
-
-  private static int leafNodeSize(final int blockSize)
-/* Return size of a leaf node. */ {
-    return nodeHeaderSize + leafSlotSize * blockSize;
-  }
-
   /* Count up elements in list. */
   private static int slCount(final rTree list) {
     rTree pt = list;
@@ -357,25 +329,23 @@ public class RTreeIndexDetails {
     return newList;
   }
 
-  private static long rWriteIndexLevel(final int blockSize, final int childNodeSize,
-                                       final rTree tree, final int curLevel, final int destLevel,
-                                       final long offsetOfFirstChild,
-                                       final SeekableDataOutput writer)
+  static long rWriteIndexLevel(final int blockSize, final int childNodeSize,
+                               final rTree tree, final int curLevel, final int destLevel,
+                               final long offsetOfFirstChild,
+                               final SeekableDataOutput writer)
       throws IOException
 /* Recursively write an index level, skipping levels below destLevel,
  * writing out destLevel. */ {
     rTree el;
     long offset = offsetOfFirstChild;
     if (curLevel == destLevel) {
-    /* We've reached the right level, write out a node header */
-      final byte reserved = 0;
-      final byte isLeaf = 0;
-      final short countOne = (short) slCount(tree.children);
-      writer.writeByte(isLeaf);
-      writer.writeByte(reserved);
-      writer.writeShort((int) countOne);
+      /* We've reached the right level, write out a node header */
+      final short childCount = (short) slCount(tree.children);
+      writer.writeByte(0);  // isLeaf.
+      writer.writeByte(0);  // reserved.
+      writer.writeShort(childCount);
 
-    /* Write out elements of this node. */
+      /* Write out elements of this node. */
       for (el = tree.children; el != null; el = el.next) {
         writer.writeInt(el.startChromIx);
         writer.writeInt(el.startBase);
@@ -385,13 +355,10 @@ public class RTreeIndexDetails {
         offset += childNodeSize;
       }
 
-    /* Write out zeroes for empty slots in node. */
-      int i;
-      for (i = countOne; i < blockSize; ++i) {
-        writer.writeByte((char) 0, indexSlotSize);
-      }
+      /* Write out zeroes for empty slots in node. */
+      writer.writeByte(0, indexSlotSize * (blockSize - childCount));
     } else {
-    /* Otherwise recurse on children. */
+      /* Otherwise recurse on children. */
       for (el = tree.children; el != null; el = el.next) {
         offset = rWriteIndexLevel(blockSize, childNodeSize, el, curLevel + 1, destLevel,
                                   offset, writer);
@@ -400,19 +367,17 @@ public class RTreeIndexDetails {
     return offset;
   }
 
-  private static void rWriteLeaves(final int itemsPerSlot, final rTree tree,
-                                   final int curLevel, final int leafLevel,
-                                   final SeekableDataOutput writer)
+  static void rWriteLeaves(final int itemsPerSlot, final rTree tree,
+                           final int curLevel, final int leafLevel,
+                           final SeekableDataOutput writer)
       throws IOException
 /* Write out leaf-level nodes. */ {
     if (curLevel == leafLevel) {
     /* We've reached the right level, write out a node header. */
-      final byte reserved = 0;
-      final byte isLeaf = 1;
-      final short countOne = (short) slCount(tree.children);
-      writer.writeByte(isLeaf);
-      writer.writeByte(reserved);
-      writer.writeShort(countOne);
+      final short childCount = (short) slCount(tree.children);
+      writer.writeByte(1);  // isLeaf.
+      writer.writeByte(0);  // reserved.
+      writer.writeShort(childCount);
 
     /* Write out elements of this node. */
       rTree el;
@@ -426,11 +391,8 @@ public class RTreeIndexDetails {
         writer.writeLong(size);
       }
 
-    /* Write out zeroes for empty slots in node. */
-      int i;
-      for (i = countOne; i < itemsPerSlot; ++i) {
-        writer.writeByte((char) 0, indexSlotSize);
-      }
+      /* Write out zeroes for empty slots in node. */
+      writer.writeByte(0, indexSlotSize * (itemsPerSlot - childCount));
     } else {
     /* Otherwise recurse on children. */
       rTree el;
@@ -438,39 +400,5 @@ public class RTreeIndexDetails {
         rWriteLeaves(itemsPerSlot, el, curLevel + 1, leafLevel, writer);
       }
     }
-  }
-
-  static void writeTreeToOpenFile(final rTree tree, final int blockSize,
-                                          final int levelCount, final SeekableDataOutput writer)
-      throws IOException
-/* Write out tree to a file that is open already - writing out index nodes from
- * highest to lowest level, and then leaf nodes. */ {
-/* Calculate sizes of each level. */
-    int i;
-    final int levelSizes[] = new int[levelCount];
-//    for (i=0; i<levelCount; ++i)
-//      levelSizes[i] = 0;
-    calcLevelSizes(tree, levelSizes, 0, levelCount - 1);
-
-/* Calc offsets of each level. */
-    final long levelOffsets[] = new long[levelCount];
-    long offset = writer.tell();
-    final long iNodeSize = indexNodeSize(blockSize);
-    final long lNodeSize = leafNodeSize(blockSize);
-    for (i = 0; i < levelCount; ++i) {
-      levelOffsets[i] = offset;
-      offset += levelSizes[i] * iNodeSize;
-    }
-
-/* Write out index levels. */
-    final int finalLevel = levelCount - 3;
-    for (i = 0; i <= finalLevel; ++i) {
-      final long childNodeSize = (i == finalLevel ? lNodeSize : iNodeSize);
-      rWriteIndexLevel(blockSize, (int) childNodeSize, tree, 0, i, levelOffsets[i + 1], writer);
-    }
-
-/* Write out leaf level. */
-    final int leafLevel = levelCount - 2;
-    rWriteLeaves(blockSize, tree, 0, leafLevel, writer);
   }
 }
