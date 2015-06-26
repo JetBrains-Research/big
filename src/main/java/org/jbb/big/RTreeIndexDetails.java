@@ -1,27 +1,28 @@
 package org.jbb.big;
 
+import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 
 public class RTreeIndexDetails {
-  final static int bbiMaxZoomLevels = 10;
-  final static int bbiResIncrement = 4;
-
-  public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedPath,
-                                 final int itemsPerSlot, final bbiBoundsArray bounds[],
-                                 final boolean doCompress,
-                                 final SeekableDataOutput output,
-                                 final int bedCount, final short fieldCount)
+  public static List<bbiBoundsArray> writeBlocks(
+      final List<bbiChromUsage> usageList, final Path bedPath,
+      final int itemsPerSlot,
+      final boolean doCompress,
+      final SeekableDataOutput output,
+      final int bedCount, final short fieldCount)
       throws IOException {
     if (doCompress) {
       throw new UnsupportedOperationException("block compression is not supported");
     }
 
+    final List<bbiBoundsArray> res = Lists.newArrayList();
     final Iterator<bbiChromUsage> usageIterator = usageList.iterator();
     bbiChromUsage usage = usageIterator.next();
-    int itemIx = 0, sectionIx = 0;
+    int itemIx = 0;
     long blockStartOffset = 0;
     int startPos = 0, endPos = 0;
     int chromId = 0;
@@ -48,12 +49,13 @@ public class RTreeIndexDetails {
       /* Check conditions that would end block and save block info and advance to next if need be. */
       if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
         /* Save info on existing block. */
-        bounds[sectionIx].offset = blockStartOffset;
-        bounds[sectionIx].range.chromIx = chromId;
-        bounds[sectionIx].range.start = startPos;
-        bounds[sectionIx].range.end = endPos;
+        final bbiBoundsArray bound = new bbiBoundsArray();
+        bound.offset = blockStartOffset;
+        bound.range.chromIx = chromId;
+        bound.range.start = startPos;
+        bound.range.end = endPos;
+        res.add(bound);
 
-        ++sectionIx;
         itemIx = 0;
 
         if (atEnd) {
@@ -95,5 +97,7 @@ public class RTreeIndexDetails {
 
       itemIx++;
     }
+
+    return res;
   }
 }

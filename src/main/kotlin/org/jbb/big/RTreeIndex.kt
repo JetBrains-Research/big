@@ -142,14 +142,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             return RTreeIndex(Header.read(input, offset))
         }
 
-        public fun countBlocks(usageList: List<bbiChromUsage>, itemsPerSlot: Int): Int {
-            var count = 0
-            for (usage in usageList) {
-                count += usage.itemCount divCeiling itemsPerSlot
-            }
-            return count
-        }
-
         throws(IOException::class)
         public fun write(output: SeekableDataOutput, chromSizesPath: Path,
                          bedPath: Path, fieldCount: Short,
@@ -157,14 +149,11 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             val bedSummary = BedSummary.of(bedPath, chromSizesPath)
             val usageList = bedSummary.toList()
 
-            val blockCount = countBlocks(usageList, itemsPerSlot)
-            val itemArray = (0 until blockCount).map { bbiBoundsArray() }.toTypedArray()
-
             val doCompress = false
-            RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, itemArray,
-                                          doCompress, output,
-                                          bedSummary.itemCount,
-                                          fieldCount)
+            val itemArray = RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot,
+                                                          doCompress, output,
+                                                          bedSummary.itemCount,
+                                                          fieldCount)
 
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
@@ -178,7 +167,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }.toList()
 
             val wrapper = RTreeIndexWrapper.of(leaves, blockSize)
-            val header = Header(output.order(), blockSize, blockCount.toLong(),
+            val header = Header(output.order(), blockSize, itemArray.size().toLong(),
                                 wrapper.left.chromIx, wrapper.left.offset,
                                 wrapper.right.chromIx, wrapper.right.offset,
                                 dataEndOffset, itemsPerSlot, output.tell() + Header.BYTES)
