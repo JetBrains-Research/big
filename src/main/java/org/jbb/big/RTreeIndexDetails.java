@@ -190,9 +190,9 @@ public class RTreeIndexDetails {
 
   private static rTree rTreeFromChromRangeArray(final int blockSize,
                                                 final bbiBoundsArray itemArray[],
-                                                final long itemCount,
-                                                final long endFileOffset,
+                                                final long indexOffset,
                                                 final wrapObject retLevelCount) {
+    final int itemCount = itemArray.length;
     if (itemCount == 0) {
       return null;
     }
@@ -232,7 +232,7 @@ public class RTreeIndexDetails {
         }
       }
       if (j == itemCount) {
-        nextOffset = endFileOffset;
+        nextOffset = indexOffset;
       }
 
       el.endFileOffset = nextOffset;
@@ -481,15 +481,12 @@ public class RTreeIndexDetails {
   }
 
   public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[],
-                                                    final long itemCount,
                                                     final int blockSize, final int itemsPerSlot,
                                                     final long endFileOffset,
                                                     final SeekableDataOutput writer)
       throws IOException {
     final wrapObject levelCount = new wrapObject();
-    rTree tree = rTreeFromChromRangeArray(blockSize,
-                                          itemArray, itemCount, endFileOffset,
-                                          levelCount);
+    rTree tree = rTreeFromChromRangeArray(blockSize, itemArray, endFileOffset, levelCount);
 
     final rTree dummyTree = new rTree();
     dummyTree.startBase = 0; // struct rTree dummyTree = {.startBase=0};
@@ -502,7 +499,7 @@ public class RTreeIndexDetails {
     final int reserved = 0;
     writer.writeInt(magic);
     writer.writeInt(blockSize);
-    writer.writeLong(itemCount);
+    writer.writeLong(itemArray.length);
     writer.writeInt(tree.startChromIx);
     writer.writeInt(tree.startBase);
     writer.writeInt(tree.endChromIx);

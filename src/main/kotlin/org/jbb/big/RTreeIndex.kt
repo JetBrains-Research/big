@@ -157,7 +157,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 /* Write out primary data index. */
                 val indexOffset = output.tell()
                 RTreeIndexDetails.cirTreeFileBulkIndexToOpenFile(
-                        boundsArray, blockCount.toLong(), blockSize, 1, indexOffset, output)
+                        boundsArray, blockSize, 1, indexOffset, output)
 
                 return indexOffset
             }
