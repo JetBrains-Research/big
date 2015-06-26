@@ -66,8 +66,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
 class BedFile(private val path: Path) : Iterable<BedData> {
     override fun iterator(): Iterator<BedData> = Files.lines(path).map { line ->
-        val chunks = line.split('\t', limit = 3)
-        BedData(chunks[0], chunks[1].toInt(), chunks[2].toInt())
+        val chunks = line.split('\t', limit = 4)
+        BedData(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
+                if (chunks.size() == 3) "" else chunks[3])
     }.iterator()
 
     companion object {

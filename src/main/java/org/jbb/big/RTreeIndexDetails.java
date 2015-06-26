@@ -1,8 +1,6 @@
 package org.jbb.big;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -12,7 +10,7 @@ public class RTreeIndexDetails {
   final static int bbiMaxZoomLevels = 10;
   final static int bbiResIncrement = 4;
 
-  public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedFilePath,
+  public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedPath,
                                  final int itemsPerSlot, final bbiBoundsArray bounds[],
                                  final int sectionCount, final boolean doCompress,
                                  final SeekableDataOutput output,
@@ -42,96 +40,87 @@ public class RTreeIndexDetails {
     * namedChunks to eim if need be. */
     final long sectionStartIx = 0, sectionEndIx = 0;
 
-    try (BufferedReader reader = Files.newBufferedReader(bedFilePath)) {
-      String line;
-      String row[] = null;
-      String chrom;
+    final Iterator<BedData> it = BedFile.read(bedPath).iterator();
+    String rest = "";
+    String chrom;
 
-      for (; ;) {
-        /* Get next line of input if any. */
-        if ((line = reader.readLine()) != null) {
-          /* Chop up line and make sure the word count is right. */
-          row = line.split("\t");
+    for (; ;) {
+      if (it.hasNext()) {
+        final BedData entry = it.next();
+        chrom = entry.getName();
+        start = entry.getStart();
+        end = entry.getEnd();
+        rest = entry.getRest();
 
-          chrom = row[0];
-          start = Integer.parseInt(row[1]);
-          end = Integer.parseInt(row[2]);
+        sameChrom = chrom.equals(usage.name);
+      } else {  /* No next line */
+        atEnd = true;
+      }
 
-          sameChrom = chrom.equals(usage.name);
-        } else {  /* No next line */
-          atEnd = true;
+      /* Check conditions that would end block and save block info and advance to next if need be. */
+      if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
+        /* Save info on existing block. */
+        bounds[sectionIx].offset = blockStartOffset;
+        bounds[sectionIx].range.chromIx = chromId;
+        bounds[sectionIx].range.start = startPos;
+        bounds[sectionIx].range.end = endPos;
+
+        ++sectionIx;
+        itemIx = 0;
+
+        if (atEnd) {
+          break;
         }
+      }
 
-        /* Check conditions that would end block and save block info and advance to next if need be. */
-        if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
-	  /* Save info on existing block. */
-          bounds[sectionIx].offset = blockStartOffset;
-          bounds[sectionIx].range.chromIx = chromId;
-          bounds[sectionIx].range.start = startPos;
-          bounds[sectionIx].range.end = endPos;
+      /* Advance to next chromosome if need be and get chromosome id. */
+      if (!sameChrom) {
+        usage = usageIterator.next();
+        Arrays.fill(resEnds, 0);
+      }
 
-          ++sectionIx;
-          itemIx = 0;
+      chromId = usage.id;
 
-          if (atEnd) {
-            break;
-          }
-        }
-
-        /* Advance to next chromosome if need be and get chromosome id. */
-        if (!sameChrom) {
-          usage = usageIterator.next();
-          Arrays.fill(resEnds, 0);
-        }
-
-        chromId = usage.id;
-
-        /* At start of block we save a lot of info. */
-        if (itemIx == 0) {
-          blockStartOffset = output.tell();
-          startPos = start;
+      /* At start of block we save a lot of info. */
+      if (itemIx == 0) {
+        blockStartOffset = output.tell();
+        startPos = start;
+        endPos = end;
+      }
+      /* Otherwise just update end. */
+      {
+        if (endPos < end) {
           endPos = end;
         }
-        /* Otherwise just update end. */
-        {
-          if (endPos < end) {
-            endPos = end;
-          }
-	  /* No need to update startPos since list is sorted. */
-        }
-
-        /* Write out data. */
-        output.writeInt(chromId);
-        output.writeInt(start);
-        output.writeInt(end);
-
-        if (fieldCount > 3) {
-	  /* Write 3rd through next to last field and a tab separator. */
-          for (int i = 3; i < lastField; ++i) {
-            output.writeBytes(row[i]);
-            output.writeByte('\t');
-          }
-	  /* Write last field and terminal zero */
-          output.writeBytes(row[lastField]);
-        }
-        output.writeByte(0);
-
-        itemIx++;
-
-        /* Do zoom counting. */
-        for (int resTry = 0; resTry < resTryCount; ++resTry) {
-          int resEnd = resEnds[resTry];
-          if (start >= resEnd) {
-            resSizes[resTry] = 1;
-            resEnds[resTry] = resEnd = start + resScales[resTry];
-          }
-          while (end > resEnd) {
-            resSizes[resTry] = 1;
-            resEnds[resTry] = resEnd = resEnd + resScales[resTry];
-          }
-        }
-
+        /* No need to update startPos since list is sorted. */
       }
+
+      /* Write out data. */
+      output.writeInt(chromId);
+      output.writeInt(start);
+      output.writeInt(end);
+
+      if (fieldCount > 3) {
+        /* Write last field and terminal zero */
+        output.writeBytes(rest);
+      }
+      output.writeByte(0);
+
+      itemIx++;
+
+      /* Do zoom counting. */
+      for (int resTry = 0; resTry < resTryCount; ++resTry) {
+        int resEnd = resEnds[resTry];
+        if (start >= resEnd) {
+          resSizes[resTry] = 1;
+          resEnds[resTry] = resEnd = start + resScales[resTry];
+        }
+        while (end > resEnd) {
+          resSizes[resTry] = 1;
+          resEnds[resTry] = resEnd = resEnd + resScales[resTry];
+        }
+      }
+
     }
   }
 
