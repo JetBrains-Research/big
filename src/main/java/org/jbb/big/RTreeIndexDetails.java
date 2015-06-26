@@ -274,7 +274,6 @@ public class RTreeIndexDetails {
           slotsUsed = 1;
           parent = new rTree(el); //lmCloneMem(lm, el, sizeof(*el));
           parent.children = el;
-          el.parent = parent;
           el.next = null;
 
           parent.next = list; //slAddHead(list, parent);
@@ -285,7 +284,6 @@ public class RTreeIndexDetails {
           el.next = parent.children;
           parent.children = el;
 
-          el.parent = parent;
           if (el.startChromIx < parent.startChromIx) {
             parent.startChromIx = el.startChromIx;
             parent.startBase = el.startBase;
