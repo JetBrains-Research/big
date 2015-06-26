@@ -63,7 +63,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 val endOffset = input.readInt()
                 val dataOffset = input.readLong()
                 val dataSize = input.readLong()
-                val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
+                assert(startChromIx == endChromIx)
+                val interval = Interval.of(startChromIx, startOffset, endOffset)
 
                 if (interval overlaps query) {
                     val backup = input.tell()
@@ -180,30 +181,21 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
-            val levelCount = wrapObject()
-            var tree = RTreeIndexDetails.rTreeFromChromRangeArray(
-                    blockSize, itemArray, dataEndOffset, levelCount)
+            val offsets = itemArray.map { it!!.offset }.toLongArray()
+            val leaves = itemArray.map { it!!.range }.mapIndexed { i, range ->
+                val interval = ChromosomeInterval(range.chromIx, range.start, range.end)
+                val endOffset = if (i < offsets.size() - 1) offsets[i + 1] else dataEndOffset
+                val size = endOffset - offsets[i]
+                RTreeIndexLeaf(interval, offsets[i], size)
+            }.toList()
 
-            val dummyTree = rTree()
-            dummyTree.startBase = 0 // struct rTree dummyTree = {.startBase=0};
-
-            if (tree == null) {
-                tree = rTree(dummyTree)        // Work for empty files....
-            }
-
+            val wrapper = RTreeIndexWrapper.of(leaves, blockSize)
             val header = Header(output.order(), blockSize, itemArray.size().toLong(),
-                                tree.startChromIx, tree.startBase,
-                                tree.endChromIx, tree.endBase, dataEndOffset,
-                                itemsPerSlot, output.tell() + RTreeIndex.Header.BYTES)
+                                wrapper.left.chromIx, wrapper.left.offset,
+                                wrapper.right.chromIx, wrapper.right.offset,
+                                dataEndOffset, itemsPerSlot, output.tell() + Header.BYTES)
             header.write(output)
-
-            if (tree != dummyTree) {
-                val intervals = itemArray.map { it!!.range }
-                        .map { ChromosomeInterval(it.chromIx, it.start, it.end) }
-                        .toList()
-                RTreeIndexWrapper.of(intervals, blockSize)
-                        .writeTreeToOpenFile(tree, blockSize, levelCount.toInt(), output)
-            }
+            wrapper.write(output, blockSize)
 
             return dataEndOffset
         }
@@ -213,26 +205,44 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 /**
  * External node aka *leaf* of the chromosome R-tree.
  */
-data class RTreeIndexLeaf(public val interval: Interval,
+data class RTreeIndexLeaf(public val interval: ChromosomeInterval,
                           public val dataOffset: Long,
                           public val dataSize: Long) {
+    fun write(output: SeekableDataOutput) = with(output) {
+        writeInt(interval.chromIx)
+        writeInt(interval.startOffset)
+        writeInt(interval.chromIx)
+        writeInt(interval.endOffset)
+        writeLong(dataOffset)
+        writeLong(dataSize)
+    }
 }
 
 /**
  * Internal node of the chromosome R-tree.
  */
 data class RTreeIndexNode(public val interval: Interval,
-                          public val dataOffset: Long)
+                          public val dataOffset: Long) {
+    fun write(output: SeekableDataOutput) = with(output) {
+        writeInt(interval.left.chromIx)
+        writeInt(interval.left.offset)
+        writeInt(interval.right.chromIx)
+        writeInt(interval.right.offset)
+        writeLong(dataOffset)
+    }
+}
 
 class RTreeIndexWrapper(private val levels: List<List<Interval>>,
-                        private val children: ListMultimap<Interval, Interval>) {
+                        private val leaves: List<RTreeIndexLeaf>) {
+    private val DUMMY: Offset = Offset(0, 0)
+
+    public val left: Offset
+            = if (leaves.isEmpty()) DUMMY else levels.last().first().left
+    public val right: Offset
+            = if (leaves.isEmpty()) DUMMY else levels.last().last().right
 
     throws(IOException::class)
-    fun writeTreeToOpenFile(tree: rTree, blockSize: Int, levelCount: Int,
-                            output: SeekableDataOutput) {
-        /* Calculate sizes of each level. */
-        val levelSizes = levels.map { it.size() }.toIntArray()
-
+    fun write(output: SeekableDataOutput, blockSize: Int) {
         // HEAVY COMPUTER SCIENCE CALCULATION!
         val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
         val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
@@ -240,55 +250,68 @@ class RTreeIndexWrapper(private val levels: List<List<Interval>>,
         val bytesInLeafSlot = Ints.BYTES * 4 + Longs.BYTES * 2
         val bytesInLeafBlock = bytesInNodeHeader + blockSize * bytesInLeafSlot
 
-        /* Calc offsets of each level. */
+        // Omit root because it's trivial and leaves --- we'll deal
+        // with them later.
+        levels.subList(1, levels.size() - 1).forEachIndexed { i, level ->
+            val bytesInCurrentBlock = bytesInIndexBlock
+            val bytesInNextLevelBlock =
+                    if (i == levels.size() - 3) bytesInLeafBlock else bytesInCurrentBlock
+            var nextChild = output.tell() + bytesInCurrentBlock
+            val nodeCount = level.size()
+            with(output) {
+                writeByte(0)  // isLeaf.
+                writeByte(0)  // reserved.
+                writeShort(nodeCount)
+                for (interval in level) {
+                    RTreeIndexNode(interval, nextChild).write(output)
+                    nextChild += bytesInNextLevelBlock
+                }
 
-        val levelOffsets = LongArray(levelCount)
-        var offset = output.tell()
-        for (i in 0..levelCount - 1) {
-            levelOffsets[i] = offset
-            offset += levelSizes[i] * bytesInIndexBlock.toLong()
+                // Write out zeroes for empty slots in node.
+                writeByte(0, bytesInIndexSlot * (blockSize - nodeCount))
+            }
         }
 
-        /* Write out index levels. */
-        val finalLevel = levelCount - 3
-        for (i in 0..finalLevel) {
-            val childNodeSize = if (i == finalLevel) bytesInLeafBlock else bytesInIndexBlock
-           RTreeIndexDetails.rWriteIndexLevel(
-                   blockSize, childNodeSize, tree, 0, i, levelOffsets[i + 1], output)
-        }
+        with(output) {
+            for (i in 0 until leaves.size() step blockSize) {
+                val leafCount = Math.min(blockSize, leaves.size() - i)
+                writeByte(1)  // isLeaf.
+                writeByte(0)  // reserved.
+                writeShort(leafCount)
+                for (j in 0 until leafCount) {
+                    leaves[i + j].write(output)
+                }
 
-        /* Write out leaf level. */
-        val leafLevel = levelCount - 2
-        RTreeIndexDetails.rWriteLeaves(blockSize, tree, 0, leafLevel, output)
+                // Write out zeroes for empty slots in node.
+                writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
+            }
+        }
     }
 
     companion object {
-        fun of(intervals: List<Interval>, blockSize: Int): RTreeIndexWrapper {
-            val children = ArrayListMultimap.create<Interval, Interval>()
-            var acc = intervals
-            val levels = arrayListOf(acc)
-            while (acc.size() > 1) {
-                val level = ArrayList<Interval>(acc.size() / blockSize)
-                for (i in 0 until acc.size() step blockSize) {
+        fun of(leaves: List<RTreeIndexLeaf>, blockSize: Int): RTreeIndexWrapper {
+            var intervals: List<Interval> = leaves.map { it.interval }
+            val levels = arrayListOf(intervals)
+            while (intervals.size() > 1) {
+                val level = ArrayList<Interval>(intervals.size() / blockSize)
+                for (i in 0 until intervals.size() step blockSize) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
-                    val links = acc.subList(i, Math.min(acc.size(), i + blockSize))
+                    val links = intervals.subList(i, Math.min(intervals.size(), i + blockSize))
                     if (links.size() == 1) {
                         level.addAll(links)
                     } else {
-                        val parent = links.foldRight(Interval::union)
-                        children[parent].addAll(links)
-                        level.add(parent)
+                        level.add(links.reduce(Interval::union))
                     }
                 }
 
                 levels.add(level)
-                acc = level
+                intervals = level
             }
 
             Collections.reverse(levels)
-            return RTreeIndexWrapper(levels, children)
+            return RTreeIndexWrapper(levels, leaves)
         }
     }
 }

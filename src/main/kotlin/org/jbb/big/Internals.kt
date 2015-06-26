@@ -52,11 +52,6 @@ fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
-// Remove once KT-8267 is done.
-fun List<T>.foldRight<T>(accumulator: (T, T) -> T): T {
-    return subList(1, size()).foldRight(this[0], accumulator)
-}
-
 /**
  * A semi-closed interval.
  *
