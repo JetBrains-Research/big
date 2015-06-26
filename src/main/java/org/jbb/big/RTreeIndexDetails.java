@@ -2,7 +2,6 @@ package org.jbb.big;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -12,9 +11,8 @@ public class RTreeIndexDetails {
 
   public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedPath,
                                  final int itemsPerSlot, final bbiBoundsArray bounds[],
-                                 final int sectionCount, final boolean doCompress,
+                                 final boolean doCompress,
                                  final SeekableDataOutput output,
-                                 final int resTryCount, final int resScales[], final int resSizes[],
                                  final int bedCount, final short fieldCount)
       throws IOException {
     if (doCompress) {
@@ -23,28 +21,20 @@ public class RTreeIndexDetails {
 
     final Iterator<bbiChromUsage> usageIterator = usageList.iterator();
     bbiChromUsage usage = usageIterator.next();
-    final int lastField = fieldCount - 1;
     int itemIx = 0, sectionIx = 0;
     long blockStartOffset = 0;
     int startPos = 0, endPos = 0;
     int chromId = 0;
 
-    /* Will keep track of some things that help us determine how much to reduce. */
-    final int resEnds[] = new int[resTryCount];
-
-    /* Will keep track of some things that help us determine how much to reduce. */
-    boolean atEnd = false, sameChrom = false;
+    boolean sameChrom = false;
     int start = 0, end = 0;
-
-    /* Help keep track of which beds are in current chunk so as to write out
-    * namedChunks to eim if need be. */
-    final long sectionStartIx = 0, sectionEndIx = 0;
 
     final Iterator<BedData> it = BedFile.read(bedPath).iterator();
     String rest = "";
     String chrom;
 
     for (; ;) {
+      final boolean atEnd = !it.hasNext();
       if (it.hasNext()) {
         final BedData entry = it.next();
         chrom = entry.getName();
@@ -53,8 +43,6 @@ public class RTreeIndexDetails {
         rest = entry.getRest();
 
         sameChrom = chrom.equals(usage.name);
-      } else {  /* No next line */
-        atEnd = true;
       }
 
       /* Check conditions that would end block and save block info and advance to next if need be. */
@@ -76,7 +64,6 @@ public class RTreeIndexDetails {
       /* Advance to next chromosome if need be and get chromosome id. */
       if (!sameChrom) {
         usage = usageIterator.next();
-        Arrays.fill(resEnds, 0);
       }
 
       chromId = usage.id;
@@ -107,46 +94,6 @@ public class RTreeIndexDetails {
       output.writeByte(0);
 
       itemIx++;
-
-      /* Do zoom counting. */
-      for (int resTry = 0; resTry < resTryCount; ++resTry) {
-        int resEnd = resEnds[resTry];
-        if (start >= resEnd) {
-          resSizes[resTry] = 1;
-          resEnds[resTry] = resEnd = start + resScales[resTry];
-        }
-        while (end > resEnd) {
-          resSizes[resTry] = 1;
-          resEnds[resTry] = resEnd = resEnd + resScales[resTry];
-        }
-      }
-
     }
-  }
-
-  public static int bbiCalcResScalesAndSizes(final int aveSize, final int resScales[],
-                                             final int resSizes[])
-
-/* Fill in resScales with amount to zoom at each level, and zero out resSizes based
- * on average span. Returns the number of zoom levels we actually will use. */ {
-    int resTryCount = bbiMaxZoomLevels, resTry;
-    final int resIncrement = bbiResIncrement;
-    final int minZoom = 10;
-    int res = aveSize;
-    if (res < minZoom) {
-      res = minZoom;
-    }
-    for (resTry = 0; resTry < resTryCount; ++resTry) {
-      resSizes[resTry] = 0;
-      resScales[resTry] = res;
-      // if aveSize is large, then the initial value of res is large, and we
-      // and we cannot do all 10 levels without overflowing res* integers and other related variables.
-      if (res > 1000000000) {
-        resTryCount = resTry + 1;
-        break;
-      }
-      res *= resIncrement;
-    }
-    return resTryCount;
   }
 }

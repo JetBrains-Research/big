@@ -157,18 +157,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             val bedSummary = BedSummary.of(bedPath, chromSizesPath)
             val usageList = bedSummary.toList()
 
-            val resScales = IntArray(RTreeIndexDetails.bbiMaxZoomLevels)
-            val resSizes = IntArray(RTreeIndexDetails.bbiMaxZoomLevels)
-            val resTryCount = RTreeIndexDetails.bbiCalcResScalesAndSizes(
-                    bedSummary.baseCount / bedSummary.itemCount, resScales, resSizes)
-
             val blockCount = countBlocks(usageList, itemsPerSlot)
             val itemArray = (0 until blockCount).map { bbiBoundsArray() }.toTypedArray()
 
             val doCompress = false
             RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, itemArray,
-                                          blockCount, doCompress, output, resTryCount,
-                                          resScales, resSizes, bedSummary.itemCount,
+                                          doCompress, output,
+                                          bedSummary.itemCount,
                                           fieldCount)
 
             /* Write out primary data index. */
