@@ -1,5 +1,6 @@
 package org.jbb.big
 
+import com.google.common.collect.ComparisonChain
 import com.google.common.math.IntMath
 import java.math.RoundingMode
 import java.nio.file.Files
@@ -49,3 +50,68 @@ fun Int.logCeiling(base: Int): Int {
 fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
+
+/**
+ * A semi-closed interval.
+ *
+ * @author Sergei Lebedev
+ * @since 16/03/15
+ */
+interface Interval {
+    /** Start offset (inclusive).  */
+    public val left: Offset
+    /** End offset (exclusive).  */
+    public val right: Offset
+
+    public fun overlaps(other: Interval): Boolean {
+        return !(other.right <= left || other.left >= right)
+    }
+
+    override fun toString(): String = "[$left; $right)"
+
+    companion object {
+        fun of(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
+            return ChromosomeInterval(chromIx, startOffset, endOffset)
+        }
+
+        fun of(startChromIx: Int, startOffset: Int,
+               endChromIx: Int, endOffset: Int): MultiInterval {
+            return MultiInterval(Offset(startChromIx, startOffset),
+                                      Offset(endChromIx, endOffset))
+        }
+    }
+}
+
+/** An interval on a chromosome. */
+data class ChromosomeInterval(public val chromIx: Int,
+                              public val startOffset: Int,
+                              public val endOffset: Int) : Interval {
+    override val left: Offset get() = Offset(chromIx, startOffset)
+    override val right: Offset get() = Offset(chromIx, endOffset)
+
+    override fun toString(): String = "$chromIx:[$startOffset; $endOffset)"
+}
+
+/** An interval spanning multiple chromosomes. */
+data class MultiInterval(public override val left: Offset,
+                         public override val right: Offset) : Interval
+
+/**
+ * A (chromosome, offset) pair.
+ *
+ * @author Sergei Lebedev
+ * @since 16/03/15
+ */
+data class Offset(
+        /** Chromosome ID as defined by the B+ index.  */
+        public val chromIx: Int,
+        /** 0-based genomic offset.  */
+        public val offset: Int) : Comparable<Offset> {
+
+    override fun compareTo(other: Offset): Int = ComparisonChain.start()
+            .compare(chromIx, other.chromIx)
+            .compare(offset, other.offset)
+            .result()
+
+    override fun toString(): String = "$chromIx:$offset"
+}

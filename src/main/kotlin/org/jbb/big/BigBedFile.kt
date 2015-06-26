@@ -19,15 +19,14 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
     override fun getHeaderMagic(): Int = MAGIC
 
     throws(IOException::class)
-    override fun queryInternal(query: RTreeInterval, maxItems: Int): List<BedData> {
-        val chromIx = query.left.chromIx
-        val chrom = chromosomes[chromIx]
+    override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<BedData> {
+        val chrom = chromosomes[query.chromIx]
         val res = Lists.newArrayList<BedData>()
         header.rTree.findOverlappingBlocks(handle, query) { block ->
             handle.seek(block.dataOffset)
 
             do {
-                assert(handle.readInt() == chromIx, "interval contains wrong chromosome")
+                assert(handle.readInt() == query.chromIx, "interval contains wrong chromosome")
                 if (maxItems > 0 && res.size() == maxItems) {
                     // XXX think of a way of terminating the traversal?
                     return@findOverlappingBlocks
@@ -47,9 +46,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
                 // This was somewhat tricky to get right, please make sure
                 // you understand the code before modifying it.
-                if (startOffset < query.left.offset || endOffset > query.right.offset) {
+                if (startOffset < query.startOffset || endOffset > query.endOffset) {
                     continue
-                } else if (startOffset > query.right.offset) {
+                } else if (startOffset > query.endOffset) {
                     break
                 }
 

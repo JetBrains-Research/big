@@ -17,7 +17,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     override fun getHeaderMagic(): Int = MAGIC
 
     throws(IOException::class)
-    override fun queryInternal(query: RTreeInterval, maxItems: Int): List<WigData> {
+    override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<WigData> {
         val res = Lists.newArrayList<WigData>()
         header.rTree.findOverlappingBlocks(handle, query) { block ->
             handle.seek(block.dataOffset);

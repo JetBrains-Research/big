@@ -1,15 +1,9 @@
 package org.jbb.big
 
-import com.google.common.annotations.VisibleForTesting
-import com.google.common.collect.ComparisonChain
-import com.google.common.math.IntMath
 import java.io.IOException
-import java.math.RoundingMode
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.ArrayList
-import java.util.Objects
-import kotlin.platform.platformStatic
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -33,7 +27,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     throws(IOException::class)
-    fun findOverlappingBlocks(s: SeekableDataInput, query: RTreeInterval,
+    fun findOverlappingBlocks(s: SeekableDataInput, query: Interval,
                                         consumer: (RTreeIndexLeaf) -> Unit) {
         val originalOrder = s.order()
         s.order(header.byteOrder)
@@ -46,7 +40,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
     throws(IOException::class)
     private fun findOverlappingBlocksRecursively(input: SeekableDataInput,
-                                                 query: RTreeInterval, offset: Long,
+                                                 query: Interval, offset: Long,
                                                  consumer: (RTreeIndexLeaf) -> Unit) {
         // Invariant: a stream is in Header.byteOrder.
         input.seek(offset)
@@ -63,7 +57,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 val endOffset = input.readInt()
                 val dataOffset = input.readLong()
                 val dataSize = input.readLong()
-                val interval = RTreeInterval.of(startChromIx, startOffset, endChromIx, endOffset)
+                val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
 
                 if (interval.overlaps(query)) {
                     val backup = input.tell()
@@ -79,7 +73,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 val endChromIx = input.readInt()
                 val endBase = input.readInt()
                 val dataOffset = input.readLong()
-                val interval = RTreeInterval.of(startChromIx, startBase, endChromIx, endBase)
+                val interval = Interval.of(startChromIx, startBase, endChromIx, endBase)
 
                 // XXX only add overlapping children, because there's no point
                 // in storing all of them.
@@ -178,7 +172,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-data class RTreeIndexLeaf(public val interval: RTreeInterval,
+data class RTreeIndexLeaf(public val interval: Interval,
                           public val dataOffset: Long,
                           public val dataSize: Long)
 
@@ -188,59 +182,5 @@ data class RTreeIndexLeaf(public val interval: RTreeInterval,
  * @author Sergey Zherevchuk
  * @since 13/03/15
  */
-data class RTreeIndexNode(public val interval: RTreeInterval, public val dataOffset: Long)
-
-/**
- * A semi-closed interval.
- *
- * TODO: a more sound approach would be to separate the single-
- * multi- chromosome use-cases.
- *
- * @author Sergei Lebedev
- * @since 16/03/15
- */
-data class RTreeInterval(
-        /** Start offset (inclusive).  */
-        public val left: RTreeOffset,
-        /** End offset (exclusive).  */
-        public val right: RTreeOffset) {
-
-    public fun overlaps(other: RTreeInterval): Boolean {
-        return !(other.right <= left || other.left >= right)
-    }
-
-    override fun toString(): String = "[$left; $right)"
-
-    companion object {
-        platformStatic fun of(chromIx: Int, startOffset: Int, endOffset: Int): RTreeInterval {
-            return of(chromIx, startOffset, chromIx, endOffset)
-        }
-
-        platformStatic fun of(startChromIx: Int, startOffset: Int,
-                              endChromIx: Int, endOffset: Int): RTreeInterval {
-            return RTreeInterval(RTreeOffset(startChromIx, startOffset),
-                                 RTreeOffset(endChromIx, endOffset))
-        }
-    }
-}
-
-/**
- * A (chromosome, offset) pair.
- *
- * @author Sergei Lebedev
- * @since 16/03/15
- */
-data class RTreeOffset(
-        /** Chromosome ID as defined by the B+ index.  */
-        public val chromIx: Int,
-        /** 0-based genomic offset.  */
-        public val offset: Int) : Comparable<RTreeOffset> {
-
-    override fun compareTo(other: RTreeOffset): Int = ComparisonChain.start()
-            .compare(chromIx, other.chromIx)
-            .compare(offset, other.offset)
-            .result()
-
-    override fun toString(): String = "$chromIx:$offset"
-}
-
+data class RTreeIndexNode(public val interval: Interval,
+                          public val dataOffset: Long)

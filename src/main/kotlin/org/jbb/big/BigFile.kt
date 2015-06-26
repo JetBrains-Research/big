@@ -48,7 +48,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
         val res = header.bPlusTree.find(handle, chromName)
         return if (res.isPresent()) {
             val (_key, chromIx, size) = res.get()
-            val query = RTreeInterval.of(chromIx, startOffset,
+            val query = Interval.of(chromIx, startOffset,
                                          if (endOffset == 0) size else endOffset)
             queryInternal(query, maxItems)
         } else {
@@ -62,7 +62,8 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     public fun isCompressed(): Boolean = header.uncompressBufSize > 0
 
     throws(IOException::class)
-    protected abstract fun queryInternal(query: RTreeInterval, maxItems: Int): List<T>
+    protected abstract fun queryInternal(query: ChromosomeInterval,
+                                         maxItems: Int): List<T>
 
     throws(IOException::class)
     override fun close() = handle.close()

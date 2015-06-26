@@ -36,7 +36,7 @@ public class RTreeIndexTest {
             for (i in 0..99) {
                 val left = RANDOM.nextInt(items.size() - 1)
                 val right = left + RANDOM.nextInt(items.size() - left)
-                val query = RTreeInterval.of(0, items[left].start, items[right].end)
+                val query = Interval.of(0, items[left].start, items[right].end)
 
                 rti.findOverlappingBlocks(bbf.handle, query) { block ->
                     assertTrue(block.interval.overlaps(query))
@@ -91,28 +91,28 @@ public class RTreeIndexWriterTest {
             assertEquals(rti.header.itemsPerSlot, 1)
             assertEquals(rti.header.rootOffset, 347L)
 
-            val dummy = RTreeInterval.of(0, 0, 0)
-            checkQuery(rti, input, RTreeInterval.of(0, 9434178, 9434611),
+            val dummy = Interval.of(0, 0, 0)
+            checkQuery(rti, input, Interval.of(0, 9434178, 9434611),
                        listOf(RTreeIndexLeaf(dummy, 0, 39), RTreeIndexLeaf(dummy, 39, 13)))
 
-            checkQuery(rti, input, RTreeInterval.of(0, 9508110, 9516987), listOf())
+            checkQuery(rti, input, Interval.of(0, 9508110, 9516987), listOf())
 
-            checkQuery(rti, input, RTreeInterval.of(1, 9508110, 9516987),
+            checkQuery(rti, input, Interval.of(1, 9508110, 9516987),
                        listOf(RTreeIndexLeaf(dummy, 52, 26)))
 
-            checkQuery(rti, input, RTreeInterval.of(2, 9907597, 10148590),
+            checkQuery(rti, input, Interval.of(2, 9907597, 10148590),
                        listOf(RTreeIndexLeaf(dummy, 78, 39)))
 
-            checkQuery(rti, input, RTreeInterval.of(2, 9908258, 10148590),
+            checkQuery(rti, input, Interval.of(2, 9908258, 10148590),
                        listOf(RTreeIndexLeaf(dummy, 78, 39)))
 
-            checkQuery(rti, input, RTreeInterval.of(10, 13057621, 13058276),
+            checkQuery(rti, input, Interval.of(10, 13057621, 13058276),
                        listOf(RTreeIndexLeaf(dummy, 286, 13)))
         }
     }
 
     private fun checkQuery(rti: RTreeIndex, reader: SeekableDataInput,
-                           query: RTreeInterval,
+                           query: Interval,
                            expected: List<RTreeIndexLeaf>) {
         val actual = ArrayList<RTreeIndexLeaf>()
         rti.findOverlappingBlocks(reader, query) { actual.add(it) }
@@ -123,59 +123,5 @@ public class RTreeIndexWriterTest {
             assertEquals(expected[i].dataOffset, actual[i].dataOffset)
             assertEquals(expected[i].dataSize, actual[i].dataSize)
         }
-    }
-}
-
-public class RTreeIntervalTest {
-    Test fun testOverlapsSameChromosome() {
-        val interval = RTreeInterval.of(1, 100, 200)
-        assertOverlaps(interval, interval)
-        assertOverlaps(interval, RTreeInterval.of(1, 50, 150))
-        assertOverlaps(interval, RTreeInterval.of(1, 50, 250))
-        assertOverlaps(interval, RTreeInterval.of(1, 150, 250))
-        assertNotOverlaps(interval, RTreeInterval.of(1, 250, 300))
-        // This is OK because right end is exclusive.
-        assertNotOverlaps(interval, RTreeInterval.of(1, 200, 300))
-    }
-
-    Test fun testOverlapsDifferentChromosomes() {
-        assertNotOverlaps(RTreeInterval.of(1, 100, 200), RTreeInterval.of(2, 50, 150))
-        assertNotOverlaps(RTreeInterval.of(1, 100, 200), RTreeInterval.of(2, 50, 3, 150))
-
-        assertOverlaps(RTreeInterval.of(1, 100, 2, 200), RTreeInterval.of(2, 50, 3, 150))
-        assertNotOverlaps(RTreeInterval.of(1, 100, 2, 200), RTreeInterval.of(2, 300, 3, 400))
-        assertOverlaps(RTreeInterval.of(1, 100, 2, 200), RTreeInterval.of(2, 50, 3, 250))
-        assertOverlaps(RTreeInterval.of(1, 100, 3, 200), RTreeInterval.of(2, 50, 3, 250))
-        assertOverlaps(RTreeInterval.of(1, 100, 3, 200), RTreeInterval.of(2, 300, 3, 400))
-        assertOverlaps(RTreeInterval.of(1, 100, 3, 200), RTreeInterval.of(2, 50, 3, 100))
-    }
-
-    private fun assertOverlaps(interval1: RTreeInterval, interval2: RTreeInterval) {
-        assertTrue(interval1.overlaps(interval2), "$interval1 must overlap $interval2")
-        assertTrue(interval2.overlaps(interval1), "$interval2 must overlap $interval1")
-    }
-
-    private fun assertNotOverlaps(interval1: RTreeInterval, interval2: RTreeInterval) {
-        assertFalse(interval1.overlaps(interval2),
-                    "$interval1 must not overlap $interval2")
-        assertFalse(interval2.overlaps(interval1),
-                    "$interval1 must not overlap $interval1")
-    }
-}
-
-public class RTreeOffsetTest {
-    Test fun testCompareToSameChromosome() {
-        val offset = RTreeOffset(1, 100)
-        assertTrue(offset > RTreeOffset(1, 50))
-        assertTrue(RTreeOffset(1, 50) < offset)
-        assertTrue(offset == offset)
-    }
-
-    Test fun testCompareToDifferentChromosomes() {
-        val offset = RTreeOffset(1, 100)
-        assertTrue(offset < RTreeOffset(2, 100))
-        assertTrue(RTreeOffset(2, 100) > offset)
-        assertTrue(offset < RTreeOffset(2, 50))
-        assertTrue(RTreeOffset(2, 50) > offset)
     }
 }
