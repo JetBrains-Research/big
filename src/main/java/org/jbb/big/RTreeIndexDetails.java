@@ -4,8 +4,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class RTreeIndexDetails {
 
@@ -188,10 +190,15 @@ public class RTreeIndexDetails {
     return resTryCount;
   }
 
-  private static rTree rTreeFromChromRangeArray(final int blockSize,
-                                                final bbiBoundsArray itemArray[],
-                                                final long indexOffset,
-                                                final wrapObject retLevelCount) {
+  static rTree rTreeFromChromRangeArray(final int blockSize,
+                                        final bbiBoundsArray itemArray[],
+                                        final long dataEndOffset,
+                                        final wrapObject retLevelCount) {
+    final List<Interval> intervals = Arrays.stream(itemArray)
+        .map(b -> new ChromosomeInterval(b.range.chromIx, b.range.start, b.range.end))
+        .collect(Collectors.toList());
+    RTreeIndexWrapper.Companion.of(intervals, blockSize);
+
     final int itemCount = itemArray.length;
     if (itemCount == 0) {
       return null;
@@ -232,7 +239,7 @@ public class RTreeIndexDetails {
         }
       }
       if (j == itemCount) {
-        nextOffset = indexOffset;
+        nextOffset = dataEndOffset;
       }
 
       el.endFileOffset = nextOffset;
@@ -444,7 +451,7 @@ public class RTreeIndexDetails {
     }
   }
 
-  private static void writeTreeToOpenFile(final rTree tree, final int blockSize,
+  static void writeTreeToOpenFile(final rTree tree, final int blockSize,
                                           final int levelCount, final SeekableDataOutput writer)
       throws IOException
 /* Write out tree to a file that is open already - writing out index nodes from
@@ -476,38 +483,5 @@ public class RTreeIndexDetails {
 /* Write out leaf level. */
     final int leafLevel = levelCount - 2;
     rWriteLeaves(blockSize, tree, 0, leafLevel, writer);
-  }
-
-  public static void cirTreeFileBulkIndexToOpenFile(final bbiBoundsArray itemArray[],
-                                                    final int blockSize, final int itemsPerSlot,
-                                                    final long endFileOffset,
-                                                    final SeekableDataOutput writer)
-      throws IOException {
-    final wrapObject levelCount = new wrapObject();
-    rTree tree = rTreeFromChromRangeArray(blockSize, itemArray, endFileOffset, levelCount);
-
-    final rTree dummyTree = new rTree();
-    dummyTree.startBase = 0; // struct rTree dummyTree = {.startBase=0};
-
-    if (tree == null) {
-      tree = new rTree(dummyTree);        // Work for empty files....
-    }
-
-    final int magic = 0x2468ACE0;
-    final int reserved = 0;
-    writer.writeInt(magic);
-    writer.writeInt(blockSize);
-    writer.writeLong(itemArray.length);
-    writer.writeInt(tree.startChromIx);
-    writer.writeInt(tree.startBase);
-    writer.writeInt(tree.endChromIx);
-    writer.writeInt(tree.endBase);
-    writer.writeLong(endFileOffset);
-    writer.writeInt(itemsPerSlot);
-    writer.writeInt(reserved);
-
-    if (!tree.equals(dummyTree)) {
-      writeTreeToOpenFile(tree, blockSize, levelCount.toInt(), writer);
-    }
   }
 }

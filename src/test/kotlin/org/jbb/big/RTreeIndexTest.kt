@@ -16,7 +16,7 @@ public class RTreeIndexTest {
         exampleFile.use { bbf ->
             val rti = bbf.header.rTree
             assertEquals(1024, rti.header.blockSize)
-            assertEquals(192771L, rti.header.fileSize)
+            assertEquals(192771L, rti.header.endDataOffset)
             assertEquals(64, rti.header.itemsPerSlot)
             assertEquals(192819L, rti.header.rootOffset)
 
@@ -67,15 +67,9 @@ public class RTreeIndexWriterTest {
 
         var rTreeHeaderOffset: Long
         SeekableDataOutput.of(bigBedPath).use { output ->
-            // задается для B+ tree
-            /* Number of items to bundle in r-tree.  1024 is good. */
-            val blockSize = 4
-            /* Number of items in lowest level of tree.  64 is good. */
-            val itemsPerSlot = 3
-            // Берется из as данных: bits16 fieldCount = slCount(as->columnList);
-            val fieldCount = 3.toShort()
-            rTreeHeaderOffset = RTreeIndex.Header.write(
-                    output, chromSizesPath, bedPath, blockSize, itemsPerSlot, fieldCount)
+            rTreeHeaderOffset = RTreeIndex.write(
+                    output, chromSizesPath, bedPath, 3,
+                    blockSize = 4, itemsPerSlot = 3)
         }
 
         SeekableDataInput.of(bigBedPath).use { input ->
@@ -87,8 +81,8 @@ public class RTreeIndexWriterTest {
             assertEquals(rti.header.startBase, 9434178)
             assertEquals(rti.header.endChromIx, 10)
             assertEquals(rti.header.endBase, 13058276)
-            assertEquals(rti.header.fileSize, 299L)
-            assertEquals(rti.header.itemsPerSlot, 1)
+            assertEquals(rti.header.endDataOffset, 299L)
+            assertEquals(rti.header.itemsPerSlot, 3)
             assertEquals(rti.header.rootOffset, 347L)
 
             val dummy = Interval.of(0, 0, 0)

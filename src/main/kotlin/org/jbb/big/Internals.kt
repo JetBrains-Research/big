@@ -1,6 +1,7 @@
 package org.jbb.big
 
 import com.google.common.collect.ComparisonChain
+import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
 import java.math.RoundingMode
 import java.nio.file.Files
@@ -51,6 +52,11 @@ fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
+// Remove once KT-8267 is done.
+fun List<T>.foldRight<T>(accumulator: (T, T) -> T): T {
+    return subList(1, size()).foldRight(this[0], accumulator)
+}
+
 /**
  * A semi-closed interval.
  *
@@ -67,6 +73,15 @@ interface Interval {
         return !(other.right <= left || other.left >= right)
     }
 
+    /**
+     * Returns a union of the two intervals.
+     */
+    public fun union(other: Interval): Interval {
+        val ord = Ordering.natural<Offset>()
+        return MultiInterval(ord.min(left, other.left),
+                             ord.max(right, other.right))
+    }
+
     override fun toString(): String = "[$left; $right)"
 
     companion object {
@@ -75,9 +90,14 @@ interface Interval {
         }
 
         fun of(startChromIx: Int, startOffset: Int,
-               endChromIx: Int, endOffset: Int): MultiInterval {
-            return MultiInterval(Offset(startChromIx, startOffset),
-                                      Offset(endChromIx, endOffset))
+               endChromIx: Int, endOffset: Int): Interval {
+            return if (startChromIx == endChromIx) {
+                of(startChromIx, startOffset, endOffset)
+            } else {
+                MultiInterval(Offset(startChromIx, startOffset),
+                              Offset(endChromIx, endOffset))
+            }
+
         }
     }
 }
