@@ -1,7 +1,6 @@
 package org.jbb.big
 
-import com.google.common.collect.ArrayListMultimap
-import com.google.common.collect.ListMultimap
+import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
@@ -145,15 +144,15 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         throws(IOException::class)
         public fun write(output: SeekableDataOutput, chromSizesPath: Path,
                          bedPath: Path, fieldCount: Short,
-                         blockSize: Int = 1024, itemsPerSlot: Int = 64): Long {
+                         blockSize: Int = 1024, itemsPerSlot: Int = 64,
+                         compress: Boolean = false): Long {
+            require(!compress, "block compression is not supported")
+
             val bedSummary = BedSummary.of(bedPath, chromSizesPath)
             val usageList = bedSummary.toList()
 
-            val doCompress = false
-            val bounds = RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot,
-                                                       doCompress, output,
-                                                       bedSummary.itemCount,
-                                                       fieldCount)
+            val bounds = writeBlocks(usageList, bedPath, itemsPerSlot,
+                                     output, fieldCount)
 
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
@@ -174,6 +173,87 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             wrapper.write(output, blockSize)
 
             return dataEndOffset
+        }
+
+        throws(IOException::class)
+        public fun writeBlocks(usageList: List<bbiChromUsage>, bedPath: Path, itemsPerSlot: Int,
+                               output: SeekableDataOutput,
+                               fieldCount: Short): List<Pair<ChromosomeInterval, Long>> {
+            val res = Lists.newArrayList<Pair<ChromosomeInterval, Long>>()
+            val usageIterator = usageList.iterator()
+            var usage = usageIterator.next()
+            var itemIx = 0
+            var blockStartOffset: Long = 0
+            var startPos = 0
+            var endPos = 0
+            var chromId = 0
+
+            var sameChrom = false
+            var start = 0
+            var end = 0
+
+            val it = BedFile.read(bedPath).iterator()
+            var rest = ""
+            val chrom: String
+
+            while (true) {
+                val atEnd = !it.hasNext()
+                if (it.hasNext()) {
+                    val entry = it.next()
+                    chrom = entry.name
+                    start = entry.start
+                    end = entry.end
+                    rest = entry.rest
+
+                    sameChrom = chrom == usage.name
+                }
+
+                /* Check conditions that would end block and save block info
+                   and advance to next if need be. */
+                if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
+                    /* Save info on existing block. */
+                    res.add(Pair(ChromosomeInterval(chromId, startPos, endPos), blockStartOffset))
+
+                    itemIx = 0
+                    if (atEnd) {
+                        break
+                    }
+                }
+
+                /* Advance to next chromosome if need be and get chromosome id. */
+                if (!sameChrom) {
+                    usage = usageIterator.next()
+                }
+
+                chromId = usage.id
+
+                /* At start of block we save a lot of info. */
+                if (itemIx == 0) {
+                    blockStartOffset = output.tell()
+                    startPos = start
+                    endPos = end
+                }
+                /* Otherwise just update end. */
+                /* No need to update startPos since list is sorted. */
+                if (endPos < end) {
+                    endPos = end
+                }
+
+                /* Write out data. */
+                output.writeInt(chromId)
+                output.writeInt(start)
+                output.writeInt(end)
+
+                if (fieldCount > 3) {
+                    /* Write last field and terminal zero */
+                    output.writeBytes(rest)
+                }
+                output.writeByte(0)
+
+                itemIx++
+            }
+
+            return res
         }
     }
 }
