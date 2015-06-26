@@ -63,7 +63,7 @@ fun List<T>.foldRight<T>(accumulator: (T, T) -> T): T {
  * @author Sergei Lebedev
  * @since 16/03/15
  */
-interface Interval {
+interface  Interval {
     /** Start offset (inclusive).  */
     public val left: Offset
     /** End offset (exclusive).  */

@@ -39,7 +39,6 @@ public class RTreeIndexDetails {
 
     /* Will keep track of some things that help us determine how much to reduce. */
     final int resEnds[] = new int[resTryCount];
-    int resTry;
 
     /* Will keep track of some things that help us determine how much to reduce. */
     boolean atEnd = false, sameChrom = false;
@@ -49,17 +48,16 @@ public class RTreeIndexDetails {
     * namedChunks to eim if need be. */
     final long sectionStartIx = 0, sectionEndIx = 0;
 
-    String line;
-    try (BufferedReader reader = Files.newBufferedReader(bedFilePath)) {
 
+    try (BufferedReader reader = Files.newBufferedReader(bedFilePath)) {
+      String line;
       String row[] = null;
       String chrom;
 
-      for (; ; ) {
+      for (; ;) {
         /* Get next line of input if any. */
         if ((line = reader.readLine()) != null) {
           /* Chop up line and make sure the word count is right. */
-          int wordCount;
           row = line.split("\t");
 
           chrom = row[0];
@@ -74,9 +72,7 @@ public class RTreeIndexDetails {
         /* Check conditions that would end block and save block info and advance to next if need be. */
         if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
           /* Save stream to file, compressing if need be. */
-          if (stream.size() > maxBlockSize) {
-            maxBlockSize = stream.size();
-          }
+          maxBlockSize = Math.max(maxBlockSize, stream.size());
           if (doCompress) {
             throw new UnsupportedOperationException("Don't use compression =)");
           } else {
@@ -141,7 +137,7 @@ public class RTreeIndexDetails {
         itemIx++;
 
         /* Do zoom counting. */
-        for (resTry = 0; resTry < resTryCount; ++resTry) {
+        for (int resTry = 0; resTry < resTryCount; ++resTry) {
           int resEnd = resEnds[resTry];
           if (start >= resEnd) {
             resSizes[resTry] = 1;
