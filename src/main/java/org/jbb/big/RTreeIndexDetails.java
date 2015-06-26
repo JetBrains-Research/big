@@ -15,12 +15,14 @@ public class RTreeIndexDetails {
   public static void writeBlocks(final List<bbiChromUsage> usageList, final Path bedFilePath,
                                  final int itemsPerSlot, final bbiBoundsArray bounds[],
                                  final int sectionCount, final boolean doCompress,
-                                 final SeekableDataOutput writer,
+                                 final SeekableDataOutput output,
                                  final int resTryCount, final int resScales[], final int resSizes[],
                                  final int bedCount, final short fieldCount)
       throws IOException {
+    if (doCompress) {
+      throw new UnsupportedOperationException("block compression is not supported");
+    }
 
-    int maxBlockSize = 0;
     final Iterator<bbiChromUsage> usageIterator = usageList.iterator();
     bbiChromUsage usage = usageIterator.next();
     final int lastField = fieldCount - 1;
@@ -28,7 +30,6 @@ public class RTreeIndexDetails {
     long blockStartOffset = 0;
     int startPos = 0, endPos = 0;
     int chromId = 0;
-    final myStream stream = new myStream();
 
     /* Will keep track of some things that help us determine how much to reduce. */
     final int resEnds[] = new int[resTryCount];
@@ -40,7 +41,6 @@ public class RTreeIndexDetails {
     /* Help keep track of which beds are in current chunk so as to write out
     * namedChunks to eim if need be. */
     final long sectionStartIx = 0, sectionEndIx = 0;
-
 
     try (BufferedReader reader = Files.newBufferedReader(bedFilePath)) {
       String line;
@@ -64,15 +64,6 @@ public class RTreeIndexDetails {
 
         /* Check conditions that would end block and save block info and advance to next if need be. */
         if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
-          /* Save stream to file, compressing if need be. */
-          maxBlockSize = Math.max(maxBlockSize, stream.size());
-          if (doCompress) {
-            throw new UnsupportedOperationException("Don't use compression =)");
-          } else {
-            writer.write(stream.toByteArray());
-          }
-          stream.reset(); // очистка потока
-
 	  /* Save info on existing block. */
           bounds[sectionIx].offset = blockStartOffset;
           bounds[sectionIx].range.chromIx = chromId;
@@ -97,7 +88,7 @@ public class RTreeIndexDetails {
 
         /* At start of block we save a lot of info. */
         if (itemIx == 0) {
-          blockStartOffset = writer.tell();
+          blockStartOffset = output.tell();
           startPos = start;
           endPos = end;
         }
@@ -110,22 +101,20 @@ public class RTreeIndexDetails {
         }
 
         /* Write out data. */
-        stream.writeInt(chromId);
-        stream.writeInt(start);
-        stream.writeInt(end);
+        output.writeInt(chromId);
+        output.writeInt(start);
+        output.writeInt(end);
 
         if (fieldCount > 3) {
 	  /* Write 3rd through next to last field and a tab separator. */
           for (int i = 3; i < lastField; ++i) {
-            final String s = row[i];
-            stream.writeString(s);
-            stream.writeChar('\t');
+            output.writeBytes(row[i]);
+            output.writeByte('\t');
           }
 	  /* Write last field and terminal zero */
-          final String s = row[lastField];
-          stream.writeString(s);
+          output.writeBytes(row[lastField]);
         }
-        stream.writeChar((char) 0);
+        output.writeByte(0);
 
         itemIx++;
 
