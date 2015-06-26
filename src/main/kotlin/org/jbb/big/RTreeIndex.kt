@@ -150,24 +150,23 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             val usageList = bedSummary.toList()
 
             val doCompress = false
-            val itemArray = RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot,
-                                                          doCompress, output,
-                                                          bedSummary.itemCount,
-                                                          fieldCount)
+            val bounds = RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot,
+                                                       doCompress, output,
+                                                       bedSummary.itemCount,
+                                                       fieldCount)
 
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
-            val offsets = itemArray.map { it.offset }.toLongArray()
+            val offsets = bounds.map { it.second }.toLongArray()
             // TODO: we can merge adjacent leaves at this point.
-            val leaves = itemArray.map { it.range }.mapIndexed { i, range ->
-                val interval = ChromosomeInterval(range.chromIx, range.start, range.end)
+            val leaves = bounds.map { it.first }.mapIndexed { i, interval ->
                 val endOffset = if (i < offsets.size() - 1) offsets[i + 1] else dataEndOffset
                 val size = endOffset - offsets[i]
                 RTreeIndexLeaf(interval, offsets[i], size)
             }.toList()
 
             val wrapper = RTreeIndexWrapper.of(leaves, blockSize)
-            val header = Header(output.order(), blockSize, itemArray.size().toLong(),
+            val header = Header(output.order(), blockSize, bounds.size().toLong(),
                                 wrapper.left.chromIx, wrapper.left.offset,
                                 wrapper.right.chromIx, wrapper.right.offset,
                                 dataEndOffset, itemsPerSlot, output.tell() + Header.BYTES)

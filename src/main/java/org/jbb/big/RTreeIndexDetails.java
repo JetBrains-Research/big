@@ -7,8 +7,10 @@ import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 
+import kotlin.Pair;
+
 public class RTreeIndexDetails {
-  public static List<bbiBoundsArray> writeBlocks(
+  public static List<Pair<ChromosomeInterval, Long>> writeBlocks(
       final List<bbiChromUsage> usageList, final Path bedPath,
       final int itemsPerSlot,
       final boolean doCompress,
@@ -19,7 +21,7 @@ public class RTreeIndexDetails {
       throw new UnsupportedOperationException("block compression is not supported");
     }
 
-    final List<bbiBoundsArray> res = Lists.newArrayList();
+    final List<Pair<ChromosomeInterval, Long>> res = Lists.newArrayList();
     final Iterator<bbiChromUsage> usageIterator = usageList.iterator();
     bbiChromUsage usage = usageIterator.next();
     int itemIx = 0;
@@ -49,15 +51,10 @@ public class RTreeIndexDetails {
       /* Check conditions that would end block and save block info and advance to next if need be. */
       if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
         /* Save info on existing block. */
-        final bbiBoundsArray bound = new bbiBoundsArray();
-        bound.offset = blockStartOffset;
-        bound.range.chromIx = chromId;
-        bound.range.start = startPos;
-        bound.range.end = endPos;
-        res.add(bound);
+        res.add(new Pair<>(new ChromosomeInterval(chromId, startPos, endPos),
+                           blockStartOffset));
 
         itemIx = 0;
-
         if (atEnd) {
           break;
         }
