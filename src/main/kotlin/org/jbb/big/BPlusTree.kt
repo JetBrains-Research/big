@@ -198,8 +198,10 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
         throws(IOException::class)
         fun write(output: SeekableDataOutput, blockSize: Int, unsortedItems: List<BPlusItem>) {
-            val items = unsortedItems.sortBy { it.key }
+            require(unsortedItems.isNotEmpty(), "no data")
+            require(blockSize > 1, "blockSize must be >1")
 
+            val items = unsortedItems.sortBy { it.key }
             val itemCount = items.size()
             val keySize = items.map { it.key.length() }.max()!!
 

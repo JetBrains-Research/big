@@ -89,7 +89,7 @@ public class BPlusTreeTest {
 
     Test fun testWriteReadRandom() {
         for (i in 0 until 10) {
-            val blockSize = RANDOM.nextInt(64) + 1
+            val blockSize = RANDOM.nextInt(64) + 2
             testWriteRead(blockSize, getRandomItems(RANDOM.nextInt(512) + 1))
         }
     }
@@ -97,7 +97,7 @@ public class BPlusTreeTest {
     private fun getRandomItems(itemCount: Int): List<BPlusItem> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
         return IntStream.range(0, names.size()).mapToObj { i ->
-            val size = Math.abs(RANDOM.nextInt()) + 1
+            val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
             BPlusItem("chr" + names[i], i, size)
         }.collect(Collectors.toList())
     }

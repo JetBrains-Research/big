@@ -35,7 +35,7 @@ fun Int.pow(other: Int) = IntMath.pow(this, other)
  */
 fun Int.logCeiling(base: Int): Int {
     require(this > 0, "non-positive number")
-    require(base > 0, "non-positive base")
+    require(base > 1, "base must be >1")
 
     var rem = this
     var acc = 1
