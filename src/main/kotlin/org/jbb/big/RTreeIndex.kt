@@ -189,6 +189,7 @@ class RTreeIndexWrapper(private val levels: List<List<Interval>>,
                         private val leaves: List<RTreeIndexLeaf>) {
     private val DUMMY: Offset = Offset(0, 0)
 
+    // TODO: move this to BED summary?
     public val left: Offset
             = if (leaves.isEmpty()) DUMMY else levels.last().first().left
     public val right: Offset
