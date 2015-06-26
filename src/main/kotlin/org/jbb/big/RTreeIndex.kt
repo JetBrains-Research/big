@@ -14,10 +14,22 @@ import java.util.Collections
 /**
  * A 1-D R+ tree for storing genomic intervals.
  *
- * TODO: explain that we don't index all intervals when building a tree.
- * TODO: explain that the 1-D R+ tree is simply a range tree build with
- *       using interval union.
+ * The tree is built bottom-up by applying union operations to adjacent
+ * intervals. The number of intervals combined between levels is
+ * defined by the `blockSize` value. For instance for blockSize = 2:
  *
+ *    |----------------|  index level 1
+ *        /        \
+ *    |-----| |--------|  index level 0
+ *      / |     /    \
+ *    |----|  |--| |---|  leaf  level
+ *       |--|
+ *
+ * The Big format applies a simple trick to optimize tree height.
+ * Prior to building the tree the intervals are combined into
+ * super-intervals of size `itemsPerSlot`. The R+ tree is then built
+ * over these super-intervals.
+ * 
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
  *
@@ -33,8 +45,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     throws(IOException::class)
-    fun findOverlappingBlocks(s: SeekableDataInput, query: Interval,
-                                        consumer: (RTreeIndexLeaf) -> Unit) {
+    fun findOverlappingBlocks(s: SeekableDataInput, query: ChromosomeInterval,
+                              consumer: (RTreeIndexLeaf) -> Unit) {
         val originalOrder = s.order()
         s.order(header.byteOrder)
         try {
@@ -46,7 +58,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
     throws(IOException::class)
     private fun findOverlappingBlocksRecursively(input: SeekableDataInput,
-                                                 query: Interval, offset: Long,
+                                                 query: ChromosomeInterval,
+                                                 offset: Long,
                                                  consumer: (RTreeIndexLeaf) -> Unit) {
         assert(input.order() == header.byteOrder)
         input.seek(offset)
@@ -165,6 +178,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
             val offsets = itemArray.map { it.offset }.toLongArray()
+            // TODO: we can merge adjacent leaves at this point.
             val leaves = itemArray.map { it.range }.mapIndexed { i, range ->
                 val interval = ChromosomeInterval(range.chromIx, range.start, range.end)
                 val endOffset = if (i < offsets.size() - 1) offsets[i + 1] else dataEndOffset

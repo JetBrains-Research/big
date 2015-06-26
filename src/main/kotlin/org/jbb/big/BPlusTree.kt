@@ -37,7 +37,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     throws(IOException::class)
     private fun traverseRecursively(input: SeekableDataInput, blockStart: Long,
                                     consumer: (BPlusItem) -> Unit) {
-        // Invariant: a stream is in Header.byteOrder.
+        assert(input.order() == header.byteOrder)
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
@@ -89,7 +89,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     throws(IOException::class)
     private fun findRecursively(input: SeekableDataInput, blockStart: Long,
                                 query: String): BPlusItem? {
-        // Invariant: a stream is in Header.byteOrder.
+        assert(input.order() == header.byteOrder)
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
