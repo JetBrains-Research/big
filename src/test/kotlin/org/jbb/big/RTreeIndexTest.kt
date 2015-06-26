@@ -104,7 +104,7 @@ public class RTreeIndexWriterTest {
     }
 
     private fun checkQuery(rti: RTreeIndex, reader: SeekableDataInput,
-                           query: Interval,
+                           query: ChromosomeInterval,
                            expected: List<RTreeIndexLeaf>) {
         val actual = ArrayList<RTreeIndexLeaf>()
         rti.findOverlappingBlocks(reader, query) { actual.add(it) }
