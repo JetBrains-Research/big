@@ -57,35 +57,21 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
         if (isLeaf) {
             for (i in 0 until childCount) {
-                val startChromIx = input.readInt()
-                val startOffset = input.readInt()
-                val endChromIx = input.readInt()
-                val endOffset = input.readInt()
-                val dataOffset = input.readLong()
-                val dataSize = input.readLong()
-                assert(startChromIx == endChromIx)
-                val interval = Interval.of(startChromIx, startOffset, endOffset)
-
-                if (interval overlaps query) {
+                val leaf = RTreeIndexLeaf.read(input)
+                if (leaf.interval overlaps query) {
                     val backup = input.tell()
-                    consumer(RTreeIndexLeaf(interval, dataOffset, dataSize))
+                    consumer(leaf)
                     input.seek(backup)
                 }
             }
         } else {
             val children = ArrayList<RTreeIndexNode>(childCount.toInt())
             for (i in 0 until childCount) {
-                val startChromIx = input.readInt()
-                val startBase = input.readInt()
-                val endChromIx = input.readInt()
-                val endBase = input.readInt()
-                val dataOffset = input.readLong()
-                val interval = Interval.of(startChromIx, startBase, endChromIx, endBase)
-
                 // XXX only add overlapping children, because there's no point
                 // in storing all of them.
-                if (interval overlaps query) {
-                    children.add(RTreeIndexNode(interval, dataOffset))
+                val node = RTreeIndexNode.read(input)
+                if (node.interval overlaps query) {
+                    children.add(node)
                 }
             }
 
@@ -168,10 +154,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     bedSummary.baseCount / bedSummary.itemCount, resScales, resSizes)
 
             val blockCount = countBlocks(usageList, itemsPerSlot)
-            val itemArray = arrayOfNulls<bbiBoundsArray>(blockCount)
-            for (i in 0 until blockCount) {
-                itemArray[i] = bbiBoundsArray()
-            }
+            val itemArray = (0 until blockCount).map { bbiBoundsArray() }.toTypedArray()
 
             val doCompress = false
             RTreeIndexDetails.writeBlocks(usageList, bedPath, itemsPerSlot, itemArray,
@@ -181,8 +164,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             /* Write out primary data index. */
             val dataEndOffset = output.tell()
-            val offsets = itemArray.map { it!!.offset }.toLongArray()
-            val leaves = itemArray.map { it!!.range }.mapIndexed { i, range ->
+            val offsets = itemArray.map { it.offset }.toLongArray()
+            val leaves = itemArray.map { it.range }.mapIndexed { i, range ->
                 val interval = ChromosomeInterval(range.chromIx, range.start, range.end)
                 val endOffset = if (i < offsets.size() - 1) offsets[i + 1] else dataEndOffset
                 val size = endOffset - offsets[i]
@@ -199,36 +182,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             return dataEndOffset
         }
-    }
-}
-
-/**
- * External node aka *leaf* of the chromosome R-tree.
- */
-data class RTreeIndexLeaf(public val interval: ChromosomeInterval,
-                          public val dataOffset: Long,
-                          public val dataSize: Long) {
-    fun write(output: SeekableDataOutput) = with(output) {
-        writeInt(interval.chromIx)
-        writeInt(interval.startOffset)
-        writeInt(interval.chromIx)
-        writeInt(interval.endOffset)
-        writeLong(dataOffset)
-        writeLong(dataSize)
-    }
-}
-
-/**
- * Internal node of the chromosome R-tree.
- */
-data class RTreeIndexNode(public val interval: Interval,
-                          public val dataOffset: Long) {
-    fun write(output: SeekableDataOutput) = with(output) {
-        writeInt(interval.left.chromIx)
-        writeInt(interval.left.offset)
-        writeInt(interval.right.chromIx)
-        writeInt(interval.right.offset)
-        writeLong(dataOffset)
     }
 }
 
@@ -312,6 +265,60 @@ class RTreeIndexWrapper(private val levels: List<List<Interval>>,
 
             Collections.reverse(levels)
             return RTreeIndexWrapper(levels, leaves)
+        }
+    }
+}
+
+/**
+ * External node aka *leaf* of the chromosome R-tree.
+ */
+data class RTreeIndexLeaf(public val interval: ChromosomeInterval,
+                          public val dataOffset: Long,
+                          public val dataSize: Long) {
+    fun write(output: SeekableDataOutput) = with(output) {
+        writeInt(interval.chromIx)
+        writeInt(interval.startOffset)
+        writeInt(interval.chromIx)
+        writeInt(interval.endOffset)
+        writeLong(dataOffset)
+        writeLong(dataSize)
+    }
+
+    companion object {
+        fun read(input: SeekableDataInput): RTreeIndexLeaf = with (input) {
+            val startChromIx = readInt()
+            val startOffset = readInt()
+            val endChromIx = readInt()
+            val endOffset = readInt()
+            assert(startChromIx == endChromIx)
+            val interval = Interval.of(startChromIx, startOffset, endOffset)
+            return RTreeIndexLeaf(interval, dataOffset = readLong(),
+                                  dataSize = readLong())
+        }
+    }
+}
+
+/**
+ * Internal node of the chromosome R-tree.
+ */
+data class RTreeIndexNode(public val interval: Interval,
+                          public val dataOffset: Long) {
+    fun write(output: SeekableDataOutput) = with(output) {
+        writeInt(interval.left.chromIx)
+        writeInt(interval.left.offset)
+        writeInt(interval.right.chromIx)
+        writeInt(interval.right.offset)
+        writeLong(dataOffset)
+    }
+
+    companion object {
+        fun read(input: SeekableDataInput): RTreeIndexNode = with (input) {
+            val startChromIx = readInt()
+            val startBase = readInt()
+            val endChromIx = readInt()
+            val endBase = readInt()
+            val interval = Interval.of(startChromIx, startBase, endChromIx, endBase)
+            return RTreeIndexNode(interval, dataOffset = readLong())
         }
     }
 }
