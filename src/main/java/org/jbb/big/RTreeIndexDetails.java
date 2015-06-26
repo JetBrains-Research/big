@@ -37,21 +37,16 @@ public class RTreeIndexDetails {
     int chromId = 0;
     final myStream stream = new myStream();
 
-    //ByteArrayOutputStream stream = new ByteArrayOutputStream();
-
     /* Will keep track of some things that help us determine how much to reduce. */
     final int resEnds[] = new int[resTryCount];
     int resTry;
-    for (resTry = 0; resTry < resTryCount; ++resTry) {
-      resEnds[resTry] = 0;
-    }
 
     /* Will keep track of some things that help us determine how much to reduce. */
     boolean atEnd = false, sameChrom = false;
     int start = 0, end = 0;
 
     /* Help keep track of which beds are in current chunk so as to write out
- * namedChunks to eim if need be. */
+    * namedChunks to eim if need be. */
     final long sectionStartIx = 0, sectionEndIx = 0;
 
     String line;
@@ -61,9 +56,9 @@ public class RTreeIndexDetails {
       String chrom;
 
       for (; ; ) {
-      /* Get next line of input if any. */
+        /* Get next line of input if any. */
         if ((line = reader.readLine()) != null) {
-        /* Chop up line and make sure the word count is right. */
+          /* Chop up line and make sure the word count is right. */
           int wordCount;
           row = line.split("\t");
 
@@ -76,9 +71,9 @@ public class RTreeIndexDetails {
           atEnd = true;
         }
 
-      /* Check conditions that would end block and save block info and advance to next if need be. */
+        /* Check conditions that would end block and save block info and advance to next if need be. */
         if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
-        /* Save stream to file, compressing if need be. */
+          /* Save stream to file, compressing if need be. */
           if (stream.size() > maxBlockSize) {
             maxBlockSize = stream.size();
           }
@@ -89,7 +84,7 @@ public class RTreeIndexDetails {
           }
           stream.reset(); // очистка потока
 
-	/* Save info on existing block. */
+	  /* Save info on existing block. */
           bounds[sectionIx].offset = blockStartOffset;
           bounds[sectionIx].range.chromIx = chromId;
           bounds[sectionIx].range.start = startPos;
@@ -103,51 +98,49 @@ public class RTreeIndexDetails {
           }
         }
 
-      /* Advance to next chromosome if need be and get chromosome id. */
+        /* Advance to next chromosome if need be and get chromosome id. */
         if (!sameChrom) {
           usage = usageIterator.next();
-          for (resTry = 0; resTry < resTryCount; ++resTry) {
-            resEnds[resTry] = 0;
-          }
+          Arrays.fill(resEnds, 0);
         }
 
         chromId = usage.id;
 
-    /* At start of block we save a lot of info. */
+        /* At start of block we save a lot of info. */
         if (itemIx == 0) {
           blockStartOffset = writer.tell();
           startPos = start;
           endPos = end;
         }
-    /* Otherwise just update end. */
+        /* Otherwise just update end. */
         {
           if (endPos < end) {
             endPos = end;
           }
-	/* No need to update startPos since list is sorted. */
+	  /* No need to update startPos since list is sorted. */
         }
 
-    /* Write out data. */
+        /* Write out data. */
         stream.writeInt(chromId);
         stream.writeInt(start);
         stream.writeInt(end);
 
         if (fieldCount > 3) {
-	/* Write 3rd through next to last field and a tab separator. */
+	  /* Write 3rd through next to last field and a tab separator. */
           for (int i = 3; i < lastField; ++i) {
             final String s = row[i];
             stream.writeString(s);
             stream.writeChar('\t');
           }
-	/* Write last field and terminal zero */
+	  /* Write last field and terminal zero */
           final String s = row[lastField];
           stream.writeString(s);
         }
         stream.writeChar((char) 0);
 
-        itemIx += 1;
+        itemIx++;
 
-    /* Do zoom counting. */
+        /* Do zoom counting. */
         for (resTry = 0; resTry < resTryCount; ++resTry) {
           int resEnd = resEnds[resTry];
           if (start >= resEnd) {
@@ -315,7 +308,7 @@ public class RTreeIndexDetails {
         el.children = slReverse(el.children);
       }
       tree = list;
-      levelCount += 1;
+      levelCount++;
     }
     retLevelCount.data = levelCount;
     return tree;
@@ -326,7 +319,7 @@ public class RTreeIndexDetails {
 /* Recursively count sizes of levels and add to appropriate slots of levelSizes */ {
     rTree el;
     for (el = tree; el != null; el = el.next) {
-      levelSizes[level] += 1;
+      levelSizes[level]++;
       if (level < maxLevel) {
         calcLevelSizes(el.children, levelSizes, level + 1, maxLevel);
       }
@@ -349,7 +342,7 @@ public class RTreeIndexDetails {
     int len = 0;
 
     while (pt != null) {
-      len += 1;
+      len++;
       pt = pt.next;
     }
     return len;
