@@ -247,19 +247,19 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
             // Now just write the leaves.
             for (i in 0 until itemCount step blockSize) {
-                val childCount = Math.min(itemCount - i, blockSize)
+                val leafCount = Math.min(itemCount - i, blockSize)
                 with(output) {
                     writeByte(1)  // isLeaf.
                     writeByte(0)  // reserved.
-                    writeShort(childCount)
-                    for (j in 0 until childCount) {
+                    writeShort(leafCount)
+                    for (j in 0 until leafCount) {
                         val item = items[i + j]
                         writeBytes(item.key, keySize)
                         writeInt(item.id)
                         writeInt(item.size)
                     }
 
-                    writeByte(0, bytesInLeafSlot * (blockSize - childCount))
+                    writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
         }

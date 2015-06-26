@@ -58,7 +58,7 @@ fun String.trimZeros() = trimEnd { it == '\u0000' }
  * @author Sergei Lebedev
  * @since 16/03/15
  */
-interface  Interval {
+interface Interval {
     /** Start offset (inclusive).  */
     public val left: Offset
     /** End offset (exclusive).  */
@@ -69,7 +69,8 @@ interface  Interval {
     }
 
     /**
-     * Returns a union of the two intervals.
+     * Returns a union of the two intervals, i.e. an interval which
+     * completely covers both of them.
      */
     public fun union(other: Interval): Interval {
         val ord = Ordering.natural<Offset>()

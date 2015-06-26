@@ -190,7 +190,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }.toList()
 
             val wrapper = RTreeIndexWrapper.of(leaves, blockSize)
-            val header = Header(output.order(), blockSize, itemArray.size().toLong(),
+            val header = Header(output.order(), blockSize, blockCount.toLong(),
                                 wrapper.left.chromIx, wrapper.left.offset,
                                 wrapper.right.chromIx, wrapper.right.offset,
                                 dataEndOffset, itemsPerSlot, output.tell() + Header.BYTES)
