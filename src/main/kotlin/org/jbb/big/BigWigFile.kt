@@ -19,18 +19,15 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         header.rTree.findOverlappingBlocks(handle, query) { block ->
             handle.seek(block.dataOffset);
 
-            if (isCompressed()) {
-                handle.startCompressedBlock(block.dataSize);
+            // TODO: Do we need to merge WigData instances with subsequent headers?
+            // TODO: Investigate bigWigToWig output and source code.
+            val data = if (isCompressed()) {
+                handle.compressed(block.dataSize).use { readWigData(it) }
+            } else {
+                readWigData(handle)
             }
-            try {
-                // TODO: Do we need to merge WigData instances with subsequent headers?
-                // TODO: Investigate bigWigToWig output and source code.
-                res.add(readWigData());
-            } finally {
-                if (isCompressed()) {
-                    handle.endCompressedBlock();
-                }
-            }
+
+            res.add(data);
 
             check(handle.tell() - block.dataOffset == block.dataSize,
                   "WIG section read incorrectly")
@@ -40,13 +37,13 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     }
 
     throws(IOException::class)
-    private fun readWigData(): WigData {
-        val header = WigSectionHeader.read(handle)
+    private fun readWigData(input: SeekableDataInput): WigData {
+        val header = WigSectionHeader.read(input)
         return when (header.type) {
             WigSectionHeader.FIXED_STEP_TYPE ->
-                FixedStepWigData.read(header, handle)
+                FixedStepWigData.read(header, input)
             WigSectionHeader.VARIABLE_STEP_TYPE ->
-                VariableStepWigData.read(header, handle)
+                VariableStepWigData.read(header, input)
             WigSectionHeader.BED_GRAPH_TYPE ->
                 throw IllegalStateException("bedGraph sections are not supported in bigWig files")
             else ->

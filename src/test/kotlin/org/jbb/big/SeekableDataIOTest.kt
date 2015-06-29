@@ -26,11 +26,9 @@ public class SeekableDataOutputTest {
         val shortValue = RANDOM.nextInt().toShort()
         val unsignedShortValue = RANDOM.nextInt(IntMath.pow(2, 16))
         val intValue = RANDOM.nextInt()
-        val unsignedIntValue = Math.abs(RANDOM.nextLong()) % LongMath.pow(2, 32)
         val longValue = RANDOM.nextLong()
         val floatValue = RANDOM.nextFloat()
         val doubleValue = RANDOM.nextDouble()
-        val utfStringValue = "I'm a UTF \u0441\u0442\u0440\u043e\u043a\u0430"
         val charsArrayValue = "I'm a char array"
         val severalSingleChar = 'a'
         val severalSingleCharCount = 3
@@ -45,11 +43,9 @@ public class SeekableDataOutputTest {
                     writeShort(shortValue.toInt())
                     writeUnsignedShort(unsignedShortValue)
                     writeInt(intValue)
-                    writeUnsignedInt(unsignedIntValue)
                     writeLong(longValue)
                     writeFloat(floatValue)
                     writeDouble(doubleValue)
-                    writeUTF(utfStringValue)
                     writeBytes(charsArrayValue)
                     writeByte(severalSingleChar.toInt(), severalSingleCharCount)
                     writeBytes(chromosomeName, keySize)
@@ -61,11 +57,9 @@ public class SeekableDataOutputTest {
                     assertEquals(shortValue, readShort())
                     assertEquals(unsignedShortValue, readUnsignedShort())
                     assertEquals(intValue, readInt())
-                    assertEquals(unsignedIntValue, readUnsignedInt())
                     assertEquals(longValue, readLong())
                     assertEquals(floatValue, readFloat())
                     assertEquals(doubleValue, readDouble())
-                    assertEquals(utfStringValue, readUTF())
                 }
 
                 val charsArrayValueReader = ByteArray(charsArrayValue.length())

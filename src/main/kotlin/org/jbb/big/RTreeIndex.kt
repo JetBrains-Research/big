@@ -40,14 +40,14 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     throws(IOException::class)
-    fun findOverlappingBlocks(s: SeekableDataInput, query: ChromosomeInterval,
+    fun findOverlappingBlocks(input: SeekableDataInput, query: ChromosomeInterval,
                               consumer: (RTreeIndexLeaf) -> Unit) {
-        val originalOrder = s.order()
-        s.order(header.byteOrder)
+        val originalOrder = input.order
+        input.order = header.byteOrder
         try {
-            findOverlappingBlocksRecursively(s, query, header.rootOffset, consumer)
+            findOverlappingBlocksRecursively(input, query, header.rootOffset, consumer)
         } finally {
-            s.order(originalOrder)
+            input.order = originalOrder
         }
     }
 
@@ -56,7 +56,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                                                  query: ChromosomeInterval,
                                                  offset: Long,
                                                  consumer: (RTreeIndexLeaf) -> Unit) {
-        assert(input.order() == header.byteOrder)
+        assert(input.order == header.byteOrder)
         input.seek(offset)
 
         val isLeaf = input.readBoolean()
@@ -129,7 +129,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 readInt()  // reserved.
                 val rootOffset = tell()
 
-                return Header(order(), blockSize, itemCount, startChromIx, startBase,
+                return Header(order, blockSize, itemCount, startChromIx, startBase,
                               endChromIx, endBase, endDataOffset, itemsPerSlot, rootOffset)
             }
         }
@@ -152,7 +152,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             val leftmost = leaves.first().interval
             var rightmost = leaves.last().interval
 
-            val header = Header(output.order(), blockSize,
+            val header = Header(output.order, blockSize,
                                 leaves.size().toLong(),
                                 leftmost.chromIx, leftmost.startOffset,
                                 rightmost.chromIx, rightmost.endOffset,

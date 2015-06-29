@@ -102,7 +102,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
 
                 val bpt = BPlusTree.read(input, chromTreeOffset)
                 val rti = RTreeIndex.read(input, unzoomedIndexOffset)
-                return Header(order(), version, unzoomedDataOffset,
+                return Header(order, version, unzoomedDataOffset,
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,
                               zoomLevels, bpt, rti)
