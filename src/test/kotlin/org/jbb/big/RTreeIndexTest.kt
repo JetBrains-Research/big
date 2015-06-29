@@ -60,14 +60,32 @@ public class RTreeIndexTest {
 
 // TODO: merge into [RTreeIndexTest].
 public class RTreeIndexWriterTest {
-    Test fun testWriteRead() {
+    Test fun testWriteBlocks() {
         val chromSizesPath = Examples.get("f2.chrom.sizes")
         val bedPath = Examples.get("bedExample01.txt")
         val indexPath = Files.createTempFile("rti", ".bb")
 
+        val bedSummary = BedSummary.of(bedPath, chromSizesPath)
+        val usageList = bedSummary.toList()
+
+        try {
+            SeekableDataOutput.of(indexPath).use { output ->
+                val bounds = RTreeIndex.writeBlocks(output, bedPath, itemsPerSlot = 3)
+                assertEquals(13, bounds.size())
+                assertEquals(Interval.of(0, 9434178, 9434610) to 0L, bounds.first())
+                assertEquals(Interval.of(10, 13057621, 13058276) to 286L, bounds.last())
+            }
+        } finally {
+            Files.delete(indexPath)
+        }
+    }
+
+    Test fun testWriteRead() {
+        val bedPath = Examples.get("bedExample01.txt")
+        val indexPath = Files.createTempFile("rti", ".bb")
+
         var offset = SeekableDataOutput.of(indexPath).use { output ->
-            RTreeIndex.write(output, chromSizesPath, bedPath,
-                             fieldCount = 3, blockSize = 4, itemsPerSlot = 3)
+            RTreeIndex.write(output, bedPath, blockSize = 4, itemsPerSlot = 3)
         }
 
         SeekableDataInput.of(indexPath).use { input ->

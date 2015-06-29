@@ -144,19 +144,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         }
 
         throws(IOException::class)
-        public fun write(output: SeekableDataOutput, chromSizesPath: Path,
-                         bedPath: Path, fieldCount: Short,
+        public fun write(output: SeekableDataOutput, bedPath: Path,
                          blockSize: Int = 1024, itemsPerSlot: Int = 64,
                          compress: Boolean = false): Long {
             require(!compress, "block compression is not supported")
 
-            val bedSummary = BedSummary.of(bedPath, chromSizesPath)
-            val usageList = bedSummary.toList()
+            val bounds = writeBlocks(output, bedPath, itemsPerSlot)
 
-            val bounds = writeBlocks(usageList, bedPath, itemsPerSlot,
-                                     output, fieldCount)
-
-            /* Write out primary data index. */
             val dataEndOffset = output.tell()
             val offsets = bounds.map { it.second }.toLongArray()
             // TODO: we can merge adjacent leaves at this point.
@@ -177,108 +171,34 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             return dataEndOffset
         }
 
-        public fun writeBlocks2(usageList: List<bbiChromUsage>, bedPath: Path, itemsPerSlot: Int,
-                                output: SeekableDataOutput,
-                                fieldCount: Short): List<Pair<ChromosomeInterval, Long>> {
+        throws(IOException::class)
+        fun writeBlocks(output: SeekableDataOutput, bedPath: Path,
+                         itemsPerSlot: Int): List<Pair<ChromosomeInterval, Long>> {
             var chromId = 0
+            val res = Lists.newArrayList<Pair<ChromosomeInterval, Long>>()
             BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
-                val (name, items) = entry
+                val (_name, items) = entry
                 Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
                 for (i in 0 until items.size() step itemsPerSlot) {
-                    for (j in 0 until Math.min(items.size() - i, itemsPerSlot)) {
-                        output.writeInt(chromId)
-                        output.writeInt(items[i + j].start)
-                        output.writeInt(items[i + j].end)
+                    val dataOffset = output.tell()
+                    val slotSize = Math.min(items.size() - i, itemsPerSlot)
+                    val start = items[i].start
+                    var end = items[slotSize - 1].end
 
-                        if (fieldCount > 3) {
-                            /* Write last field and terminal zero */
-                            output.writeBytes(items[i + j].rest)
-                        }
-                        output.writeByte(0)
+                    for (j in 0 until slotSize) {
+                        val item = items[i + j]
+                        output.writeInt(chromId)
+                        output.writeInt(item.start)
+                        output.writeInt(item.end)
+                        output.writeBytes(item.rest)
+                        output.writeByte(0)  // null-terminated.
                     }
+
+                    res.add(ChromosomeInterval(chromId, start, end) to dataOffset)
                 }
 
                 chromId++
-            }
-        }
-
-        throws(IOException::class)
-        public fun writeBlocks(usageList: List<bbiChromUsage>, bedPath: Path, itemsPerSlot: Int,
-                               output: SeekableDataOutput,
-                               fieldCount: Short): List<Pair<ChromosomeInterval, Long>> {
-            val res = Lists.newArrayList<Pair<ChromosomeInterval, Long>>()
-            val usageIterator = usageList.iterator()
-            var usage = usageIterator.next()
-            var itemIx = 0
-            var blockStartOffset: Long = 0
-            var startPos = 0
-            var endPos = 0
-            var chromId = 0
-
-            var sameChrom = false
-            var start = 0
-            var end = 0
-
-            val it = BedFile.read(bedPath).iterator()
-            var rest = ""
-            val chrom: String
-
-            while (true) {
-                val atEnd = !it.hasNext()
-                if (it.hasNext()) {
-                    val entry = it.next()
-                    chrom = entry.name
-                    start = entry.start
-                    end = entry.end
-                    rest = entry.rest
-
-                    sameChrom = chrom == usage.name
-                }
-
-                /* Check conditions that would end block and save block info
-                   and advance to next if need be. */
-                if (atEnd || !sameChrom || itemIx >= itemsPerSlot) {
-                    /* Save info on existing block. */
-                    res.add(Pair(ChromosomeInterval(chromId, startPos, endPos), blockStartOffset))
-
-                    itemIx = 0
-                    if (atEnd) {
-                        break
-                    }
-                }
-
-                /* Advance to next chromosome if need be and get chromosome id. */
-                if (!sameChrom) {
-                    usage = usageIterator.next()
-                }
-
-                chromId = usage.id
-
-                /* At start of block we save a lot of info. */
-                if (itemIx == 0) {
-                    blockStartOffset = output.tell()
-                    startPos = start
-                    endPos = end
-                }
-                /* Otherwise just update end. */
-                /* No need to update startPos since list is sorted. */
-                if (endPos < end) {
-                    endPos = end
-                }
-
-                /* Write out data. */
-                output.writeInt(chromId)
-                output.writeInt(start)
-                output.writeInt(end)
-
-                if (fieldCount > 3) {
-                    /* Write last field and terminal zero */
-                    output.writeBytes(rest)
-                }
-                output.writeByte(0)
-
-                itemIx++
             }
 
             return res
