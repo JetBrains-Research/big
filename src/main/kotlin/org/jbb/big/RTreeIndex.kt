@@ -9,8 +9,6 @@ import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
-import java.util.Comparator
-import java.util.function.Function
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -145,26 +143,22 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
         throws(IOException::class)
         public fun write(output: SeekableDataOutput, bedPath: Path,
-                         blockSize: Int = 1024, itemsPerSlot: Int = 64,
+                         blockSize: Int = 1024,
+                         itemsPerSlot: Int = 64,
                          compress: Boolean = false): Long {
             require(!compress, "block compression is not supported")
 
-            val bounds = writeBlocks(output, bedPath, itemsPerSlot)
+            val blocks = writeBlocks(output, bedPath, itemsPerSlot)
+            val left = blocks.first().interval
+            var right = blocks.last().interval
 
             val dataEndOffset = output.tell()
-            val offsets = bounds.map { it.second }.toLongArray()
-            // TODO: we can merge adjacent leaves at this point.
-            val leaves = bounds.map { it.first }.mapIndexed { i, interval ->
-                val endOffset = if (i < offsets.size() - 1) offsets[i + 1] else dataEndOffset
-                val size = endOffset - offsets[i]
-                RTreeIndexLeaf(interval, offsets[i], size)
-            }.toList()
-
-            val wrapper = RTreeIndexWrapper.of(leaves, blockSize)
-            val header = Header(output.order(), blockSize, bounds.size().toLong(),
-                                wrapper.left.chromIx, wrapper.left.offset,
-                                wrapper.right.chromIx, wrapper.right.offset,
-                                dataEndOffset, itemsPerSlot, output.tell() + Header.BYTES)
+            val wrapper = RTreeIndexWrapper.of(blocks, blockSize)
+            val header = Header(output.order(), blockSize, blocks.size().toLong(),
+                                left.chromIx, left.startOffset,
+                                right.chromIx, right.endOffset,
+                                dataEndOffset, itemsPerSlot,
+                                dataEndOffset + Header.BYTES)
             header.write(output)
             wrapper.write(output, blockSize)
 
@@ -173,9 +167,9 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
         throws(IOException::class)
         fun writeBlocks(output: SeekableDataOutput, bedPath: Path,
-                         itemsPerSlot: Int): List<Pair<ChromosomeInterval, Long>> {
+                        itemsPerSlot: Int): List<RTreeIndexLeaf> {
             var chromId = 0
-            val res = Lists.newArrayList<Pair<ChromosomeInterval, Long>>()
+            val res = Lists.newArrayList<RTreeIndexLeaf>()
             BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
                 val (_name, items) = entry
                 Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
@@ -195,7 +189,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                         output.writeByte(0)  // null-terminated.
                     }
 
-                    res.add(ChromosomeInterval(chromId, start, end) to dataOffset)
+                    res.add(RTreeIndexLeaf(ChromosomeInterval(chromId, start, end),
+                                           dataOffset, output.tell() - dataOffset))
                 }
 
                 chromId++
@@ -208,14 +203,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
 class RTreeIndexWrapper(private val levels: List<List<Interval>>,
                         private val leaves: List<RTreeIndexLeaf>) {
-    private val DUMMY: Offset = Offset(0, 0)
-
-    // TODO: move this to BED summary?
-    public val left: Offset
-            = if (leaves.isEmpty()) DUMMY else levels.last().first().left
-    public val right: Offset
-            = if (leaves.isEmpty()) DUMMY else levels.last().last().right
-
     throws(IOException::class)
     fun write(output: SeekableDataOutput, blockSize: Int) {
         // HEAVY COMPUTER SCIENCE CALCULATION!

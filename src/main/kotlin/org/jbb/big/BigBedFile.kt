@@ -91,5 +91,4 @@ public data class BedData(
         /** 0-based end offset (exclusive). */
         public val end: Int,
         /** Comma-separated string of additional BED values. */
-        public val rest: String = "") {
-}
+        public val rest: String = "")
