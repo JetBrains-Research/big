@@ -22,7 +22,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
             // TODO: Do we need to merge WigData instances with subsequent headers?
             // TODO: Investigate bigWigToWig output and source code.
             val data = if (isCompressed()) {
-                handle.compressed(block.dataSize).use { readWigData(it) }
+                handle.compressed(block.dataSize) { readWigData(it) }
             } else {
                 readWigData(handle)
             }
@@ -126,7 +126,6 @@ public class WigSectionHeader(public val id: Int,
                               public val step: Int,
                               public val span: Int,
                               public val type: Byte,
-                              public val reserved: Byte,
                               public val count: Short) {
     companion object {
         public val BED_GRAPH_TYPE: Byte = 1
@@ -134,16 +133,16 @@ public class WigSectionHeader(public val id: Int,
         public val FIXED_STEP_TYPE: Byte = 3
 
         throws(IOException::class)
-        public fun read(input: SeekableDataInput): WigSectionHeader {
-            val id = input.readInt()
-            val start = input.readInt()
-            val end = input.readInt()
-            val step = input.readInt()
-            val span = input.readInt()
-            val type = input.readByte()
-            val reserved = input.readByte()
-            val count = input.readShort()
-            return WigSectionHeader(id, start, end, step, span, type, reserved, count)
+        public fun read(input: SeekableDataInput): WigSectionHeader = with (input) {
+            val id = readInt()
+            val start = readInt()
+            val end = readInt()
+            val step = readInt()
+            val span = readInt()
+            val type = readByte()
+            readByte()  // reserved.
+            val count = readShort()
+            return WigSectionHeader(id, start, end, step, span, type, count)
         }
     }
 }

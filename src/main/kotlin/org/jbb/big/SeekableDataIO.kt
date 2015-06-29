@@ -13,16 +13,14 @@ import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 
 /**
- * A byte order-aware seekable complement to [java.io.DataInputStream]
- * and [java.io.DataOutputStream].
+ * A byte order-aware seekable complement to [java.io.DataInputStream].
  *
  * @author Sergei Lebedev
  * @since 29/06/15
  */
-public open class SeekableDataInput(private val path: Path,
+public open class SeekableDataInput(private val file: RandomAccessFile,
                                     public var order: ByteOrder) :
         DataInput, Closeable, AutoCloseable {
-    protected val file: RandomAccessFile = RandomAccessFile(path.toFile(), "r")
 
     protected open val input: DataInput get() = file
 
@@ -40,8 +38,11 @@ public open class SeekableDataInput(private val path: Path,
         }
     }
 
-    public fun compressed(size: Long): CompressedDataInput {
-        return CompressedDataInput(path, tell(), order, size)
+    public fun compressed<T>(size: Long, block: (SeekableDataInput) -> T): T {
+        val pos = tell()
+        val res = block(CompressedDataInput(file, order, size))
+        check(tell() - pos == size)
+        return res
     }
 
     override fun readFully(b: ByteArray?) = input.readFully(b)
@@ -118,13 +119,8 @@ public open class SeekableDataInput(private val path: Path,
 
     override fun readUTF(): String = throw UnsupportedOperationException()
 
-    throws(IOException::class)
     private fun readAndCheckByte(): Byte {
-        val b = file.read()
-        if (b == -1) {
-            throw EOFException()
-        }
-
+        val b = readUnsignedByte()
         return b.toByte()
     }
 
@@ -133,20 +129,24 @@ public open class SeekableDataInput(private val path: Path,
     companion object {
         public fun of(path: Path,
                       order: ByteOrder = ByteOrder.BIG_ENDIAN): SeekableDataInput {
-            return SeekableDataInput(path, order)
+            return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
         }
     }
 }
 
-public open class SeekableDataOutput(private val path: Path,
+/**
+ * A byte order-aware seekable complement to [java.io.DataOutputStream].
+ *
+ * @author Sergei Lebedev
+ * @since 29/06/15
+ */
+public open class SeekableDataOutput(private val file: RandomAccessFile,
                                      public var order: ByteOrder) :
         DataOutput, Closeable, AutoCloseable {
-    protected val file: RandomAccessFile = RandomAccessFile(path.toFile(), "rw")
-
     protected open val output: DataOutput get() = file
 
     public fun compressed(size: Long): CompressedDataOutput {
-        return CompressedDataOutput(path, tell(), order, size)
+        return CompressedDataOutput(file, order, size)
     }
 
     public fun seek(pos: Long): Unit = file.seek(pos)
@@ -227,44 +227,50 @@ public open class SeekableDataOutput(private val path: Path,
     companion object {
         throws(FileNotFoundException::class)
         public fun of(path: Path, order: ByteOrder = ByteOrder.BIG_ENDIAN): SeekableDataOutput {
-            return SeekableDataOutput(path, order)
+            return SeekableDataOutput(RandomAccessFile(path.toFile(), "rw"), order)
         }
     }
 }
 
-class CompressedDataInput(path: Path, offset: Long, order: ByteOrder,
-                          private val size: Long) : SeekableDataInput(path, order) {
-    private val inflater = Inflater()
+private class CompressedDataInput(file: RandomAccessFile, order: ByteOrder,
+                                  private val size: Long) : SeekableDataInput(file, order) {
+    override val input: DataInputStream = DataInputStream(
+            BoundedInflaterInputStream(Channels.newInputStream(file.getChannel()),
+                                       size))
+}
 
-    init {
-        file.seek(offset)
+private class BoundedInflaterInputStream(`in`: InputStream,
+                                         private val size: Long): InflaterInputStream(`in`) {
+    private var closed: Boolean = false
+
+    override fun fill() {
+        if (closed) {
+            throw IOException("Stream closed")
+        }
+
+        val remaining = size - inf.getBytesRead();
+        val len = `in`.read(buf, 0, Math.min(remaining.toInt(), buf.size()));
+        if (len == -1) {
+            throw EOFException("Unexpected end of ZLIB input stream");
+        }
+
+        inf.setInput(buf, 0, len);
     }
 
-    override val input: DataInputStream = DataInputStream(
-            InflaterInputStream(Channels.newInputStream(file.getChannel()),
-                                inflater))
+    override fun close(): Unit {
+        closed = true
 
-    override fun close() {
-        check(inflater.getBytesRead() == size)
-        input.close()  // should close the file.
+        check(inf.getBytesRead() == size)
     }
 }
 
-class CompressedDataOutput(path: Path, offset: Long, order: ByteOrder,
-                           private val size: Long) :
-        SeekableDataOutput(path, order) {
+class CompressedDataOutput(file: RandomAccessFile, order: ByteOrder,
+                           private val size: Long) : SeekableDataOutput(file, order) {
     private val deflater = Deflater()
-
-    init {
-        file.seek(offset)
-    }
 
     override val output: DataOutputStream = DataOutputStream(
             DeflaterOutputStream(Channels.newOutputStream(file.getChannel()),
                                  deflater))
 
-    override fun close() {
-        check(deflater.getBytesWritten() == size)
-        output.close()  // should close the file.
-    }
+    override fun close() = check(deflater.getBytesWritten() == size)
 }
