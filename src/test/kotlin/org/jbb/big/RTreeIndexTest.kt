@@ -12,54 +12,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class RTreeIndexTest {
-    Test fun testReadHeader() {
-        exampleFile.use { bbf ->
-            val rti = bbf.header.rTree
-            assertEquals(1024, rti.header.blockSize)
-            assertEquals(192771L, rti.header.endDataOffset)
-            assertEquals(64, rti.header.itemsPerSlot)
-            assertEquals(192819L, rti.header.rootOffset)
-
-            val items = exampleItems
-            assertEquals(items.size().toLong(), rti.header.itemCount)
-            assertEquals(0, rti.header.startChromIx)
-            assertEquals(0, rti.header.endChromIx)
-            assertEquals(items.map { it.start }.min(), rti.header.startBase)
-            assertEquals(items.map { it.end }.max(), rti.header.endBase)
-        }
-    }
-
-    Test fun testFindOverlappingBlocks() {
-        exampleFile.use { bbf ->
-            val rti = bbf.header.rTree
-            val items = exampleItems
-            for (i in 0..99) {
-                val left = RANDOM.nextInt(items.size() - 1)
-                val right = left + RANDOM.nextInt(items.size() - left)
-                val query = Interval.of(0, items[left].start, items[right].end)
-
-                rti.findOverlappingBlocks(bbf.handle, query) { block ->
-                    assertTrue(block.interval.overlaps(query))
-                }
-            }
-        }
-    }
-
-    private val exampleFile: BigBedFile get() {
-        return BigBedFile.read(Examples.get("example1.bb"))
-    }
-
-    private val exampleItems: List<BedData> by Delegates.lazy {
-        BedFile.read(Examples.get("example1.bed")).toList()
-    }
-
-    companion object {
-        private val RANDOM = Random()
-    }
-}
-
-// TODO: merge into [RTreeIndexTest].
-public class RTreeIndexWriterTest {
     Test fun testWriteBlocks() {
         val bedPath = Examples.get("bedExample01.txt")
         val indexPath = Files.createTempFile("rti", ".bb")
@@ -131,5 +83,50 @@ public class RTreeIndexWriterTest {
             assertEquals(expected[i].dataOffset, actual[i].dataOffset)
             assertEquals(expected[i].dataSize, actual[i].dataSize)
         }
+    }
+
+    Test fun testReadHeader() {
+        exampleFile.use { bbf ->
+            val rti = bbf.header.rTree
+            assertEquals(1024, rti.header.blockSize)
+            assertEquals(192771L, rti.header.endDataOffset)
+            assertEquals(64, rti.header.itemsPerSlot)
+            assertEquals(192819L, rti.header.rootOffset)
+
+            val items = exampleItems
+            assertEquals(items.size().toLong(), rti.header.itemCount)
+            assertEquals(0, rti.header.startChromIx)
+            assertEquals(0, rti.header.endChromIx)
+            assertEquals(items.map { it.start }.min(), rti.header.startBase)
+            assertEquals(items.map { it.end }.max(), rti.header.endBase)
+        }
+    }
+
+    Test fun testFindOverlappingBlocks() {
+        exampleFile.use { bbf ->
+            val rti = bbf.header.rTree
+            val items = exampleItems
+            for (i in 0..99) {
+                val left = RANDOM.nextInt(items.size() - 1)
+                val right = left + RANDOM.nextInt(items.size() - left)
+                val query = Interval.of(0, items[left].start, items[right].end)
+
+                rti.findOverlappingBlocks(bbf.handle, query) { block ->
+                    assertTrue(block.interval.overlaps(query))
+                }
+            }
+        }
+    }
+
+    private val exampleFile: BigBedFile get() {
+        return BigBedFile.read(Examples.get("example1.bb"))
+    }
+
+    private val exampleItems: List<BedData> by Delegates.lazy {
+        BedFile.read(Examples.get("example1.bed")).toList()
+    }
+
+    companion object {
+        private val RANDOM = Random()
     }
 }

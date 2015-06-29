@@ -9,9 +9,6 @@ import kotlin.properties.Delegates
 
 /**
  * A common superclass for Big files.
- *
- * TODO: cache chromosome mapping instead of querying the B+ tree
- * every time.
  */
 abstract class BigFile<T> throws(IOException::class) protected constructor(path: Path) :
         Closeable, AutoCloseable {
