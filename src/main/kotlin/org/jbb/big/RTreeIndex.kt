@@ -145,24 +145,22 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         public fun write(output: SeekableDataOutput, bedPath: Path,
                          blockSize: Int = 1024,
                          itemsPerSlot: Int = 64,
-                         compress: Boolean = false): Long {
+                         compress: Boolean = false): Unit {
             require(!compress, "block compression is not supported")
 
-            val blocks = writeBlocks(output, bedPath, itemsPerSlot)
-            val left = blocks.first().interval
-            var right = blocks.last().interval
+            val leaves = writeBlocks(output, bedPath, itemsPerSlot)
+            val leftmost = leaves.first().interval
+            var rightmost = leaves.last().interval
 
-            val dataEndOffset = output.tell()
-            val wrapper = RTreeIndexWrapper.of(blocks, blockSize)
-            val header = Header(output.order(), blockSize, blocks.size().toLong(),
-                                left.chromIx, left.startOffset,
-                                right.chromIx, right.endOffset,
-                                dataEndOffset, itemsPerSlot,
-                                dataEndOffset + Header.BYTES)
+            val header = Header(output.order(), blockSize,
+                                leaves.size().toLong(),
+                                leftmost.chromIx, leftmost.startOffset,
+                                rightmost.chromIx, rightmost.endOffset,
+                                output.tell(), itemsPerSlot,
+                                output.tell() + Header.BYTES)
             header.write(output)
-            wrapper.write(output, blockSize)
 
-            return dataEndOffset
+            writeIndex(output, leaves, blockSize)
         }
 
         throws(IOException::class)
@@ -198,60 +196,59 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             return res
         }
-    }
-}
 
-class RTreeIndexWrapper(private val levels: List<List<Interval>>,
-                        private val leaves: List<RTreeIndexLeaf>) {
-    throws(IOException::class)
-    fun write(output: SeekableDataOutput, blockSize: Int) {
-        // HEAVY COMPUTER SCIENCE CALCULATION!
-        val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
-        val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
-        val bytesInIndexBlock = bytesInNodeHeader + blockSize * bytesInIndexSlot
-        val bytesInLeafSlot = Ints.BYTES * 4 + Longs.BYTES * 2
-        val bytesInLeafBlock = bytesInNodeHeader + blockSize * bytesInLeafSlot
+        throws(IOException::class)
+        private fun writeIndex(output: SeekableDataOutput,
+                               leaves: List<RTreeIndexLeaf>, blockSize: Int) {
+            val levels = compute(leaves, blockSize)
 
-        // Omit root because it's trivial and leaves --- we'll deal
-        // with them later.
-        levels.subList(1, levels.size() - 1).forEachIndexed { i, level ->
-            val bytesInCurrentBlock = bytesInIndexBlock
-            val bytesInNextLevelBlock =
-                    if (i == levels.size() - 3) bytesInLeafBlock else bytesInCurrentBlock
-            var nextChild = output.tell() + bytesInCurrentBlock
-            val nodeCount = level.size()
+            // HEAVY COMPUTER SCIENCE CALCULATION!
+            val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
+            val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
+            val bytesInIndexBlock = bytesInNodeHeader + blockSize * bytesInIndexSlot
+            val bytesInLeafSlot = Ints.BYTES * 4 + Longs.BYTES * 2
+            val bytesInLeafBlock = bytesInNodeHeader + blockSize * bytesInLeafSlot
+
+            // Omit root because it's trivial and leaves --- we'll deal
+            // with them later.
+            levels.subList(1, levels.size() - 1).forEachIndexed { i, level ->
+                val bytesInCurrentBlock = bytesInIndexBlock
+                val bytesInNextLevelBlock =
+                        if (i == levels.size() - 3) bytesInLeafBlock else bytesInCurrentBlock
+                var nextChild = output.tell() + bytesInCurrentBlock
+                val nodeCount = level.size()
+                with(output) {
+                    writeByte(0)  // isLeaf.
+                    writeByte(0)  // reserved.
+                    writeShort(nodeCount)
+                    for (interval in level) {
+                        RTreeIndexNode(interval, nextChild).write(output)
+                        nextChild += bytesInNextLevelBlock
+                    }
+
+                    // Write out zeroes for empty slots in node.
+                    writeByte(0, bytesInIndexSlot * (blockSize - nodeCount))
+                }
+            }
+
             with(output) {
-                writeByte(0)  // isLeaf.
-                writeByte(0)  // reserved.
-                writeShort(nodeCount)
-                for (interval in level) {
-                    RTreeIndexNode(interval, nextChild).write(output)
-                    nextChild += bytesInNextLevelBlock
-                }
+                for (i in 0 until leaves.size() step blockSize) {
+                    val leafCount = Math.min(blockSize, leaves.size() - i)
+                    writeByte(1)  // isLeaf.
+                    writeByte(0)  // reserved.
+                    writeShort(leafCount)
+                    for (j in 0 until leafCount) {
+                        leaves[i + j].write(output)
+                    }
 
-                // Write out zeroes for empty slots in node.
-                writeByte(0, bytesInIndexSlot * (blockSize - nodeCount))
+                    // Write out zeroes for empty slots in node.
+                    writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
+                }
             }
         }
 
-        with(output) {
-            for (i in 0 until leaves.size() step blockSize) {
-                val leafCount = Math.min(blockSize, leaves.size() - i)
-                writeByte(1)  // isLeaf.
-                writeByte(0)  // reserved.
-                writeShort(leafCount)
-                for (j in 0 until leafCount) {
-                    leaves[i + j].write(output)
-                }
-
-                // Write out zeroes for empty slots in node.
-                writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
-            }
-        }
-    }
-
-    companion object {
-        fun of(leaves: List<RTreeIndexLeaf>, blockSize: Int): RTreeIndexWrapper {
+        private fun compute(leaves: List<RTreeIndexLeaf>,
+                            blockSize: Int): List<List<Interval>> {
             var intervals: List<Interval> = leaves.map { it.interval }
             val levels = arrayListOf(intervals)
             while (intervals.size() > 1) {
@@ -261,11 +258,7 @@ class RTreeIndexWrapper(private val levels: List<List<Interval>>,
                     //   /   |
                     //  |-| |-|    links
                     val links = intervals.subList(i, Math.min(intervals.size(), i + blockSize))
-                    if (links.size() == 1) {
-                        level.addAll(links)
-                    } else {
-                        level.add(links.reduce(Interval::union))
-                    }
+                    level.add(links.reduce(Interval::union))
                 }
 
                 levels.add(level)
@@ -273,7 +266,7 @@ class RTreeIndexWrapper(private val levels: List<List<Interval>>,
             }
 
             Collections.reverse(levels)
-            return RTreeIndexWrapper(levels, leaves)
+            return levels
         }
     }
 }

@@ -82,12 +82,12 @@ public class RTreeIndexWriterTest {
         val bedPath = Examples.get("bedExample01.txt")
         val indexPath = Files.createTempFile("rti", ".bb")
 
-        var offset = SeekableDataOutput.of(indexPath).use { output ->
+        SeekableDataOutput.of(indexPath).use { output ->
             RTreeIndex.write(output, bedPath, blockSize = 4, itemsPerSlot = 3)
         }
 
         SeekableDataInput.of(indexPath).use { input ->
-            val rti = RTreeIndex.read(input, offset)
+            val rti = RTreeIndex.read(input, 299)
 
             assertEquals(rti.header.blockSize, 4)
             assertEquals(rti.header.itemCount, 13L)
