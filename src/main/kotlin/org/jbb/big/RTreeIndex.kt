@@ -9,6 +9,8 @@ import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
+import java.util.Comparator
+import java.util.function.Function
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -173,6 +175,32 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             wrapper.write(output, blockSize)
 
             return dataEndOffset
+        }
+
+        public fun writeBlocks2(usageList: List<bbiChromUsage>, bedPath: Path, itemsPerSlot: Int,
+                                output: SeekableDataOutput,
+                                fieldCount: Short): List<Pair<ChromosomeInterval, Long>> {
+            var chromId = 0
+            BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
+                val (name, items) = entry
+                Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
+
+                for (i in 0 until items.size() step itemsPerSlot) {
+                    for (j in 0 until Math.min(items.size() - i, itemsPerSlot)) {
+                        output.writeInt(chromId)
+                        output.writeInt(items[i + j].start)
+                        output.writeInt(items[i + j].end)
+
+                        if (fieldCount > 3) {
+                            /* Write last field and terminal zero */
+                            output.writeBytes(items[i + j].rest)
+                        }
+                        output.writeByte(0)
+                    }
+                }
+
+                chromId++
+            }
         }
 
         throws(IOException::class)
