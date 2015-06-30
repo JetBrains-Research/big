@@ -40,7 +40,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     throws(IOException::class)
-    fun findOverlappingBlocks(input: SeekableDataInput, query: ChromosomeInterval,
+    fun findOverlappingBlocks(input: SeekableDataInput,
+                              query: ChromosomeInterval,
                               consumer: (RTreeIndexLeaf) -> Unit) {
         val originalOrder = input.order
         input.order = header.byteOrder
@@ -60,7 +61,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         input.seek(offset)
 
         val isLeaf = input.readBoolean()
-        input.readBoolean()  // reserved.
+        input.readByte()  // reserved.
         val childCount = input.readShort().toInt()
 
         if (isLeaf) {
@@ -111,7 +112,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             /** Number of bytes used for this header. */
             val BYTES = Ints.BYTES * 8 + Longs.BYTES * 2
             /** Magic number used for determining [ByteOrder]. */
-            private val MAGIC = 0x2468ace0
+            private val MAGIC = 0x2468ACE0
 
             throws(IOException::class)
             fun read(input: SeekableDataInput, offset: Long): Header = with(input) {

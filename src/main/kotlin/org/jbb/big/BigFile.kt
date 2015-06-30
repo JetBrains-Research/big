@@ -1,6 +1,9 @@
 package org.jbb.big
 
 import com.google.common.collect.ImmutableList
+import com.google.common.primitives.Ints
+import com.google.common.primitives.Longs
+import com.google.common.primitives.Shorts
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -52,7 +55,11 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     // TODO: these can be fields.
     public abstract fun getHeaderMagic(): Int
 
-    public fun isCompressed(): Boolean = header.uncompressBufSize > 0
+    public fun isCompressed(): Boolean {
+        // Compression was introduced in version 3 of the format. See
+        // bbiFile.h in UCSC sources.
+        return header.version >= 3 && header.uncompressBufSize > 0
+    }
 
     throws(IOException::class)
     protected abstract fun queryInternal(query: ChromosomeInterval,
@@ -87,16 +94,37 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
                 val asOffset = readLong()
                 val totalSummaryOffset = readLong()
                 val uncompressBufSize = readInt()
-                val reserved = readLong()  // currently 0.
-
-                if (uncompressBufSize > 0) {
-                    // TODO: Check version is >= 3 - see corresponding table in "Supplementary Data".
-                }
-
-                // check(reserved == 0L, "header extensions are not supported")
+                val extendedHeaderOffset = readLong()
 
                 val zoomLevels = (0 until zoomLevelCount).asSequence()
                         .map { ZoomLevel.read(input) }.toList()
+
+                // Skip AutoSQL string if any.
+                while (asOffset > 0 && readByte() != 0.toByte()) {}
+
+                // Skip total summary block.
+                if (totalSummaryOffset > 0) {
+                    Summary.read(input)
+                }
+
+                // Skip extended header. Ideally, we should issue a warning
+                // if extensions are present.
+                if (extendedHeaderOffset > 0) {
+                    skipBytes(Shorts.BYTES)  // extensionSize.
+                    val extraIndexCount = readShort().toInt()
+                    skipBytes(Longs.BYTES)   // extraIndexListOffset/
+                    skipBytes(48)  // reserved.
+
+                    for (i in 0 until extraIndexCount) {
+                        val type = readShort()
+                        assert(type == 0.toShort())
+                        val extraFieldCount = readShort()
+                        skipBytes(Longs.BYTES)      // indexOffset.
+                        skipBytes(extraFieldCount *
+                                  (Shorts.BYTES +   // fieldId,
+                                   Shorts.BYTES))   // reserved.
+                    }
+                }
 
                 val bpt = BPlusTree.read(input, chromTreeOffset)
                 val rti = RTreeIndex.read(input, unzoomedIndexOffset)
@@ -120,6 +148,23 @@ data class ZoomLevel(public val reductionLevel: Int,
             val dataOffset = readLong()
             val indexOffset = readLong()
             ZoomLevel(reductionLevel, dataOffset, indexOffset)
+        }
+    }
+}
+
+data class Summary(public val basesCovered: Long,
+                   public val minVal: Double,
+                   public val maxVal: Double,
+                   public val sumData: Double,
+                   public val sumSquared: Double) {
+    companion object {
+        fun read(input: SeekableDataInput) = with(input) {
+            val basesCovered = readLong()
+            val minVal = readDouble()
+            val maxVal = readDouble()
+            val sumData = readDouble()
+            val sumSquared = readDouble()
+            Summary(basesCovered, minVal, maxVal, sumData, sumSquared)
         }
     }
 }
