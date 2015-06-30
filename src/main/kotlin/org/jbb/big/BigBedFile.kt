@@ -1,10 +1,10 @@
 package org.jbb.big
 
 import com.google.common.collect.Lists
+import com.google.common.primitives.Ints
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.stream.Collectors
 import kotlin.platform.platformStatic
 
 /**
@@ -80,9 +80,6 @@ class BedFile(private val path: Path) : Iterable<BedData> {
 
 /**
  * A minimal representation of a BED file entry.
- *
- * @author Sergey Zherevchik
- * @since 15/03/15
  */
 public data class BedData(
         /** Chromosome name, e.g. `"chr9"`. */

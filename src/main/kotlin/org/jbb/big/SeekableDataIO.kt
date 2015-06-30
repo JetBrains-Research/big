@@ -18,11 +18,12 @@ import java.util.zip.InflaterInputStream
  * @author Sergei Lebedev
  * @since 29/06/15
  */
-public class SeekableDataInput private constructor(
+public open class SeekableDataInput protected constructor(
         private val file: RandomAccessFile,
-        public var order: ByteOrder,
-        /** Must correspond to an [java.io.InputStream] over `file`. */
-        private val input: DataInput = file) : DataInput, Closeable, AutoCloseable {
+        public var order: ByteOrder) : DataInput, Closeable, AutoCloseable {
+
+    /** Must correspond to an [java.io.InputStream] over `file`. */
+    protected open val input: DataInput = file
 
     /** Guess byte order from a given big-endian `magic`. */
     public fun guess(magic: Int) {
@@ -40,9 +41,7 @@ public class SeekableDataInput private constructor(
 
     /** Returns a compressed **view** of the input. */
     public fun compressed(size: Long): SeekableDataInput {
-        val compressed = DataInputStream(BoundedInflaterInputStream(
-                Channels.newInputStream(file.getChannel()), size))
-        return SeekableDataInput(file, order, compressed)
+        return CompressedDataInput(file, order, size)
     }
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
@@ -59,9 +58,9 @@ public class SeekableDataInput private constructor(
 
     override fun skipBytes(n: Int): Int = input.skipBytes(n)
 
-    public fun seek(pos: Long): Unit = file.seek(pos)
+    public open fun seek(pos: Long): Unit = file.seek(pos)
 
-    public fun tell(): Long = file.getFilePointer()
+    public open fun tell(): Long = file.getFilePointer()
 
     override fun readBoolean(): Boolean = input.readBoolean()
 
@@ -140,6 +139,25 @@ public class SeekableDataInput private constructor(
             return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
         }
     }
+}
+
+private class CompressedDataInput(file: RandomAccessFile,
+                                  order: ByteOrder,
+                                  size: Long) : SeekableDataInput(file, order) {
+    private val offset = file.getFilePointer()
+    private val inf = Inflater()
+
+    override val input: DataInput = DataInputStream(BoundedInflaterInputStream(
+            Channels.newInputStream(file.getChannel()), inf, size))
+
+    override fun seek(pos: Long): Unit = throw UnsupportedOperationException()
+
+    /**
+     * [java.util.zip.InflaterInputStream] buffers data from [file], thus
+     * we cannot rely on [tell] any more and have to compute the "fake"
+     * offset manually.
+     */
+    override fun tell(): Long = offset + inf.getBytesRead()
 }
 
 /**
@@ -240,8 +258,10 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
     }
 }
 
-private class BoundedInflaterInputStream(`in`: InputStream,
-                                         private val size: Long): InflaterInputStream(`in`) {
+private class BoundedInflaterInputStream(`in`: InputStream, inf: Inflater,
+                                         private val size: Long):
+        InflaterInputStream(`in`, inf) {
+
     private var closed: Boolean = false
 
     override fun fill() {
