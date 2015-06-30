@@ -171,7 +171,7 @@ private class BoundedInflaterInputStream(`in`: InputStream, inf: Inflater,
 
         val remaining = size - inf.getBytesRead();
         val len = `in`.read(buf, 0, Math.min(remaining.toInt(), buf.size()));
-        if (len == -1) {
+        if (remaining == 0L || len == -1) {
             throw EOFException("Unexpected end of ZLIB input stream");
         }
 
