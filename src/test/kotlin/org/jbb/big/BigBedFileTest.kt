@@ -12,8 +12,6 @@ public class BigBedFileTest {
 
     Test fun testWriteQueryUncompressed() = testWriteQuery(false)
 
-    Test fun testQueryCompressed() = testQuery(Examples.get("example1-compressed.bb"))
-
     private fun testWriteQuery(compressed: Boolean) {
         val path = Files.createTempFile("example1", ".bb")
         try {
@@ -26,6 +24,8 @@ public class BigBedFileTest {
             Files.deleteIfExists(path)
         }
     }
+
+    Test fun testQueryCompressed() = testQuery(Examples.get("example1-compressed.bb"))
 
     Test fun testQueryUncompressed() = testQuery(Examples.get("example1.bb"))
 
