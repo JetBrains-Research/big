@@ -5,7 +5,6 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.IOException
 import java.nio.ByteOrder
-import java.util.Optional
 import kotlin.platform.platformStatic
 
 /**
@@ -23,38 +22,29 @@ public class BPlusTree(val header: BPlusTree.Header) {
      * Recursively goes across tree, calling callback on the leaves.
      */
     throws(IOException::class)
-    public fun traverse(input: SeekableDataInput, consumer: (BPlusItem) -> Unit) {
-        traverseRecursively(input, header.rootOffset, consumer)
+    public fun traverse(input: SeekableDataInput): Sequence<BPlusLeaf> {
+        return traverseRecursively(input, header.rootOffset)
     }
 
     throws(IOException::class)
-    private fun traverseRecursively(input: SeekableDataInput, blockStart: Long,
-                                    consumer: (BPlusItem) -> Unit) {
+    private fun traverseRecursively(input: SeekableDataInput,
+                                    offset: Long): Sequence<BPlusLeaf> {
         assert(input.order == header.order)
-        input.seek(blockStart)
+        input.seek(offset)
 
         val isLeaf = input.readBoolean()
-        input.readBoolean()  // reserved
+        input.readByte()  // reserved.
         val childCount = input.readShort().toInt()
 
-        val keyBuf = ByteArray(header.keySize)
-        if (isLeaf) {
-            for (i in 0..childCount - 1) {
-                input.readFully(keyBuf)
-                val chromId = input.readInt()
-                val chromSize = input.readInt()
-                consumer(BPlusItem(String(keyBuf).trimZeros(), chromId, chromSize))
-            }
+        return if (isLeaf) {
+            (0 until childCount)
+                    .map { BPlusLeaf.read(input, header.keySize) }
+                    .asSequence()
         } else {
-            val fileOffsets = LongArray(childCount)
-            for (i in 0..childCount - 1) {
-                input.readFully(keyBuf)  // XXX why can we overwrite it?
-                fileOffsets[i] = input.readLong()
-            }
-
-            for (i in 0..childCount - 1) {
-                traverseRecursively(input, fileOffsets[i], consumer)
-            }
+            (0 until childCount)
+                    .map { BPlusNode.read(input, header.keySize) }
+                    .asSequence()
+                    .flatMap { traverseRecursively(input, it.childOffset) }
         }
     }
 
@@ -63,56 +53,49 @@ public class BPlusTree(val header: BPlusTree.Header) {
      * to `query`.
      */
     throws(IOException::class)
-    public fun find(input: SeekableDataInput, query: String): Optional<BPlusItem> {
+    public fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
         if (query.length() > header.keySize) {
-            return Optional.empty()
+            return null
         }
 
         // Trim query to 'keySize' because the spec. guarantees us
         // that all B+ tree nodes have a fixed-size key.
         val trimmedQuery = query.substring(0, Math.min(query.length(), header.keySize))
-        return Optional.ofNullable(
-                findRecursively(input, header.rootOffset, trimmedQuery))
+        return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
     throws(IOException::class)
     private fun findRecursively(input: SeekableDataInput, blockStart: Long,
-                                query: String): BPlusItem? {
+                                query: String): BPlusLeaf? {
         assert(input.order == header.order)
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
         input.readBoolean() // reserved
-        val childCount = input.readShort()
+        val childCount = input.readShort().toInt()
 
-        val keyBuf = ByteArray(header.keySize)
         if (isLeaf) {
-            for (i in 0..childCount - 1) {
-                input.readFully(keyBuf)
-                val chromId = input.readInt()
-                val chromSize = input.readInt()
-
-                val key = String(keyBuf).trimZeros()
-                if (query == key) {
-                    return BPlusItem(key, chromId, chromSize)
+            for (i in 0 until childCount) {
+                val leaf = BPlusLeaf.read(input, header.keySize)
+                if (leaf.key == query) {
+                    return leaf
                 }
             }
 
             return null
         } else {
-            input.readFully(keyBuf)
-            var fileOffset = input.readLong()
+            var node = BPlusNode.read(input, header.keySize)
             // vvv we loop from 1 because we've read the first child above.
-            for (i in 1..childCount - 1) {
-                input.readFully(keyBuf)
-                if (query < String(keyBuf).trimZeros()) {
+            for (i in 1 until childCount) {
+                val next = BPlusNode.read(input, header.keySize)
+                if (query < next.key) {
                     break
                 }
 
-                fileOffset = input.readLong()
+                node = next
             }
 
-            return findRecursively(input, fileOffset, query)
+            return findRecursively(input, node.childOffset, query)
         }
     }
 
@@ -157,8 +140,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     companion object {
         throws(IOException::class)
         public platformStatic fun read(s: SeekableDataInput, offset: Long): BPlusTree {
-            val header = Header.read(s, offset)
-            return BPlusTree(header)
+            return BPlusTree(Header.read(s, offset))
         }
 
         /**
@@ -186,7 +168,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
         }
 
         throws(IOException::class)
-        fun write(output: SeekableDataOutput, blockSize: Int, unsortedItems: List<BPlusItem>) {
+        fun write(output: SeekableDataOutput, blockSize: Int, unsortedItems: List<BPlusLeaf>) {
             require(unsortedItems.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
 
@@ -226,8 +208,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                         writeByte(0)  // reserved.
                         writeShort(childCount)
                         for (j in 0 until Math.min(itemsPerNode, itemCount - i) step itemsPerSlot) {
-                            writeBytes(items[i + j].key, keySize)
-                            writeLong(nextChild)
+                            BPlusNode(items[i + j].key, nextChild)
+                                    .write(output, keySize)
                             nextChild += bytesInNextLevelBlock
                         }
 
@@ -244,10 +226,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                     writeByte(0)  // reserved.
                     writeShort(leafCount)
                     for (j in 0 until leafCount) {
-                        val item = items[i + j]
-                        writeBytes(item.key, keySize)
-                        writeInt(item.id)
-                        writeInt(item.size)
+                        items[i + j].write(output, keySize)
                     }
 
                     writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
@@ -258,9 +237,9 @@ public class BPlusTree(val header: BPlusTree.Header) {
 }
 
 /**
- * An item in a B+ tree.
+ * A leaf in a B+ tree.
  */
-data class BPlusItem(
+data class BPlusLeaf(
         /** Chromosome name, e.g. "chr19" or "chrY". */
         public val key: String,
         /** Unique chromosome identifier.  */
@@ -272,7 +251,47 @@ data class BPlusItem(
         require(size >= 0, "size must be >=0")
     }
 
+    fun write(output: SeekableDataOutput, keySize: Int) = with (output) {
+        writeBytes(key, keySize)
+        writeInt(id)
+        writeInt(size)
+    }
+
     override fun toString(): String {
         return "$key => ($id; $size)"
+    }
+
+    companion object {
+        fun read(input: SeekableDataInput, keySize: Int) = with (input) {
+            val keyBuf = ByteArray(keySize)
+            readFully(keyBuf)
+            val chromId = readInt()
+            val chromSize = readInt()
+            BPlusLeaf(String(keyBuf).trimZeros(), chromId, chromSize)
+        }
+    }
+}
+
+/**
+ * An item in a B+ tree.
+ */
+private class BPlusNode(
+        /** Chromosome name, e.g. "chr19" or "chrY". */
+        public val key: String,
+        /** Offset to child node. */
+        public val childOffset: Long) {
+
+    fun write(output: SeekableDataOutput, keySize: Int) = with (output) {
+        writeBytes(key, keySize)
+        writeLong(childOffset)
+    }
+
+    companion object {
+        fun read(input: SeekableDataInput, keySize: Int) = with (input) {
+            val keyBuf = ByteArray(keySize)
+            readFully(keyBuf)
+            val childOffset = readLong()
+            BPlusNode(String(keyBuf).trimZeros(), childOffset)
+        }
     }
 }

@@ -22,9 +22,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     val header: Header = Header.read(handle, getHeaderMagic())
 
     public val chromosomes: List<String> by Delegates.lazy {
-        val b = ImmutableList.builder<String>()
-        header.bPlusTree.traverse(handle, { b.add(it.key) })
-        b.build()
+        header.bPlusTree.traverse(handle).map { it.key }.toList()
     }
 
     /**
@@ -42,13 +40,13 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     public jvmOverloads fun query(chromName: String, startOffset: Int, endOffset: Int,
                                   maxItems: Int = 0): List<T> {
         val res = header.bPlusTree.find(handle, chromName)
-        return if (res.isPresent()) {
-            val (_key, chromIx, size) = res.get()
-            val query = Interval.of(chromIx, startOffset,
-                                         if (endOffset == 0) size else endOffset)
-            queryInternal(query, maxItems)
-        } else {
+        return if (res == null) {
             listOf()
+        } else {
+            val (_key, chromIx, size) = res
+            val query = Interval.of(chromIx, startOffset,
+                                    if (endOffset == 0) size else endOffset)
+            queryInternal(query, maxItems)
         }
     }
 

@@ -8,9 +8,7 @@ import java.util.Random
 import java.util.function.Consumer
 import java.util.stream.Collectors
 import java.util.stream.IntStream
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 public class BPlusTreeTest {
     Test fun testReadHeader() {
@@ -26,13 +24,13 @@ public class BPlusTreeTest {
     
     Test fun testFind() {
         BigBedFile.read(Examples.get("example1.bb")).use { bf ->
-            var bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr1")
-            assertFalse(bptNodeLeaf.isPresent())
+            var leaf = bf.header.bPlusTree.find(bf.handle, "chr1")
+            assertNull(leaf)
 
-            bptNodeLeaf = bf.header.bPlusTree.find(bf.handle, "chr21")
-            assertTrue(bptNodeLeaf.isPresent())
-            assertEquals(0, bptNodeLeaf.get().id)
-            assertEquals(48129895, bptNodeLeaf.get().size)
+            leaf = bf.header.bPlusTree.find(bf.handle, "chr21")
+            assertNotNull(leaf)
+            assertEquals(0, leaf!!.id)
+            assertEquals(48129895, leaf.size)
         }
     }
 
@@ -58,10 +56,10 @@ public class BPlusTreeTest {
         SeekableDataInput.of(Examples.get(example)).use { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
-                assertTrue(bpt.find(input, key).isPresent())
+                assertNotNull(bpt.find(input, key))
             }
 
-            assertFalse(bpt.find(input, "chrV").isPresent())
+            assertNull(bpt.find(input, "chrV"))
         }
     }
 
@@ -81,9 +79,9 @@ public class BPlusTreeTest {
         testWriteRead(8, getSequentialItems(IntMath.pow(8, 3)))
     }
 
-    private fun getSequentialItems(itemCount: Int): List<BPlusItem> {
+    private fun getSequentialItems(itemCount: Int): List<BPlusLeaf> {
         return IntStream.rangeClosed(1, itemCount)
-                .mapToObj { i -> BPlusItem("chr" + i, i - 1, i * 100) }
+                .mapToObj { i -> BPlusLeaf("chr" + i, i - 1, i * 100) }
                 .collect(Collectors.toList())
     }
 
@@ -94,11 +92,11 @@ public class BPlusTreeTest {
         }
     }
 
-    private fun getRandomItems(itemCount: Int): List<BPlusItem> {
+    private fun getRandomItems(itemCount: Int): List<BPlusLeaf> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
         return IntStream.range(0, names.size()).mapToObj { i ->
             val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
-            BPlusItem("chr" + names[i], i, size)
+            BPlusLeaf("chr" + names[i], i, size)
         }.collect(Collectors.toList())
     }
 
@@ -107,15 +105,15 @@ public class BPlusTreeTest {
         testWriteRead(4, getExampleItems("f2.chrom.sizes"))
     }
 
-    private fun getExampleItems(example: String): List<BPlusItem> {
+    private fun getExampleItems(example: String): List<BPlusLeaf> {
         val lines = Files.readAllLines(Examples.get(example))
         return IntStream.range(0, lines.size()).mapToObj { i ->
             val chunks = lines[i].split('\t', limit = 2)
-            BPlusItem(chunks[0], i, chunks[1].toInt())
+            BPlusLeaf(chunks[0], i, chunks[1].toInt())
         }.collect(Collectors.toList())
     }
 
-    private fun testWriteRead(blockSize: Int, items: List<BPlusItem>) {
+    private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
         val path = Files.createTempFile("bpt", ".bb")
         try {
             SeekableDataOutput.of(path).use { output ->
@@ -126,13 +124,11 @@ public class BPlusTreeTest {
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)
-                    assertTrue(res.isPresent())
-                    assertEquals(item, res.get())
+                    assertNotNull(res)
+                    assertEquals(item, res)
                 }
 
-                val actual = Sets.newHashSet<BPlusItem>()
-                bpt.traverse(input, { actual.add(it) })
-                assertEquals(items.toSet(), actual)
+                assertEquals(items.toSet(), bpt.traverse(input).toSet())
             }
         } finally {
             Files.delete(path)

@@ -273,15 +273,14 @@ data class RTreeIndexLeaf(public val interval: ChromosomeInterval,
     }
 
     companion object {
-        fun read(input: SeekableDataInput): RTreeIndexLeaf = with (input) {
+        fun read(input: SeekableDataInput) = with (input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()
             val endOffset = readInt()
             assert(startChromIx == endChromIx)
             val interval = Interval.of(startChromIx, startOffset, endOffset)
-            return RTreeIndexLeaf(interval, dataOffset = readLong(),
-                                  dataSize = readLong())
+            RTreeIndexLeaf(interval, dataOffset = readLong(), dataSize = readLong())
         }
     }
 }
@@ -300,13 +299,13 @@ data class RTreeIndexNode(public val interval: Interval,
     }
 
     companion object {
-        fun read(input: SeekableDataInput): RTreeIndexNode = with (input) {
+        fun read(input: SeekableDataInput) = with (input) {
             val startChromIx = readInt()
             val startBase = readInt()
             val endChromIx = readInt()
             val endBase = readInt()
             val interval = Interval.of(startChromIx, startBase, endChromIx, endBase)
-            return RTreeIndexNode(interval, dataOffset = readLong())
+            RTreeIndexNode(interval, dataOffset = readLong())
         }
     }
 }
