@@ -90,12 +90,10 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
                 val reserved = readLong()  // currently 0.
 
                 if (uncompressBufSize > 0) {
-                    // TODO: Try to use BigFile.supportsCompression() or implement for BigBed
                     // TODO: Check version is >= 3 - see corresponding table in "Supplementary Data".
-                    //        throw new IllegalStateException("data compression is not supported");
                 }
 
-                check(reserved == 0L, "header extensions are not supported")
+                // check(reserved == 0L, "header extensions are not supported")
 
                 val zoomLevels = (0 until zoomLevelCount).asSequence()
                         .map { ZoomLevel.read(input) }.toList()

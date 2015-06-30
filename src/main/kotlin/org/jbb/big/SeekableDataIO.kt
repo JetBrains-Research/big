@@ -18,11 +18,11 @@ import java.util.zip.InflaterInputStream
  * @author Sergei Lebedev
  * @since 29/06/15
  */
-public open class SeekableDataInput(private val file: RandomAccessFile,
-                                    public var order: ByteOrder) :
-        DataInput, Closeable, AutoCloseable {
-
-    protected open val input: DataInput get() = file
+public class SeekableDataInput private constructor(
+        private val file: RandomAccessFile,
+        public var order: ByteOrder,
+        /** Must correspond to an [java.io.InputStream] over `file`. */
+        private val input: DataInput = file) : DataInput, Closeable, AutoCloseable {
 
     /** Guess byte order from a given big-endian `magic`. */
     public fun guess(magic: Int) {
@@ -38,11 +38,19 @@ public open class SeekableDataInput(private val file: RandomAccessFile,
         }
     }
 
-    public fun compressed<T>(size: Long, block: (SeekableDataInput) -> T): T {
-        val pos = tell()
-        val res = block(CompressedDataInput(file, order, size))
-        check(tell() - pos == size)
-        return res
+    /** Returns a compressed **view** of the input. */
+    public fun compressed(size: Long): SeekableDataInput {
+        val compressed = DataInputStream(BoundedInflaterInputStream(
+                Channels.newInputStream(file.getChannel()), size))
+        return SeekableDataInput(file, order, compressed)
+    }
+
+    /** Executes a `block` on a fixed-size possibly compressed input. */
+    public inline fun with(size: Long, compressed: Boolean,
+                           block: SeekableDataInput.() -> Unit) {
+        val offset = tell()
+        with(if (compressed) compressed(size) else this, block)
+        check(tell() - offset == size)
     }
 
     override fun readFully(b: ByteArray?) = input.readFully(b)
@@ -230,13 +238,6 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
             return SeekableDataOutput(RandomAccessFile(path.toFile(), "rw"), order)
         }
     }
-}
-
-private class CompressedDataInput(file: RandomAccessFile, order: ByteOrder,
-                                  private val size: Long) : SeekableDataInput(file, order) {
-    override val input: DataInputStream = DataInputStream(
-            BoundedInflaterInputStream(Channels.newInputStream(file.getChannel()),
-                                       size))
 }
 
 private class BoundedInflaterInputStream(`in`: InputStream,

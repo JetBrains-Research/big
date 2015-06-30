@@ -21,36 +21,37 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         val res = Lists.newArrayList<BedData>()
         header.rTree.findOverlappingBlocks(handle, query) { block ->
             handle.seek(block.dataOffset)
+            handle.with(block.dataSize, isCompressed()) {
+                do {
+                    assert(readInt() == query.chromIx, "interval contains wrong chromosome")
+                    if (maxItems > 0 && res.size() == maxItems) {
+                        // XXX think of a way of terminating the traversal?
+                        return@findOverlappingBlocks
+                    }
 
-            do {
-                assert(handle.readInt() == query.chromIx, "interval contains wrong chromosome")
-                if (maxItems > 0 && res.size() == maxItems) {
-                    // XXX think of a way of terminating the traversal?
-                    return@findOverlappingBlocks
-                }
+                    val startOffset = readInt()
+                    val endOffset = readInt()
+                    val sb = StringBuilder()
+                    while (true) {
+                        var ch = readByte().toInt()
+                        if (ch == 0) {
+                            break
+                        }
 
-                val startOffset = handle.readInt()
-                val endOffset = handle.readInt()
-                val sb = StringBuilder()
-                while (true) {
-                    var ch = handle.readByte().toInt()
-                    if (ch == 0) {
+                        sb.append(ch)
+                    }
+
+                    // This was somewhat tricky to get right, please make sure
+                    // you understand the code before modifying it.
+                    if (startOffset < query.startOffset || endOffset > query.endOffset) {
+                        continue
+                    } else if (startOffset > query.endOffset) {
                         break
                     }
 
-                    sb.append(ch)
-                }
-
-                // This was somewhat tricky to get right, please make sure
-                // you understand the code before modifying it.
-                if (startOffset < query.startOffset || endOffset > query.endOffset) {
-                    continue
-                } else if (startOffset > query.endOffset) {
-                    break
-                }
-
-                res.add(BedData(chrom, startOffset, endOffset, sb.toString()))
-            } while (handle.tell() - block.dataOffset < block.dataSize)
+                    res.add(BedData(chrom, startOffset, endOffset, sb.toString()))
+                } while (tell() - block.dataOffset < block.dataSize)
+            }
         }
 
         return res

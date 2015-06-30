@@ -21,34 +21,25 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
 
             // TODO: Do we need to merge WigData instances with subsequent headers?
             // TODO: Investigate bigWigToWig output and source code.
-            val data = if (isCompressed()) {
-                handle.compressed(block.dataSize) { readWigData(it) }
-            } else {
-                readWigData(handle)
+            handle.with(block.dataSize, isCompressed()) {
+                val header = WigSectionHeader.read(this)
+                val data = when (header.type) {
+                    WigSectionHeader.FIXED_STEP_TYPE ->
+                        FixedStepWigData.read(header, this)
+                    WigSectionHeader.VARIABLE_STEP_TYPE ->
+                        VariableStepWigData.read(header, this)
+                    WigSectionHeader.BED_GRAPH_TYPE ->
+                        throw IllegalStateException(
+                                "bedGraph sections are not supported in bigWig files")
+                    else ->
+                        throw IllegalStateException("unknown section type " + header.type)
+                }
+
+                res.add(data)
             }
-
-            res.add(data);
-
-            check(handle.tell() - block.dataOffset == block.dataSize,
-                  "WIG section read incorrectly")
         }
 
         return res
-    }
-
-    throws(IOException::class)
-    private fun readWigData(input: SeekableDataInput): WigData {
-        val header = WigSectionHeader.read(input)
-        return when (header.type) {
-            WigSectionHeader.FIXED_STEP_TYPE ->
-                FixedStepWigData.read(header, input)
-            WigSectionHeader.VARIABLE_STEP_TYPE ->
-                VariableStepWigData.read(header, input)
-            WigSectionHeader.BED_GRAPH_TYPE ->
-                throw IllegalStateException("bedGraph sections are not supported in bigWig files")
-            else ->
-                throw IllegalStateException("unknown section type " + header.type)
-        }
     }
 
     companion object {
