@@ -68,6 +68,7 @@ interface Interval {
 
     companion object {
         fun of(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
+            require(startOffset < endOffset, "start must be <end")
             return ChromosomeInterval(chromIx, startOffset, endOffset)
         }
 

@@ -89,7 +89,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                             val dataOffset = tell()
                             val slotSize = Math.min(items.size() - i, itemsPerSlot)
                             val start = items[i].start
-                            var end = items[slotSize - 1].end
+                            var end = 0
 
                             for (j in 0 until slotSize) {
                                 val item = items[i + j]
@@ -98,9 +98,11 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                 writeInt(item.end)
                                 writeBytes(item.rest)
                                 writeByte(0)  // null-terminated.
+
+                                end = Math.max(end, item.end)
                             }
 
-                            leaves.add(RTreeIndexLeaf(ChromosomeInterval(chromId, start, end),
+                            leaves.add(RTreeIndexLeaf(Interval.of(chromId, start, end),
                                                       dataOffset, tell() - dataOffset))
                         }
 
