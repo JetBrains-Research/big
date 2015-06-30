@@ -45,9 +45,9 @@ public open class SeekableDataInput protected constructor(
     }
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
-    public inline fun with(size: Long, compressed: Boolean,
+    public inline fun with(offset: Long, size: Long, compressed: Boolean,
                            block: SeekableDataInput.() -> Unit) {
-        val offset = tell()
+        seek(offset)
         with(if (compressed) compressed(size) else this, block)
         check(tell() - offset == size)
     }

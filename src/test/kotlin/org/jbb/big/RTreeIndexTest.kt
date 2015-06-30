@@ -74,8 +74,7 @@ public class RTreeIndexTest {
     private fun checkQuery(rti: RTreeIndex, reader: SeekableDataInput,
                            query: ChromosomeInterval,
                            expected: List<RTreeIndexLeaf>) {
-        val actual = ArrayList<RTreeIndexLeaf>()
-        rti.findOverlappingBlocks(reader, query) { actual.add(it) }
+        val actual = rti.findOverlappingBlocks(reader, query).toList()
 
         assertEquals(expected.size(), actual.size())
         for (i in expected.indices) {
@@ -106,12 +105,12 @@ public class RTreeIndexTest {
         exampleFile.use { bbf ->
             val rti = bbf.header.rTree
             val items = exampleItems
-            for (i in 0..99) {
+            for (i in 0 until 100) {
                 val left = RANDOM.nextInt(items.size() - 1)
                 val right = left + RANDOM.nextInt(items.size() - left)
                 val query = Interval.of(0, items[left].start, items[right].end)
 
-                rti.findOverlappingBlocks(bbf.handle, query) { block ->
+                for (block in rti.findOverlappingBlocks(bbf.handle, query)) {
                     assertTrue(block.interval.overlaps(query))
                 }
             }

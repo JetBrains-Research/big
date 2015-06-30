@@ -41,16 +41,14 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      */
     throws(IOException::class)
     fun findOverlappingBlocks(input: SeekableDataInput,
-                              query: ChromosomeInterval,
-                              consumer: (RTreeIndexLeaf) -> Unit) {
-        findOverlappingBlocksRecursively(input, query, header.rootOffset, consumer)
+                              query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
+        return findOverlappingBlocksRecursively(input, query, header.rootOffset)
     }
 
     throws(IOException::class)
-    private fun findOverlappingBlocksRecursively(input: SeekableDataInput,
-                                                 query: ChromosomeInterval,
-                                                 offset: Long,
-                                                 consumer: (RTreeIndexLeaf) -> Unit) {
+    fun findOverlappingBlocksRecursively(input: SeekableDataInput,
+                                         query: ChromosomeInterval,
+                                         offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
         input.seek(offset)
 
@@ -58,29 +56,22 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         input.readByte()  // reserved.
         val childCount = input.readShort().toInt()
 
-        if (isLeaf) {
-            for (i in 0 until childCount) {
-                val leaf = RTreeIndexLeaf.read(input)
-                if (leaf.interval overlaps query) {
-                    val backup = input.tell()
-                    consumer(leaf)
-                    input.seek(backup)
-                }
-            }
+        // XXX we have to eagerly read the blocks because 'input' is
+        // shared between calls.
+        return if (isLeaf) {
+            (0 until childCount)
+                    .map { RTreeIndexLeaf.read(input) }
+                    .filter { it.interval overlaps query }
+                    .asSequence()
         } else {
-            val children = ArrayList<RTreeIndexNode>(childCount.toInt())
-            for (i in 0 until childCount) {
-                // XXX only add overlapping children, because there's no point
-                // in storing all of them.
-                val node = RTreeIndexNode.read(input)
-                if (node.interval overlaps query) {
-                    children.add(node)
-                }
-            }
-
-            for (node in children) {
-                findOverlappingBlocksRecursively(input, query, node.dataOffset, consumer)
-            }
+            (0 until childCount)
+                    .map { RTreeIndexNode.read(input) }
+                    .filter { it.interval overlaps query }
+                    .asSequence()
+                    .flatMap { node ->
+                        findOverlappingBlocksRecursively(input, query,
+                                                         node.dataOffset)
+                    }
         }
     }
 

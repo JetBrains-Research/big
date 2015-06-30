@@ -16,12 +16,9 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     throws(IOException::class)
     override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<WigData> {
         val res = Lists.newArrayList<WigData>()
-        header.rTree.findOverlappingBlocks(handle, query) { block ->
-            handle.seek(block.dataOffset);
-
+        for (block in header.rTree.findOverlappingBlocks(handle, query)) {
             // TODO: Do we need to merge WigData instances with subsequent headers?
-            // TODO: Investigate bigWigToWig output and source code.
-            handle.with(block.dataSize, isCompressed()) {
+            handle.with(block.dataOffset, block.dataSize, isCompressed()) {
                 val header = WigSectionHeader.read(this)
                 val data = when (header.type) {
                     WigSectionHeader.FIXED_STEP_TYPE ->

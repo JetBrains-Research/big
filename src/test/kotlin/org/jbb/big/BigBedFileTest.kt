@@ -27,7 +27,7 @@ public class BigBedFileTest {
 
     private fun testQuerySmall(bbf: BigBedFile, items: List<BedData>) {
         bbf.use { bbf ->
-            for (i in 0..99) {
+            for (i in 0 until 100) {
                 testQuery(bbf, items, items[RANDOM.nextInt(items.size())])
             }
         }
@@ -35,7 +35,7 @@ public class BigBedFileTest {
 
     private fun testQueryLarge(bbf: BigBedFile, items: List<BedData>) {
         bbf.use { bbf ->
-            for (i in 0..9) {
+            for (i in 0 until 10) {
                 val a = items[RANDOM.nextInt(items.size())]
                 val b = items[RANDOM.nextInt(items.size())]
                 testQuery(bbf, items, BedData(a.name, Math.min(a.start, b.start),

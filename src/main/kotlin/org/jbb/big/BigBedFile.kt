@@ -1,10 +1,9 @@
 package org.jbb.big
 
-import com.google.common.collect.Lists
-import com.google.common.primitives.Ints
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.*
 import kotlin.platform.platformStatic
 
 /**
@@ -18,15 +17,14 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
     throws(IOException::class)
     override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<BedData> {
         val chrom = chromosomes[query.chromIx]
-        val res = Lists.newArrayList<BedData>()
-        header.rTree.findOverlappingBlocks(handle, query) { block ->
-            handle.seek(block.dataOffset)
-            handle.with(block.dataSize, isCompressed()) {
+        val res = ArrayList<BedData>()
+        for (block in header.rTree.findOverlappingBlocks(handle, query)) {
+            handle.with(block.dataOffset, block.dataSize, isCompressed()) {
                 do {
                     assert(readInt() == query.chromIx, "interval contains wrong chromosome")
                     if (maxItems > 0 && res.size() == maxItems) {
                         // XXX think of a way of terminating the traversal?
-                        return@findOverlappingBlocks
+                        return res
                     }
 
                     val startOffset = readInt()
