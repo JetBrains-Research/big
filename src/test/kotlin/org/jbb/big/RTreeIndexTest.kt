@@ -86,7 +86,7 @@ public class RTreeIndexTest {
 
     Test fun testReadHeader() {
         exampleFile.use { bbf ->
-            val rti = bbf.header.rTree
+            val rti = bbf.rTree
             assertEquals(1024, rti.header.blockSize)
             assertEquals(192771L, rti.header.endDataOffset)
             assertEquals(64, rti.header.itemsPerSlot)
@@ -103,14 +103,14 @@ public class RTreeIndexTest {
 
     Test fun testFindOverlappingBlocks() {
         exampleFile.use { bbf ->
-            val rti = bbf.header.rTree
+            val rti = bbf.rTree
             val items = exampleItems
             for (i in 0 until 100) {
                 val left = RANDOM.nextInt(items.size() - 1)
                 val right = left + RANDOM.nextInt(items.size() - left)
                 val query = Interval.of(0, items[left].start, items[right].end)
 
-                for (block in rti.findOverlappingBlocks(bbf.handle, query)) {
+                for (block in rti.findOverlappingBlocks(bbf.input, query)) {
                     assertTrue(block.interval.overlaps(query))
                 }
             }

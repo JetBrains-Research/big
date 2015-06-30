@@ -9,33 +9,28 @@ import kotlin.platform.platformStatic
  * Bigger brother of good old WIG format.
  */
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
-        BigFile<WigData>(path) {
-
-    override fun getHeaderMagic(): Int = MAGIC
+        BigFile<WigData>(path, magic = 0x888FFC26.toInt()) {
 
     throws(IOException::class)
-    override fun queryInternal(query: ChromosomeInterval): Sequence<WigData> {
-        return header.rTree.findOverlappingBlocks(handle, query).map { block ->
-            handle.with(block.dataOffset, block.dataSize, isCompressed()) {
-                val header = WigSectionHeader.read(this)
-                when (header.type) {
-                    WigSectionHeader.FIXED_STEP_TYPE ->
-                        FixedStepWigData.read(header, this)
-                    WigSectionHeader.VARIABLE_STEP_TYPE ->
-                        VariableStepWigData.read(header, this)
-                    WigSectionHeader.BED_GRAPH_TYPE ->
-                        throw IllegalStateException(
-                                "bedGraph sections are not supported in bigWig files")
-                    else ->
-                        throw IllegalStateException("unknown section type " + header.type)
-                }
+    override fun queryInternal(dataOffset: Long, dataSize: Long,
+                               query: ChromosomeInterval): Sequence<WigData> {
+        return listOf(input.with(dataOffset, dataSize, compressed) {
+            val header = WigSectionHeader.read(this)
+            when (header.type) {
+                WigSectionHeader.FIXED_STEP_TYPE ->
+                    FixedStepWigData.read(header, this)
+                WigSectionHeader.VARIABLE_STEP_TYPE ->
+                    VariableStepWigData.read(header, this)
+                WigSectionHeader.BED_GRAPH_TYPE ->
+                    throw IllegalStateException(
+                            "bedGraph sections are not supported in bigWig files")
+                else ->
+                    throw IllegalStateException("unknown section type " + header.type)
             }
-        }
+        }).asSequence()
     }
 
     companion object {
-        public val MAGIC: Int = 0x888FFC26.toInt()
-
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
     }

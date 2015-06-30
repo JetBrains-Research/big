@@ -13,16 +13,60 @@ import kotlin.properties.Delegates
 /**
  * A common superclass for Big files.
  */
-abstract class BigFile<T> throws(IOException::class) protected constructor(path: Path) :
+abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         Closeable, AutoCloseable {
 
-    // XXX maybe we should make it a DataIO instead of separate
-    // Input/Output classes?
-    val handle: SeekableDataInput = SeekableDataInput.of(path)
-    val header: Header = Header.read(handle, getHeaderMagic())
+    val input: SeekableDataInput = SeekableDataInput.of(path)
+    val header: Header = Header.read(input, magic)
+    val zoomLevels: List<ZoomLevel> = (0 until header.zoomLevelCount).asSequence()
+            .map { ZoomLevel.read(input) }.toList()
+    val bPlusTree: BPlusTree
+    val rTree: RTreeIndex
+
+    init {
+        // Skip AutoSQL string if any.
+        while (header.asOffset > 0 && input.readByte() != 0.toByte()) {}
+
+        // Skip total summary block.
+        if (header.totalSummaryOffset > 0) {
+            Summary.read(input)
+        }
+
+        // Skip extended header. Ideally, we should issue a warning
+        // if extensions are present.
+        if (header.extendedHeaderOffset > 0) {
+            with(input) {
+                skipBytes(Shorts.BYTES)  // extensionSize.
+                val extraIndexCount = readShort().toInt()
+                skipBytes(Longs.BYTES)   // extraIndexListOffset.
+                skipBytes(48)            // reserved.
+
+                for (i in 0 until extraIndexCount) {
+                    val type = readShort()
+                    assert(type == 0.toShort())
+                    val extraFieldCount = readShort()
+                    skipBytes(Longs.BYTES)      // indexOffset.
+                    skipBytes(extraFieldCount *
+                              (Shorts.BYTES + // fieldId,
+                               Shorts.BYTES))   // reserved.
+                }
+            }
+        }
+
+        bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+        check(bPlusTree.header.order == header.order)
+        rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+        check(rTree.header.order == header.order)
+    }
 
     public val chromosomes: List<String> by Delegates.lazy {
-        header.bPlusTree.traverse(handle).map { it.key }.toList()
+        bPlusTree.traverse(input).map { it.key }.toList()
+    }
+
+    public val compressed: Boolean get() {
+        // Compression was introduced in version 3 of the format. See
+        // bbiFile.h in UCSC sources.
+        return header.version >= 3 && header.uncompressBufSize > 0
     }
 
     /**
@@ -37,42 +81,31 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
      */
     throws(IOException::class)
     public fun query(name: String, startOffset: Int, endOffset: Int): Sequence<T> {
-        val res = header.bPlusTree.find(handle, name)
+        val res = bPlusTree.find(input, name)
         return if (res == null) {
             emptySequence()
         } else {
             val (_key, chromIx, size) = res
-            queryInternal(Interval.of(
-                    chromIx, startOffset, if (endOffset == 0) size else endOffset))
+            val query = Interval.of(chromIx, startOffset,
+                                    if (endOffset == 0) size else endOffset)
+            rTree.findOverlappingBlocks(input, query)
+                    .flatMap { queryInternal(it.dataOffset, it.dataSize, query) }
         }
     }
 
-    // TODO: these can be fields.
-    public abstract fun getHeaderMagic(): Int
-
-    public fun isCompressed(): Boolean {
-        // Compression was introduced in version 3 of the format. See
-        // bbiFile.h in UCSC sources.
-        return header.version >= 3 && header.uncompressBufSize > 0
-    }
+    throws(IOException::class)
+    protected abstract fun queryInternal(dataOffset: Long, dataSize: Long,
+                                         query: ChromosomeInterval): Sequence<T>
 
     throws(IOException::class)
-    protected abstract fun queryInternal(query: ChromosomeInterval): Sequence<T>
+    override fun close() = input.close()
 
-    throws(IOException::class)
-    override fun close() = handle.close()
-
-    class Header protected constructor(public val order: ByteOrder,
-                                       public val version: Short,
-                                       public val unzoomedDataOffset: Long,
-                                       public val fieldCount: Short,
-                                       public val definedFieldCount: Short,
-                                       public val asOffset: Long,
-                                       public val totalSummaryOffset: Long,
-                                       public val uncompressBufSize: Int,
-                                       public val zoomLevels: List<ZoomLevel>,
-                                       public val bPlusTree: BPlusTree,
-                                       public val rTree: RTreeIndex) {
+    class Header(val order: ByteOrder, val version: Short, val zoomLevelCount: Int,
+                 val chromTreeOffset: Long, val unzoomedDataOffset: Long,
+                 val unzoomedIndexOffset: Long, val fieldCount: Short,
+                 val definedFieldCount: Short, val asOffset: Long,
+                 val totalSummaryOffset: Long, val uncompressBufSize: Int,
+                 val extendedHeaderOffset: Long) {
         companion object {
             throws(IOException::class)
             fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
@@ -89,45 +122,11 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
                 val totalSummaryOffset = readLong()
                 val uncompressBufSize = readInt()
                 val extendedHeaderOffset = readLong()
-
-                val zoomLevels = (0 until zoomLevelCount).asSequence()
-                        .map { ZoomLevel.read(input) }.toList()
-
-                // Skip AutoSQL string if any.
-                while (asOffset > 0 && readByte() != 0.toByte()) {}
-
-                // Skip total summary block.
-                if (totalSummaryOffset > 0) {
-                    Summary.read(input)
-                }
-
-                // Skip extended header. Ideally, we should issue a warning
-                // if extensions are present.
-                if (extendedHeaderOffset > 0) {
-                    skipBytes(Shorts.BYTES)  // extensionSize.
-                    val extraIndexCount = readShort().toInt()
-                    skipBytes(Longs.BYTES)   // extraIndexListOffset/
-                    skipBytes(48)  // reserved.
-
-                    for (i in 0 until extraIndexCount) {
-                        val type = readShort()
-                        assert(type == 0.toShort())
-                        val extraFieldCount = readShort()
-                        skipBytes(Longs.BYTES)      // indexOffset.
-                        skipBytes(extraFieldCount *
-                                  (Shorts.BYTES +   // fieldId,
-                                   Shorts.BYTES))   // reserved.
-                    }
-                }
-
-                val bpt = BPlusTree.read(input, chromTreeOffset)
-                check(bpt.header.order == order)
-                val rti = RTreeIndex.read(input, unzoomedIndexOffset)
-                check(rti.header.order == order)
-                return Header(order, version, unzoomedDataOffset,
+                return Header(order, version, zoomLevelCount, chromTreeOffset,
+                              unzoomedDataOffset, unzoomedIndexOffset,
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,
-                              zoomLevels, bpt, rti)
+                              extendedHeaderOffset)
             }
         }
     }

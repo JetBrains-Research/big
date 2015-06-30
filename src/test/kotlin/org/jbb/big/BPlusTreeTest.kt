@@ -13,7 +13,7 @@ import kotlin.test.*
 public class BPlusTreeTest {
     Test fun testReadHeader() {
         BigBedFile.read(Examples.get("example1.bb")).use { bf ->
-            val bpt = bf.header.bPlusTree
+            val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
             assertEquals(8, bpt.header.valSize)
@@ -24,10 +24,10 @@ public class BPlusTreeTest {
     
     Test fun testFind() {
         BigBedFile.read(Examples.get("example1.bb")).use { bf ->
-            var leaf = bf.header.bPlusTree.find(bf.handle, "chr1")
+            var leaf = bf.bPlusTree.find(bf.input, "chr1")
             assertNull(leaf)
 
-            leaf = bf.header.bPlusTree.find(bf.handle, "chr21")
+            leaf = bf.bPlusTree.find(bf.input, "chr21")
             assertNotNull(leaf)
             assertEquals(0, leaf!!.id)
             assertEquals(48129895, leaf.size)

@@ -10,50 +10,44 @@ import kotlin.platform.platformStatic
  * Just like BED only BIGGER.
  */
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
-        BigFile<BedData>(path) {
-
-    override fun getHeaderMagic(): Int = MAGIC
+        BigFile<BedData>(path, magic = 0x8789F2EB.toInt()) {
 
     throws(IOException::class)
-    override fun queryInternal(query: ChromosomeInterval): Sequence<BedData> {
+    override fun queryInternal(dataOffset: Long, dataSize: Long,
+                               query: ChromosomeInterval): Sequence<BedData> {
         val chrom = chromosomes[query.chromIx]
-        return header.rTree.findOverlappingBlocks(handle, query).flatMap { block ->
-            val (_interval, dataOffset, dataSize) = block
-            handle.with(dataOffset, dataSize, isCompressed()) {
-                val chunk = ArrayList<BedData>()
-                do {
-                    assert(readInt() == query.chromIx, "interval contains wrong chromosome")
-                    val startOffset = readInt()
-                    val endOffset = readInt()
-                    val sb = StringBuilder()
-                    while (true) {
-                        var ch = readByte().toInt()
-                        if (ch == 0) {
-                            break
-                        }
-
-                        sb.append(ch)
-                    }
-
-                    // This was somewhat tricky to get right, please make sure
-                    // you understand the code before modifying it.
-                    if (startOffset < query.startOffset || endOffset > query.endOffset) {
-                        continue
-                    } else if (startOffset > query.endOffset) {
+        return input.with(dataOffset, dataSize, compressed) {
+            val chunk = ArrayList<BedData>()
+            do {
+                assert(readInt() == query.chromIx, "interval contains wrong chromosome")
+                val startOffset = readInt()
+                val endOffset = readInt()
+                val sb = StringBuilder()
+                while (true) {
+                    var ch = readByte().toInt()
+                    if (ch == 0) {
                         break
                     }
 
-                    chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
-                } while (tell() - dataOffset < dataSize)
+                    sb.append(ch)
+                }
 
-                chunk.asSequence()
-            }
+                // This was somewhat tricky to get right, please make sure
+                // you understand the code before modifying it.
+                if (startOffset < query.startOffset || endOffset > query.endOffset) {
+                    continue
+                } else if (startOffset > query.endOffset) {
+                    break
+                }
+
+                chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
+            } while (tell() - dataOffset < dataSize)
+
+            chunk.asSequence()
         }
     }
 
     companion object {
-        public val MAGIC: Int = 0x8789F2EB.toInt()
-
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
     }
