@@ -14,9 +14,6 @@ import java.util.zip.InflaterInputStream
 
 /**
  * A byte order-aware seekable complement to [java.io.DataInputStream].
- *
- * @author Sergei Lebedev
- * @since 29/06/15
  */
 public open class SeekableDataInput protected constructor(
         private val file: RandomAccessFile,
@@ -161,19 +158,50 @@ private class CompressedDataInput(file: RandomAccessFile,
     override fun tell(): Long = offset + inf.getBytesRead()
 }
 
+private class BoundedInflaterInputStream(`in`: InputStream, inf: Inflater,
+                                         private val size: Long):
+        InflaterInputStream(`in`, inf) {
+
+    private var closed: Boolean = false
+
+    override fun fill() {
+        if (closed) {
+            throw IOException("Stream closed")
+        }
+
+        val remaining = size - inf.getBytesRead();
+        val len = `in`.read(buf, 0, Math.min(remaining.toInt(), buf.size()));
+        if (len == -1) {
+            throw EOFException("Unexpected end of ZLIB input stream");
+        }
+
+        inf.setInput(buf, 0, len);
+    }
+
+    override fun close(): Unit {
+        closed = true
+
+        check(inf.getBytesRead() == size)
+    }
+}
+
 /**
  * A byte order-aware seekable complement to [java.io.DataOutputStream].
- *
- * @author Sergei Lebedev
- * @since 29/06/15
  */
 public open class SeekableDataOutput(private val file: RandomAccessFile,
                                      public var order: ByteOrder) :
         DataOutput, Closeable, AutoCloseable {
     protected open val output: DataOutput get() = file
 
-    public fun compressed(size: Long): CompressedDataOutput {
-        return CompressedDataOutput(file, order, size)
+    /** Returns a compressed **view** output */
+    public fun compressed(): SeekableDataOutput = CompressedDataOutput(file, order)
+
+    /** Executes a `block` on a possibly compressed output. */
+    public inline fun with(compressed: Boolean,
+                           block: SeekableDataOutput.() -> Unit): Int {
+        val offset = tell()
+        with(if (compressed) compressed() else this, block)
+        return (tell() - offset).toInt()
     }
 
     public fun seek(pos: Long): Unit = file.seek(pos)
@@ -259,40 +287,16 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
     }
 }
 
-private class BoundedInflaterInputStream(`in`: InputStream, inf: Inflater,
-                                         private val size: Long):
-        InflaterInputStream(`in`, inf) {
+class CompressedDataOutput(file: RandomAccessFile, order: ByteOrder) :
+        SeekableDataOutput(file, order) {
 
-    private var closed: Boolean = false
-
-    override fun fill() {
-        if (closed) {
-            throw IOException("Stream closed")
-        }
-
-        val remaining = size - inf.getBytesRead();
-        val len = `in`.read(buf, 0, Math.min(remaining.toInt(), buf.size()));
-        if (len == -1) {
-            throw EOFException("Unexpected end of ZLIB input stream");
-        }
-
-        inf.setInput(buf, 0, len);
-    }
-
-    override fun close(): Unit {
-        closed = true
-
-        check(inf.getBytesRead() == size)
-    }
-}
-
-class CompressedDataOutput(file: RandomAccessFile, order: ByteOrder,
-                           private val size: Long) : SeekableDataOutput(file, order) {
-    private val deflater = Deflater()
+    private val def = Deflater()
 
     override val output: DataOutputStream = DataOutputStream(
             DeflaterOutputStream(Channels.newOutputStream(file.getChannel()),
-                                 deflater))
+                                 def))
 
-    override fun close() = check(deflater.getBytesWritten() == size)
+    override fun close() {
+        // no-op.
+    }
 }

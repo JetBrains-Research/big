@@ -18,7 +18,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     val input: SeekableDataInput = SeekableDataInput.of(path)
     val header: Header = Header.read(input, magic)
-    val zoomLevels: List<ZoomLevel> = (0 until header.zoomLevelCount).asSequence()
+    val zoomLevels: List<ZoomLevel> = (0 until header.zoomLevelCount.toInt()).asSequence()
             .map { ZoomLevel.read(input) }.toList()
     val bPlusTree: BPlusTree
     val rTree: RTreeIndex
@@ -100,19 +100,39 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     throws(IOException::class)
     override fun close() = input.close()
 
-    class Header(val order: ByteOrder, val version: Short, val zoomLevelCount: Int,
+    class Header(val order: ByteOrder, val version: Short, val zoomLevelCount: Short,
                  val chromTreeOffset: Long, val unzoomedDataOffset: Long,
                  val unzoomedIndexOffset: Long, val fieldCount: Short,
                  val definedFieldCount: Short, val asOffset: Long,
                  val totalSummaryOffset: Long, val uncompressBufSize: Int,
                  val extendedHeaderOffset: Long) {
+
+        fun write(output: SeekableDataOutput, magic: Int) = with(output) {
+            seek(0L)  // a header is always first.
+            writeInt(magic)
+            writeShort(version.toInt())
+            writeShort(zoomLevelCount.toInt())
+            writeLong(chromTreeOffset)
+            writeLong(unzoomedDataOffset)
+            writeLong(unzoomedIndexOffset)
+            writeShort(fieldCount.toInt())
+            writeShort(definedFieldCount.toInt())
+            writeLong(asOffset)
+            writeLong(totalSummaryOffset)
+            writeInt(uncompressBufSize)
+            writeLong(extendedHeaderOffset)
+        }
+
         companion object {
+            /** Number of bytes used for this header. */
+            val BYTES = 64
+
             throws(IOException::class)
             fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
                 guess(magic)
 
                 val version = readShort()
-                val zoomLevelCount = readShort().toInt()
+                val zoomLevelCount = readShort()
                 val chromTreeOffset = readLong()
                 val unzoomedDataOffset = readLong()
                 val unzoomedIndexOffset = readLong()

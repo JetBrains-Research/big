@@ -128,13 +128,10 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         }
 
         throws(IOException::class)
-        public fun write(output: SeekableDataOutput, bedPath: Path,
-                         blockSize: Int = 1024,
-                         itemsPerSlot: Int = 64,
-                         compress: Boolean = false): Unit {
-            require(!compress, "block compression is not supported")
-
-            val leaves = writeBlocks(output, bedPath, itemsPerSlot)
+        public fun write(output: SeekableDataOutput,
+                         leaves: List<RTreeIndexLeaf>,
+                         blockSize: Int = 256,
+                         itemsPerSlot: Int = 512): Unit {
             val leftmost = leaves.first().interval
             var rightmost = leaves.last().interval
 
@@ -146,46 +143,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                                 output.tell() + Header.BYTES)
             header.write(output)
 
-            writeIndex(output, leaves, blockSize)
-        }
-
-        throws(IOException::class)
-        fun writeBlocks(output: SeekableDataOutput, bedPath: Path,
-                        itemsPerSlot: Int): List<RTreeIndexLeaf> {
-            var chromId = 0
-            val res = Lists.newArrayList<RTreeIndexLeaf>()
-            BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
-                val (_name, items) = entry
-                Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
-
-                for (i in 0 until items.size() step itemsPerSlot) {
-                    val dataOffset = output.tell()
-                    val slotSize = Math.min(items.size() - i, itemsPerSlot)
-                    val start = items[i].start
-                    var end = items[slotSize - 1].end
-
-                    for (j in 0 until slotSize) {
-                        val item = items[i + j]
-                        output.writeInt(chromId)
-                        output.writeInt(item.start)
-                        output.writeInt(item.end)
-                        output.writeBytes(item.rest)
-                        output.writeByte(0)  // null-terminated.
-                    }
-
-                    res.add(RTreeIndexLeaf(ChromosomeInterval(chromId, start, end),
-                                           dataOffset, output.tell() - dataOffset))
-                }
-
-                chromId++
-            }
-
-            return res
-        }
-
-        throws(IOException::class)
-        private fun writeIndex(output: SeekableDataOutput,
-                               leaves: List<RTreeIndexLeaf>, blockSize: Int) {
             val levels = compute(leaves, blockSize)
 
             // HEAVY COMPUTER SCIENCE CALCULATION!

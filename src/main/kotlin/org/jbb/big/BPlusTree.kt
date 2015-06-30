@@ -5,6 +5,8 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.IOException
 import java.nio.ByteOrder
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.platform.platformStatic
 
 /**
@@ -139,8 +141,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
     companion object {
         throws(IOException::class)
-        public platformStatic fun read(s: SeekableDataInput, offset: Long): BPlusTree {
-            return BPlusTree(Header.read(s, offset))
+        public platformStatic fun read(input: SeekableDataInput, offset: Long): BPlusTree {
+            return BPlusTree(Header.read(input, offset))
         }
 
         /**
@@ -168,7 +170,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
         }
 
         throws(IOException::class)
-        fun write(output: SeekableDataOutput, blockSize: Int, unsortedItems: List<BPlusLeaf>) {
+        fun write(output: SeekableDataOutput, unsortedItems: List<BPlusLeaf>,
+                  blockSize: Int = 256) {
             require(unsortedItems.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
 

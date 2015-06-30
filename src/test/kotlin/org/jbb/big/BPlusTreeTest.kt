@@ -117,7 +117,7 @@ public class BPlusTreeTest {
         val path = Files.createTempFile("bpt", ".bb")
         try {
             SeekableDataOutput.of(path).use { output ->
-                BPlusTree.write(output, blockSize, items)
+                BPlusTree.write(output, items, blockSize)
             }
 
             SeekableDataInput.of(path).use { input ->

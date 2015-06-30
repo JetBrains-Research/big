@@ -2,39 +2,49 @@ package org.jbb.big
 
 import org.junit.Test
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.Random
-import java.util.stream.Collectors
-import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigBedFileTest {
-    Test fun testCompressed() {
-        val items = BedFile.read(Examples.get("example1.bed")).toList()
-        testQuerySmall(BigBedFile.read(Examples.get("example1-compressed.bb")),
-                       items)
-        testQueryLarge(BigBedFile.read(Examples.get("example1-compressed.bb")),
-                       items)
+    Test fun testWriteQueryCompressed() = testWriteQuery(true)
+
+    Test fun testWriteQueryUncompressed() = testWriteQuery(false)
+
+    Test fun testQueryCompressed() = testQuery(Examples.get("example1-compressed.bb"))
+
+    private fun testWriteQuery(compressed: Boolean) {
+        val path = Files.createTempFile("example1", ".bb")
+        try {
+            BigBedFile.write(Examples.get("example1.bed"),
+                             Examples.get("hg19.chrom.sizes"),
+                             path, compressed = compressed)
+
+            testQuery(path)
+        } finally {
+            Files.deleteIfExists(path)
+        }
     }
 
-    Test fun testUncompressed() {
+    Test fun testQueryUncompressed() = testQuery(Examples.get("example1.bb"))
+
+    private fun testQuery(path: Path) {
         val items = BedFile.read(Examples.get("example1.bed")).toList()
-        testQuerySmall(BigBedFile.read(Examples.get("example1.bb")),
-                       items)
-        testQueryLarge(BigBedFile.read(Examples.get("example1.bb")),
-                       items)
+        testQuerySmall(path, items)
+        testQueryLarge(path, items)
     }
 
-    private fun testQuerySmall(bbf: BigBedFile, items: List<BedData>) {
-        bbf.use { bbf ->
+    private fun testQuerySmall(path: Path, items: List<BedData>) {
+        BigBedFile.read(path).use { bbf ->
             for (i in 0 until 100) {
                 testQuery(bbf, items, items[RANDOM.nextInt(items.size())])
             }
         }
     }
 
-    private fun testQueryLarge(bbf: BigBedFile, items: List<BedData>) {
-        bbf.use { bbf ->
+    private fun testQueryLarge(path: Path, items: List<BedData>) {
+        BigBedFile.read(path).use { bbf ->
             for (i in 0 until 10) {
                 val a = items[RANDOM.nextInt(items.size())]
                 val b = items[RANDOM.nextInt(items.size())]
