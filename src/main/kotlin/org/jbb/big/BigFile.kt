@@ -60,7 +60,16 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     public val chromosomes: List<String> by Delegates.lazy {
-        bPlusTree.traverse(input).map { it.key }.toList()
+        // XXX I wonder if sequential numbering is always the case for
+        // Big files?
+        with (bPlusTree) {
+            val res = arrayOfNulls<String>(header.itemCount.toInt())
+            for (leaf in traverse(input)) {
+                res[leaf.id] = leaf.key
+            }
+
+            res.asSequence().filterNotNull().toArrayList()
+        }
     }
 
     public val compressed: Boolean get() {
