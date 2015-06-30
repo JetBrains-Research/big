@@ -24,16 +24,13 @@ public class BPlusTree(val header: BPlusTree.Header) {
      */
     throws(IOException::class)
     public fun traverse(input: SeekableDataInput, consumer: (BPlusItem) -> Unit) {
-        val originalOrder = input.order
-        input.order = header.byteOrder
         traverseRecursively(input, header.rootOffset, consumer)
-        input.order = originalOrder
     }
 
     throws(IOException::class)
     private fun traverseRecursively(input: SeekableDataInput, blockStart: Long,
                                     consumer: (BPlusItem) -> Unit) {
-        assert(input.order == header.byteOrder)
+        assert(input.order == header.order)
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
@@ -71,21 +68,17 @@ public class BPlusTree(val header: BPlusTree.Header) {
             return Optional.empty()
         }
 
-        val originalOrder = input.order
-        input.order = header.byteOrder
-
         // Trim query to 'keySize' because the spec. guarantees us
         // that all B+ tree nodes have a fixed-size key.
         val trimmedQuery = query.substring(0, Math.min(query.length(), header.keySize))
-        val res = findRecursively(input, header.rootOffset, trimmedQuery)
-        input.order = originalOrder
-        return Optional.ofNullable(res)
+        return Optional.ofNullable(
+                findRecursively(input, header.rootOffset, trimmedQuery))
     }
 
     throws(IOException::class)
     private fun findRecursively(input: SeekableDataInput, blockStart: Long,
                                 query: String): BPlusItem? {
-        assert(input.order == header.byteOrder)
+        assert(input.order == header.order)
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
@@ -123,7 +116,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
         }
     }
 
-    class Header(val byteOrder: ByteOrder, val blockSize: Int, val keySize: Int,
+    class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
                  val itemCount: Long, val rootOffset: Long) {
         val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 

@@ -68,7 +68,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     throws(IOException::class)
     override fun close() = handle.close()
 
-    class Header protected constructor(public val byteOrder: ByteOrder,
+    class Header protected constructor(public val order: ByteOrder,
                                        public val version: Short,
                                        public val unzoomedDataOffset: Long,
                                        public val fieldCount: Short,
@@ -127,7 +127,9 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
                 }
 
                 val bpt = BPlusTree.read(input, chromTreeOffset)
+                check(bpt.header.order == order)
                 val rti = RTreeIndex.read(input, unzoomedIndexOffset)
+                check(rti.header.order == order)
                 return Header(order, version, unzoomedDataOffset,
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,

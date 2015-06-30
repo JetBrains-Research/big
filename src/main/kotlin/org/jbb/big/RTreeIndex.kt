@@ -43,13 +43,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
     fun findOverlappingBlocks(input: SeekableDataInput,
                               query: ChromosomeInterval,
                               consumer: (RTreeIndexLeaf) -> Unit) {
-        val originalOrder = input.order
-        input.order = header.byteOrder
-        try {
-            findOverlappingBlocksRecursively(input, query, header.rootOffset, consumer)
-        } finally {
-            input.order = originalOrder
-        }
+        findOverlappingBlocksRecursively(input, query, header.rootOffset, consumer)
     }
 
     throws(IOException::class)
@@ -57,7 +51,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                                                  query: ChromosomeInterval,
                                                  offset: Long,
                                                  consumer: (RTreeIndexLeaf) -> Unit) {
-        assert(input.order == header.byteOrder)
+        assert(input.order == header.order)
         input.seek(offset)
 
         val isLeaf = input.readBoolean()
@@ -90,7 +84,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    class Header(val byteOrder: ByteOrder, val blockSize: Int, val itemCount: Long,
+    class Header(val order: ByteOrder, val blockSize: Int, val itemCount: Long,
                  val startChromIx: Int, val startBase: Int,
                  val endChromIx: Int, val endBase: Int,
                  val endDataOffset: Long, val itemsPerSlot: Int, val rootOffset: Long) {
