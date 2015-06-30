@@ -15,18 +15,14 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
     override fun getHeaderMagic(): Int = MAGIC
 
     throws(IOException::class)
-    override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<BedData> {
+    override fun queryInternal(query: ChromosomeInterval): Sequence<BedData> {
         val chrom = chromosomes[query.chromIx]
-        val res = ArrayList<BedData>()
-        for (block in header.rTree.findOverlappingBlocks(handle, query)) {
-            handle.with(block.dataOffset, block.dataSize, isCompressed()) {
+        return header.rTree.findOverlappingBlocks(handle, query).flatMap { block ->
+            val (_interval, dataOffset, dataSize) = block
+            handle.with(dataOffset, dataSize, isCompressed()) {
+                val chunk = ArrayList<BedData>()
                 do {
                     assert(readInt() == query.chromIx, "interval contains wrong chromosome")
-                    if (maxItems > 0 && res.size() == maxItems) {
-                        // XXX think of a way of terminating the traversal?
-                        return res
-                    }
-
                     val startOffset = readInt()
                     val endOffset = readInt()
                     val sb = StringBuilder()
@@ -47,12 +43,12 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         break
                     }
 
-                    res.add(BedData(chrom, startOffset, endOffset, sb.toString()))
-                } while (tell() - block.dataOffset < block.dataSize)
+                    chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
+                } while (tell() - dataOffset < dataSize)
+
+                chunk.asSequence()
             }
         }
-
-        return res
     }
 
     companion object {

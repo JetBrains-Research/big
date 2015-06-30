@@ -14,12 +14,13 @@ public object BigBedToBed {
     /**
      * Main method to convert from BigBED to BED format
      *
-     * @param inputPath Path to source *.bb file
+     * @param inputPath Path to source *.bb file.
      * @param queryChromName If set restrict output to given chromosome
-     * @param queryStart If set, restrict output to only that over start. Should be zero by default.
-     * @param queryEnd If set, restict output to only that under end. Should be zero to restrict by
-     *                 chromosome size
-     * @param maxItems If set, restrict output to first N items
+     * @param queryStart If set, restrict output to only that over start.
+     *                   Should be zero by default.
+     * @param queryEnd If set, restrict output to only that under end.
+     *                 Should be zero to restrict by chromosome size.
+     * @param maxItems If set, restrict output to first N items.
      */
     public fun main(inputPath: Path, outputPath: Path, queryChromName: String,
                     queryStart: Int, queryEnd: Int, maxItems: Int) {
@@ -31,7 +32,7 @@ public object BigBedToBed {
                         continue
                     }
 
-                    var itemsLeft = 0  // zero - no limit
+                    var itemsLeft = Integer.MAX_VALUE  // zero - no limit
                     if (maxItems != 0) {
                         itemsLeft = maxItems - itemCount
                         if (itemsLeft <= 0) {
@@ -39,8 +40,9 @@ public object BigBedToBed {
                         }
                     }
 
-                    for (interval in bf.query(chromName, queryStart, queryEnd, itemsLeft)) {
-                        out.write(Joiner.on('\t').join(chromName, interval.start, interval.end, interval.rest))
+                    for (interval in bf.query(chromName, queryStart, queryEnd).take(itemsLeft)) {
+                        out.write(Joiner.on('\t').join(
+                                chromName, interval.start, interval.end, interval.rest))
                         out.write("\n")
                         itemCount++
                     }

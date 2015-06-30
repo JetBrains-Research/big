@@ -55,7 +55,7 @@ public class BigWigTest {
         assertEquals(1, chromosomes.size())
         assertEquals(chromosome, chromosomes.first())
 
-        val steps = file.query(chromosome, 0, 0)
+        val steps = file.query(chromosome, 0, 0).toList()
         assertTrue(steps.isNotEmpty())
 
         return steps

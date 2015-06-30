@@ -28,25 +28,22 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     /**
      * Queries an R+-tree.
      *
-     * @param chromName human-readable chromosome name, e.g. `"chr9"`.
+     * @param name human-readable chromosome name, e.g. `"chr9"`.
      * @param startOffset 0-based start offset (inclusive).
      * @param endOffset 0-based end offset (exclusive), if 0 than the whole
      *                  chromosome is used.
-     * @param maxItems upper bound on the number of items to return.
      * @return a list of intervals completely contained within the query.
      * @throws IOException if the underlying [SeekableDataInput] does so.
      */
     throws(IOException::class)
-    public jvmOverloads fun query(chromName: String, startOffset: Int, endOffset: Int,
-                                  maxItems: Int = 0): List<T> {
-        val res = header.bPlusTree.find(handle, chromName)
+    public fun query(name: String, startOffset: Int, endOffset: Int): Sequence<T> {
+        val res = header.bPlusTree.find(handle, name)
         return if (res == null) {
-            listOf()
+            emptySequence()
         } else {
             val (_key, chromIx, size) = res
-            val query = Interval.of(chromIx, startOffset,
-                                    if (endOffset == 0) size else endOffset)
-            queryInternal(query, maxItems)
+            queryInternal(Interval.of(
+                    chromIx, startOffset, if (endOffset == 0) size else endOffset))
         }
     }
 
@@ -60,8 +57,7 @@ abstract class BigFile<T> throws(IOException::class) protected constructor(path:
     }
 
     throws(IOException::class)
-    protected abstract fun queryInternal(query: ChromosomeInterval,
-                                         maxItems: Int): List<T>
+    protected abstract fun queryInternal(query: ChromosomeInterval): Sequence<T>
 
     throws(IOException::class)
     override fun close() = handle.close()

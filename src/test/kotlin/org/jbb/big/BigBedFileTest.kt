@@ -45,7 +45,7 @@ public class BigBedFileTest {
     }
 
     private fun testQuery(bbf: BigBedFile, items: List<BedData>, query: BedData) {
-        val actual = bbf.query(query.name, query.start, query.end)
+        val actual = bbf.query(query.name, query.start, query.end).toList()
         for (item in actual) {
             assertTrue(item.start >= query.start && item.end <= query.end)
         }

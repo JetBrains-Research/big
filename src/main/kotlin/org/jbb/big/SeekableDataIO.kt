@@ -45,11 +45,12 @@ public open class SeekableDataInput protected constructor(
     }
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
-    public inline fun with(offset: Long, size: Long, compressed: Boolean,
-                           block: SeekableDataInput.() -> Unit) {
+    public inline fun with<T>(offset: Long, size: Long, compressed: Boolean,
+                              block: SeekableDataInput.() -> T): T {
         seek(offset)
-        with(if (compressed) compressed(size) else this, block)
+        val res = with(if (compressed) compressed(size) else this, block)
         check(tell() - offset == size)
+        return res
     }
 
     override fun readFully(b: ByteArray?) = input.readFully(b)

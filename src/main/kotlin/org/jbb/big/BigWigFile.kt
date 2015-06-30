@@ -14,13 +14,11 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     override fun getHeaderMagic(): Int = MAGIC
 
     throws(IOException::class)
-    override fun queryInternal(query: ChromosomeInterval, maxItems: Int): List<WigData> {
-        val res = Lists.newArrayList<WigData>()
-        for (block in header.rTree.findOverlappingBlocks(handle, query)) {
-            // TODO: Do we need to merge WigData instances with subsequent headers?
+    override fun queryInternal(query: ChromosomeInterval): Sequence<WigData> {
+        return header.rTree.findOverlappingBlocks(handle, query).map { block ->
             handle.with(block.dataOffset, block.dataSize, isCompressed()) {
                 val header = WigSectionHeader.read(this)
-                val data = when (header.type) {
+                when (header.type) {
                     WigSectionHeader.FIXED_STEP_TYPE ->
                         FixedStepWigData.read(header, this)
                     WigSectionHeader.VARIABLE_STEP_TYPE ->
@@ -31,12 +29,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     else ->
                         throw IllegalStateException("unknown section type " + header.type)
                 }
-
-                res.add(data)
             }
         }
-
-        return res
     }
 
     companion object {
