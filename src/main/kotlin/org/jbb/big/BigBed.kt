@@ -45,7 +45,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 }
 
                 chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
-            } while (!finished())
+            } while (!finished)
 
             chunk.asSequence()
         }

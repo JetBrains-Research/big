@@ -78,7 +78,7 @@ public interface OrderedDataInput {
      * Returns `true` if the input doesn't contain any more data and
      * `false` otherwise.
      * */
-    public fun finished(): Boolean
+    public val finished: Boolean
 }
 
 public open class SeekableDataInput protected constructor(
@@ -124,7 +124,7 @@ public open class SeekableDataInput protected constructor(
 
     override fun close() = file.close()
 
-    override fun finished() = tell() >= file.length()
+    override val finished: Boolean get() = tell() >= file.length()
 
     companion object {
         public fun of(path: Path,
@@ -140,13 +140,13 @@ private class ByteArrayDataInput(private val data: ByteArray,
     private var bytesRead: Int = 0
 
     override fun readUnsignedByte(): Int {
-        check(!finished(), "no data")
+        check(!finished, "no data")
         val b = input.readUnsignedByte()
         bytesRead++
         return b
     }
 
-    override fun finished() = bytesRead >= data.size()
+    override val finished: Boolean get() = bytesRead >= data.size()
 }
 
 /**

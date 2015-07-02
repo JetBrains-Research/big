@@ -6,7 +6,7 @@ import java.nio.file.Path
 import kotlin.platform.platformStatic
 
 /**
- * Bigger brother of good old WIG format.
+ * Bigger brother of the good-old WIG format.
  */
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigData>(path, magic = 0x888FFC26.toInt()) {
