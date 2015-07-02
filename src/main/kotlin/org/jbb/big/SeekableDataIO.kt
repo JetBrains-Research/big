@@ -154,85 +154,102 @@ public class ByteArrayDataInput(private val data: ByteArray,
 }
 
 /**
- * A byte order-aware seekable complement to [java.io.DataOutputStream].
+ * A stripped down byte order-aware complement to [java.io.DataOutputStream].
  */
-public open class SeekableDataOutput(private val file: RandomAccessFile,
-                                     public var order: ByteOrder) :
-        DataOutput, Closeable, AutoCloseable {
-    protected open val output: DataOutput get() = file
+public interface OrderedDataOutput {
+    public val order: ByteOrder
 
-    public fun seek(pos: Long): Unit = file.seek(pos)
+    fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
 
-    public fun tell(): Long = file.getFilePointer()
+    fun writeByte(v: Int)
 
-    override fun write(b: ByteArray?) = output.write(b)
-
-    override fun write(b: ByteArray?, off: Int, len: Int) = output.write(b, off, len)
-
-    override fun writeBytes(s: String) = output.writeBytes(s)
-
-    public fun writeBytes(s: String, length: Int) {
-        file.writeBytes(s)
-        writeByte(0, length - s.length())
+    fun writeShort(v: Int) {
+        val b = Shorts.toByteArray(v.toShort())
+        if (order == ByteOrder.BIG_ENDIAN) {
+            writeByte(b[0].toInt())
+            writeByte(b[1].toInt())
+        } else {
+            writeByte(b[1].toInt())
+            writeByte(b[0].toInt())
+        }
     }
 
-    override fun writeBoolean(v: Boolean) = output.writeBoolean(v)
+    public fun writeUnsignedShort(v: Int) {
+        val b = Ints.toByteArray(v)
+        if (order == ByteOrder.BIG_ENDIAN) {
+            writeByte(b[2].toInt())
+            writeByte(b[3].toInt())
+        } else {
+            writeByte(b[3].toInt())
+            writeByte(b[2].toInt())
+        }
+    }
 
-    override fun writeByte(v: Int) = output.writeByte(v)
+    fun writeInt(v: Int) {
+        val b = Ints.toByteArray(v)
+        if (order == ByteOrder.BIG_ENDIAN) {
+            writeByte(b[0].toInt())
+            writeByte(b[1].toInt())
+            writeByte(b[2].toInt())
+            writeByte(b[3].toInt())
+        } else {
+            writeByte(b[3].toInt())
+            writeByte(b[2].toInt())
+            writeByte(b[1].toInt())
+            writeByte(b[0].toInt())
+        }
+    }
 
-    public fun writeByte(v: Int, count: Int) {
+    fun writeLong(v: Long): Unit {
+        val b = Longs.toByteArray(v)
+        if (order == ByteOrder.BIG_ENDIAN) {
+            writeByte(b[0].toInt())
+            writeByte(b[1].toInt())
+            writeByte(b[2].toInt())
+            writeByte(b[3].toInt())
+            writeByte(b[4].toInt())
+            writeByte(b[5].toInt())
+            writeByte(b[6].toInt())
+            writeByte(b[7].toInt())
+        } else {
+            writeByte(b[7].toInt())
+            writeByte(b[6].toInt())
+            writeByte(b[5].toInt())
+            writeByte(b[4].toInt())
+            writeByte(b[3].toInt())
+            writeByte(b[2].toInt())
+            writeByte(b[1].toInt())
+            writeByte(b[0].toInt())
+        }
+    }
+
+    fun writeFloat(v: Float) = writeInt(java.lang.Float.floatToIntBits(v))
+
+    fun writeDouble(v: Double): Unit = writeLong(java.lang.Double.doubleToLongBits(v))
+}
+
+public open class SeekableDataOutput(private val file: RandomAccessFile,
+                                     public override var order: ByteOrder) :
+        OrderedDataOutput, Closeable, AutoCloseable {
+    
+    fun write(b: ByteArray, off: Int = 0, len: Int = b.size()) = file.write(b, off, len)
+
+    public fun skipBytes(v: Int, count: Int) {
         for (i in 0 until count) {
             writeByte(v)
         }
     }
 
-    override fun write(b: Int) = output.write(b)
-
-    override fun writeChar(v: Int) = output.writeChar(v)
-
-    override fun writeShort(v: Int) {
-        output.writeShort(if (order == ByteOrder.BIG_ENDIAN) {
-            v
-        } else {
-            val b = Shorts.toByteArray(v.toShort())
-            Shorts.fromBytes(b[1], b[0]).toInt()
-        })
+    public fun writeBytes(s: String, length: Int = s.length()) {
+        file.writeBytes(s)
+        skipBytes(0, length - s.length())
     }
 
-    public fun writeUnsignedShort(v: Int) {
-        output.writeShort(if (order == ByteOrder.BIG_ENDIAN) {
-            v
-        } else {
-            val b = Ints.toByteArray(v)
-            Shorts.fromBytes(b[3], b[2]).toInt()
-        })
-    }
+    override fun writeByte(v: Int) = file.writeByte(v)
 
-    override fun writeInt(v: Int) {
-        output.writeInt(if (order == ByteOrder.BIG_ENDIAN) {
-            v
-        } else {
-            val b = Ints.toByteArray(v)
-            Ints.fromBytes(b[3], b[2], b[1], b[0])
-        })
-    }
+    public fun seek(pos: Long): Unit = file.seek(pos)
 
-    override fun writeLong(v: Long): Unit {
-        output.writeLong(if (order == ByteOrder.BIG_ENDIAN) {
-            v
-        } else {
-            val b = Longs.toByteArray(v)
-            Longs.fromBytes(b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0])
-        })
-    }
-
-    override fun writeFloat(v: Float) = writeInt(java.lang.Float.floatToIntBits(v))
-
-    override fun writeDouble(v: Double): Unit = writeLong(java.lang.Double.doubleToLongBits(v))
-
-    override fun writeChars(s: String): Unit = throw UnsupportedOperationException()
-
-    override fun writeUTF(s: String): Unit = throw UnsupportedOperationException()
+    public fun tell(): Long = file.getFilePointer()
 
     override fun close() = file.close()
 

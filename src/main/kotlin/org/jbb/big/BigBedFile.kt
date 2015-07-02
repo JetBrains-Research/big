@@ -65,7 +65,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         compressed: Boolean = false) {
             require(!compressed, "output compression is not supported")
             SeekableDataOutput.of(outputPath).use { output ->
-                output.writeByte(0, BigFile.Header.BYTES)
+                output.skipBytes(0, BigFile.Header.BYTES)
 
                 val unsortedChromosomes
                         = Files.readAllLines(chromSizesPath).mapIndexed { i, line ->

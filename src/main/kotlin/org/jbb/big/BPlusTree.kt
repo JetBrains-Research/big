@@ -207,8 +207,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 for (i in 0 until itemCount step itemsPerNode) {
                     val childCount = Math.min((itemCount - i) divCeiling itemsPerSlot, blockSize)
                     with (output) {
-                        writeByte(0)  // isLeaf.
-                        writeByte(0)  // reserved.
+                        writeBoolean(false)  // isLeaf.
+                        writeByte(0)         // reserved.
                         writeShort(childCount)
                         for (j in 0 until Math.min(itemsPerNode, itemCount - i) step itemsPerSlot) {
                             BPlusNode(items[i + j].key, nextChild)
@@ -216,7 +216,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                             nextChild += bytesInNextLevelBlock
                         }
 
-                        writeByte(0, bytesInIndexSlot * (blockSize - childCount))
+                        skipBytes(0, bytesInIndexSlot * (blockSize - childCount))
                     }
                 }
             }
@@ -225,14 +225,14 @@ public class BPlusTree(val header: BPlusTree.Header) {
             for (i in 0 until itemCount step blockSize) {
                 val leafCount = Math.min(itemCount - i, blockSize)
                 with(output) {
-                    writeByte(1)  // isLeaf.
-                    writeByte(0)  // reserved.
+                    writeBoolean(true)  // isLeaf.
+                    writeByte(0)        // reserved.
                     writeShort(leafCount)
                     for (j in 0 until leafCount) {
                         items[i + j].write(output, keySize)
                     }
 
-                    writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
+                    skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
         }

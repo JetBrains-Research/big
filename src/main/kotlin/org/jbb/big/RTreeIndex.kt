@@ -161,8 +161,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 var nextChild = output.tell() + bytesInCurrentBlock
                 val nodeCount = level.size()
                 with(output) {
-                    writeByte(0)  // isLeaf.
-                    writeByte(0)  // reserved.
+                    writeBoolean(false)  // isLeaf.
+                    writeByte(0)         // reserved.
                     writeShort(nodeCount)
                     for (interval in level) {
                         RTreeIndexNode(interval, nextChild).write(output)
@@ -170,22 +170,22 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     }
 
                     // Write out zeroes for empty slots in node.
-                    writeByte(0, bytesInIndexSlot * (blockSize - nodeCount))
+                    skipBytes(0, bytesInIndexSlot * (blockSize - nodeCount))
                 }
             }
 
             with(output) {
                 for (i in 0 until leaves.size() step blockSize) {
                     val leafCount = Math.min(blockSize, leaves.size() - i)
-                    writeByte(1)  // isLeaf.
-                    writeByte(0)  // reserved.
+                    writeBoolean(true)  // isLeaf.
+                    writeByte(0)        // reserved.
                     writeShort(leafCount)
                     for (j in 0 until leafCount) {
                         leaves[i + j].write(output)
                     }
 
                     // Write out zeroes for empty slots in node.
-                    writeByte(0, bytesInLeafSlot * (blockSize - leafCount))
+                    skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
         }

@@ -47,7 +47,7 @@ public class SeekableDataOutputTest {
                     writeFloat(floatValue)
                     writeDouble(doubleValue)
                     writeBytes(charsArrayValue)
-                    writeByte(severalSingleChar.toInt(), severalSingleCharCount)
+                    skipBytes(severalSingleChar.toInt(), severalSingleCharCount)
                     writeBytes(chromosomeName, keySize)
                 }
             }
