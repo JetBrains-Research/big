@@ -48,7 +48,7 @@ public class BigWigTest {
                         position1, value1, position2, value2)
     }
 
-    private fun assertChromosome(path: Path, chromosome: String): List<WigData> {
+    private fun assertChromosome(path: Path, chromosome: String): List<WigSection> {
         val file = BigWigFile.read(path)
         val chromosomes = file.chromosomes
 
@@ -61,27 +61,27 @@ public class BigWigTest {
         return steps
     }
 
-    private fun assertVariableStep(firstStep: WigData, lastStep: WigData,
+    private fun assertVariableStep(firstStep: WigSection, lastStep: WigSection,
                                    position1: Int, value1: Float,
                                    position2: Int, value2: Float) {
-        assertTrue(firstStep is VariableStepWigData)
-        assertTrue(lastStep is VariableStepWigData)
+        assertTrue(firstStep is VariableStepSection)
+        assertTrue(lastStep is VariableStepSection)
 
-        assertEquals(position1, firstStep.header.start + 1)
-        assertEquals(value1, firstStep.values.first())
-        assertEquals(position2, lastStep.header.end)
-        assertEquals(value2, lastStep.values.last())
+        assertEquals(position1, firstStep.start + 1)
+        assertEquals(value1, firstStep.values.toArray().first())
+        assertEquals(position2, lastStep.end)
+        assertEquals(value2, lastStep.values.toArray().last())
     }
 
-    private fun assertFixedStep(firstStep: WigData, lastStep: WigData,
+    private fun assertFixedStep(firstStep: WigSection, lastStep: WigSection,
                                 position1: Int, value1: Float,
                                 position2: Int, value2: Float) {
-        assertTrue(firstStep is FixedStepWigData)
-        assertTrue(lastStep is FixedStepWigData)
+        assertTrue(firstStep is FixedStepSection)
+        assertTrue(lastStep is FixedStepSection)
 
-        assertEquals(position1, firstStep.header.start + 1)
-        assertEquals(value1, firstStep.values.first())
-        assertEquals(position2, lastStep.header.end)
-        assertEquals(value2, lastStep.values.last())
+        assertEquals(position1, firstStep.start + 1)
+        assertEquals(value1, firstStep.values.toArray().first())
+        assertEquals(position2, lastStep.end)
+        assertEquals(value2, lastStep.values.toArray().last())
     }
 }
