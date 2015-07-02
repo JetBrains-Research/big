@@ -60,7 +60,7 @@ public class VariableStepWigData protected constructor(header: WigSectionHeader)
 
     companion object {
         throws(IOException::class)
-        public fun read(header: WigSectionHeader, input: SeekableDataInput): VariableStepWigData {
+        public fun read(header: WigSectionHeader, input: OrderedDataInput): VariableStepWigData {
             val data = VariableStepWigData(header)
             for (i in 0..header.count - 1) {
                 val position = input.readInt()
@@ -83,7 +83,7 @@ public class FixedStepWigData protected constructor(header: WigSectionHeader) :
 
     companion object {
         throws(IOException::class)
-        public fun read(header: WigSectionHeader, input: SeekableDataInput): FixedStepWigData {
+        public fun read(header: WigSectionHeader, input: OrderedDataInput): FixedStepWigData {
             val data = FixedStepWigData(header)
             for (i in 0..header.count - 1) {
                 val value = input.readFloat()
@@ -110,7 +110,7 @@ public class WigSectionHeader(public val id: Int,
         public val FIXED_STEP_TYPE: Byte = 3
 
         throws(IOException::class)
-        public fun read(input: SeekableDataInput): WigSectionHeader = with (input) {
+        public fun read(input: OrderedDataInput): WigSectionHeader = with (input) {
             val id = readInt()
             val start = readInt()
             val end = readInt()

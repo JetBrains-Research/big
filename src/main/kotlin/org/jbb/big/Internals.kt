@@ -42,7 +42,7 @@ fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
-fun ByteArray.uncompress(): ByteArray {
+public fun ByteArray.decompress(): ByteArray {
     val inf = Inflater()
     inf.setInput(this)
     return ByteArrayOutputStream(size()).use { out ->

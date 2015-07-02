@@ -12,15 +12,82 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 
+
 /**
- * A byte order-aware seekable complement to [java.io.DataInputStream].
+ * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
+public interface OrderedDataInput {
+    /** Byte order used for compound data types. */
+    public val order: ByteOrder
+
+    public fun readBoolean(): Boolean = readUnsignedByte() != 0
+
+    public fun readByte(): Byte = readUnsignedByte().toByte()
+
+    public fun readUnsignedByte(): Int
+
+    public fun readShort(): Short {
+        val b1 = readByte()
+        val b2 = readByte()
+        return if (order == ByteOrder.BIG_ENDIAN) {
+            Shorts.fromBytes(b1, b2)
+        } else {
+            Shorts.fromBytes(b2, b1)
+        }
+    }
+
+    public fun readUnsignedShort(): Int {
+        val b1 = readByte()
+        val b2 = readByte()
+        return if (order == ByteOrder.BIG_ENDIAN) {
+            Ints.fromBytes(0, 0, b1, b2)
+        } else {
+            Ints.fromBytes(0, 0, b2, b1)
+        }
+    }
+
+    public fun readInt(): Int {
+        val b1 = readByte()
+        val b2 = readByte()
+        val b3 = readByte()
+        val b4 = readByte()
+        return if (order == ByteOrder.BIG_ENDIAN) {
+            Ints.fromBytes(b1, b2, b3, b4)
+        } else {
+            Ints.fromBytes(b4, b3, b2, b1)
+        }
+    }
+
+    public fun readLong(): Long {
+        val b1 = readByte()
+        val b2 = readByte()
+        val b3 = readByte()
+        val b4 = readByte()
+        val b5 = readByte()
+        val b6 = readByte()
+        val b7 = readByte()
+        val b8 = readByte()
+        return if (order == ByteOrder.BIG_ENDIAN) {
+            Longs.fromBytes(b1, b2, b3, b4, b5, b6, b7, b8)
+        } else {
+            Longs.fromBytes(b8, b7, b6, b5, b4, b3, b2, b1)
+        }
+    }
+
+    public fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
+
+    public fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
+
+    /**
+     * Returns `true` if the input doesn't contain any more data and
+     * `false` otherwise.
+     * */
+    public fun finished(): Boolean
+}
+
 public open class SeekableDataInput protected constructor(
         private val file: RandomAccessFile,
-        public var order: ByteOrder) : DataInput, Closeable, AutoCloseable {
-
-    /** Must correspond to an [java.io.InputStream] over `file`. */
-    protected open val input: DataInput = file
+        public override var order: ByteOrder) : OrderedDataInput, Closeable, AutoCloseable {
 
     /** Guess byte order from a given big-endian `magic`. */
     public fun guess(magic: Int) {
@@ -36,153 +103,54 @@ public open class SeekableDataInput protected constructor(
         }
     }
 
-    /** Returns a compressed **view** of the input. */
-    public fun compressed(size: Long): SeekableDataInput {
-        return CompressedDataInput(file, order, size)
-    }
-
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public inline fun with<T>(offset: Long, size: Long, compressed: Boolean,
-                              block: SeekableDataInput.() -> T): T {
+                              block: OrderedDataInput.() -> T): T {
         seek(offset)
-        val res = with(if (compressed) compressed(size) else this, block)
-        check(tell() - offset == size)
-        return res
+        val data = ByteArray(size.toInt())
+        readFully(data)
+        val input = ByteArrayDataInput(
+                if (compressed) data.decompress() else data, order)
+        return with(input, block)
     }
 
-    override fun readFully(b: ByteArray?) = input.readFully(b)
+    public fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size()) {
+        file.readFully(b, off, len)
+    }
 
-    override fun readFully(b: ByteArray?, off: Int, len: Int) = input.readFully(b, off, len)
+    override fun readUnsignedByte(): Int = file.readUnsignedByte()
 
-    override fun skipBytes(n: Int): Int = input.skipBytes(n)
+    public fun skipBytes(n: Int): Int = file.skipBytes(n)
 
     public open fun seek(pos: Long): Unit = file.seek(pos)
 
     public open fun tell(): Long = file.getFilePointer()
 
-    override fun readBoolean(): Boolean = input.readBoolean()
-
-    override fun readByte(): Byte = input.readByte()
-
-    override fun readUnsignedByte(): Int = input.readUnsignedByte()
-
-    override fun readShort(): Short {
-        val b1 = readAndCheckByte()
-        val b2 = readAndCheckByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Shorts.fromBytes(b1, b2)
-        } else {
-            Shorts.fromBytes(b2, b1)
-        }
-    }
-
-    override fun readUnsignedShort(): Int {
-        val b1 = readAndCheckByte()
-        val b2 = readAndCheckByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Ints.fromBytes(0, 0, b1, b2)
-        } else {
-            Ints.fromBytes(0, 0, b2, b1)
-        }
-    }
-
-    override fun readChar(): Char = readUnsignedShort().toChar()
-
-    override fun readInt(): Int {
-        val b1 = readAndCheckByte()
-        val b2 = readAndCheckByte()
-        val b3 = readAndCheckByte()
-        val b4 = readAndCheckByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Ints.fromBytes(b1, b2, b3, b4)
-        } else {
-            Ints.fromBytes(b4, b3, b2, b1)
-        }
-    }
-
-    override fun readLong(): Long {
-        val b1 = readAndCheckByte()
-        val b2 = readAndCheckByte()
-        val b3 = readAndCheckByte()
-        val b4 = readAndCheckByte()
-        val b5 = readAndCheckByte()
-        val b6 = readAndCheckByte()
-        val b7 = readAndCheckByte()
-        val b8 = readAndCheckByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Longs.fromBytes(b1, b2, b3, b4, b5, b6, b7, b8)
-        } else {
-            Longs.fromBytes(b8, b7, b6, b5, b4, b3, b2, b1)
-        }
-    }
-
-    override fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
-
-    override fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong());
-
-    override fun readLine(): String? = throw UnsupportedOperationException()
-
-    override fun readUTF(): String = throw UnsupportedOperationException()
-
-    private fun readAndCheckByte(): Byte {
-        val b = readUnsignedByte()
-        return b.toByte()
-    }
-
     override fun close() = file.close()
+
+    override fun finished() = tell() >= file.length()
 
     companion object {
         public fun of(path: Path,
-                      order: ByteOrder = ByteOrder.BIG_ENDIAN): SeekableDataInput {
+                      order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
             return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
         }
     }
 }
 
-private class CompressedDataInput(file: RandomAccessFile,
-                                  order: ByteOrder,
-                                  size: Long) : SeekableDataInput(file, order) {
-    private val offset = file.getFilePointer()
-    private val inf = Inflater()
+public class ByteArrayDataInput(private val data: ByteArray,
+                                public override val order: ByteOrder) : OrderedDataInput {
+    private val input: DataInput = DataInputStream(ByteArrayInputStream(data))
+    private var bytesRead: Int = 0
 
-    override val input: DataInput = DataInputStream(BoundedInflaterInputStream(
-            Channels.newInputStream(file.getChannel()), inf, size))
-
-    override fun seek(pos: Long): Unit = throw UnsupportedOperationException()
-
-    /**
-     * [java.util.zip.InflaterInputStream] buffers data from [file], thus
-     * we cannot rely on [tell] any more and have to compute the "fake"
-     * offset manually.
-     */
-    override fun tell(): Long = offset + inf.getBytesRead()
-}
-
-private class BoundedInflaterInputStream(`in`: InputStream, inf: Inflater,
-                                         private val size: Long):
-        InflaterInputStream(`in`, inf) {
-
-    private var closed: Boolean = false
-
-    override fun fill() {
-        if (closed) {
-            throw IOException("Stream closed")
-        }
-
-        val remaining = size - inf.getBytesRead();
-        val len = `in`.read(buf, 0, Math.min(remaining.toInt(), buf.size()));
-        if (remaining == 0L || len == -1) {
-            throw EOFException("Unexpected end of ZLIB input stream");
-        }
-
-        inf.setInput(buf, 0, len);
+    override fun readUnsignedByte(): Int {
+        check(!finished(), "no data")
+        val b = input.readUnsignedByte()
+        bytesRead++
+        return b
     }
 
-    override fun close(): Unit {
-        closed = true
-
-        check(inf.getBytesRead() == size)
-    }
+    override fun finished() = bytesRead >= data.size()
 }
 
 /**

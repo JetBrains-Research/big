@@ -28,7 +28,7 @@ public class InternalsTest {
             val chunk = ByteArray(n)
             RANDOM.nextBytes(chunk)
 
-            Assert.assertArrayEquals(chunk, chunk.compress().uncompress())
+            Assert.assertArrayEquals(chunk, chunk.compress().decompress())
         }
     }
 

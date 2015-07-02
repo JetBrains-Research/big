@@ -28,7 +28,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val endOffset = readInt()
                 val sb = StringBuilder()
                 while (true) {
-                    var ch = readByte().toInt()
+                    var ch = readUnsignedByte()
                     if (ch == 0) {
                         break
                     }
@@ -45,7 +45,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 }
 
                 chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
-            } while (tell() - dataOffset < dataSize)
+            } while (!finished())
 
             chunk.asSequence()
         }
