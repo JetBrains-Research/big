@@ -3,10 +3,11 @@ package org.jbb.big
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.math.RoundingMode
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.stream.Collectors
+import java.util.zip.Deflater
+import java.util.zip.Inflater
 
 /**
  * Various internal helpers.
@@ -40,6 +41,35 @@ fun Int.logCeiling(base: Int): Int {
 fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
+
+fun ByteArray.uncompress(): ByteArray {
+    val inf = Inflater()
+    inf.setInput(this)
+    return ByteArrayOutputStream(size()).use { out ->
+        val buf = ByteArray(1024)
+        while (!inf.finished()) {
+            val count = inf.inflate(buf)
+            out.write(buf, 0, count)
+        }
+
+        out.toByteArray()
+    }
+}
+
+fun ByteArray.compress(): ByteArray {
+    val def = Deflater()
+    def.setInput(this)
+    def.finish()
+    return ByteArrayOutputStream(size()).use { out ->
+        val buf = ByteArray(1024)
+        while (!def.finished()) {
+            val count = def.deflate(buf)
+            out.write(buf, 0, count)
+        }
+
+        out.toByteArray()
+    }
+}
 
 /**
  * A semi-closed interval.

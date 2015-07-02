@@ -1,7 +1,8 @@
 package org.jbb.big
 
+import org.junit.Assert
 import org.junit.Test
-import java.util.*
+import java.util.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -18,6 +19,16 @@ public class InternalsTest {
             val b = RANDOM.nextInt(a) + 2
             val n = a.logCeiling(b)
             assertTrue(b pow n >= a, "ceil(log($a, base = $b)) /= $n")
+        }
+    }
+
+    Test fun testCompression() {
+        for (i in 0 until 100) {
+            val n = RANDOM.nextInt(4096) + 1
+            val chunk = ByteArray(n)
+            RANDOM.nextBytes(chunk)
+
+            Assert.assertArrayEquals(chunk, chunk.compress().uncompress())
         }
     }
 

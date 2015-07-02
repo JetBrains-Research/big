@@ -66,8 +66,6 @@ public open class SeekableDataInput protected constructor(
 
     override fun readUnsignedByte(): Int = input.readUnsignedByte()
 
-    override fun readChar(): Char = input.readChar()
-
     override fun readShort(): Short {
         val b1 = readAndCheckByte()
         val b2 = readAndCheckByte()
@@ -87,6 +85,8 @@ public open class SeekableDataInput protected constructor(
             Ints.fromBytes(0, 0, b2, b1)
         }
     }
+
+    override fun readChar(): Char = readUnsignedShort().toChar()
 
     override fun readInt(): Int {
         val b1 = readAndCheckByte()
