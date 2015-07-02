@@ -8,7 +8,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigBedFileTest {
-    Test fun testWriteQueryCompressed() = testWriteQuery(true)
+    // Output compression is not supported.
+    Test(expected = IllegalArgumentException::class) fun testWriteQueryCompressed() {
+        testWriteQuery(true)
+    }
 
     Test fun testWriteQueryUncompressed() = testWriteQuery(false)
 

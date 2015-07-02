@@ -193,17 +193,6 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
         DataOutput, Closeable, AutoCloseable {
     protected open val output: DataOutput get() = file
 
-    /** Returns a compressed **view** output */
-    public fun compressed(): SeekableDataOutput = CompressedDataOutput(file, order)
-
-    /** Executes a `block` on a possibly compressed output. */
-    public inline fun with(compressed: Boolean,
-                           block: SeekableDataOutput.() -> Unit): Int {
-        val offset = tell()
-        with(if (compressed) compressed() else this, block)
-        return (tell() - offset).toInt()
-    }
-
     public fun seek(pos: Long): Unit = file.seek(pos)
 
     public fun tell(): Long = file.getFilePointer()
@@ -280,23 +269,8 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
     override fun close() = file.close()
 
     companion object {
-        throws(FileNotFoundException::class)
         public fun of(path: Path, order: ByteOrder = ByteOrder.BIG_ENDIAN): SeekableDataOutput {
             return SeekableDataOutput(RandomAccessFile(path.toFile(), "rw"), order)
         }
-    }
-}
-
-class CompressedDataOutput(file: RandomAccessFile, order: ByteOrder) :
-        SeekableDataOutput(file, order) {
-
-    private val def = Deflater()
-
-    override val output: DataOutputStream = DataOutputStream(
-            DeflaterOutputStream(Channels.newOutputStream(file.getChannel()),
-                                 def))
-
-    override fun close() {
-        // no-op.
     }
 }

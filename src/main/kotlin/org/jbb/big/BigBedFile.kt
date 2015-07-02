@@ -62,6 +62,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
                                         compressed: Boolean = false) {
+            require(!compressed, "output compression is not supported")
             SeekableDataOutput.of(outputPath).use { output ->
                 output.writeByte(0, BigFile.Header.BYTES)
 
@@ -78,14 +79,13 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
-                var uncompressBufSize = 0
                 BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
                     val (name, items) = entry
                     Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
                     val chromId = resolver[name]!!
                     for (i in 0 until items.size() step itemsPerSlot) {
-                        val current = output.with(compressed) {
+                        with (output) {
                             val dataOffset = tell()
                             val slotSize = Math.min(items.size() - i, itemsPerSlot)
                             val start = items[i].start
@@ -105,8 +105,6 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                             leaves.add(RTreeIndexLeaf(Interval.of(chromId, start, end),
                                                       dataOffset, tell() - dataOffset))
                         }
-
-                        uncompressBufSize = Math.max(uncompressBufSize, current)
                     }
                 }
 
@@ -121,7 +119,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 3, definedFieldCount = 3,
                         asOffset = 0, totalSummaryOffset = 0,
-                        uncompressBufSize = if (compressed) uncompressBufSize else 0,
+                        uncompressBufSize = 0,
                         extendedHeaderOffset = 0)
                 header.write(output, MAGIC)
             }

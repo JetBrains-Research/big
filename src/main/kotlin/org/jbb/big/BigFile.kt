@@ -47,7 +47,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                     val extraFieldCount = readShort()
                     skipBytes(Longs.BYTES)      // indexOffset.
                     skipBytes(extraFieldCount *
-                              (Shorts.BYTES + // fieldId,
+                              (Shorts.BYTES +   // fieldId,
                                Shorts.BYTES))   // reserved.
                 }
             }
