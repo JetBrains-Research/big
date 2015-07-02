@@ -5,19 +5,15 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.*
 import java.nio.ByteOrder
-import java.nio.channels.Channels
 import java.nio.file.Path
 import java.util.zip.Deflater
-import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
-import java.util.zip.InflaterInputStream
 
 
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
 public interface OrderedDataInput {
-    /** Byte order used for compound data types. */
     public val order: ByteOrder
 
     public fun readBoolean(): Boolean = readUnsignedByte() != 0
@@ -104,8 +100,8 @@ public open class SeekableDataInput protected constructor(
     }
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
-    public inline fun with<T>(offset: Long, size: Long, compressed: Boolean,
-                              block: OrderedDataInput.() -> T): T {
+    public fun with<T>(offset: Long, size: Long, compressed: Boolean,
+                       block: OrderedDataInput.() -> T): T {
         seek(offset)
         val data = ByteArray(size.toInt())
         readFully(data)
@@ -138,8 +134,8 @@ public open class SeekableDataInput protected constructor(
     }
 }
 
-public class ByteArrayDataInput(private val data: ByteArray,
-                                public override val order: ByteOrder) : OrderedDataInput {
+private class ByteArrayDataInput(private val data: ByteArray,
+                                 public override val order: ByteOrder) : OrderedDataInput {
     private val input: DataInput = DataInputStream(ByteArrayInputStream(data))
     private var bytesRead: Int = 0
 
@@ -154,10 +150,23 @@ public class ByteArrayDataInput(private val data: ByteArray,
 }
 
 /**
- * A stripped down byte order-aware complement to [java.io.DataOutputStream].
+ * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
 public interface OrderedDataOutput {
     public val order: ByteOrder
+
+    fun skipBytes(v: Int, count: Int) {
+        for (i in 0 until count) {
+            writeByte(v)
+        }
+    }
+
+    fun writeBytes(s: String)
+
+    fun writeBytes(s: String, length: Int) {
+        writeBytes(s)
+        skipBytes(0, length - s.length())
+    }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
 
@@ -231,19 +240,18 @@ public interface OrderedDataOutput {
 public open class SeekableDataOutput(private val file: RandomAccessFile,
                                      public override var order: ByteOrder) :
         OrderedDataOutput, Closeable, AutoCloseable {
-    
-    fun write(b: ByteArray, off: Int = 0, len: Int = b.size()) = file.write(b, off, len)
 
-    public fun skipBytes(v: Int, count: Int) {
-        for (i in 0 until count) {
-            writeByte(v)
-        }
+    /** Executes a `block` on a fixed-size possibly compressed input. */
+    public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
+        val offset = tell()
+        val output = ByteArrayOutputStream()
+        with(ByteArrayDataOutput(output, order), block)
+        val data = output.toByteArray()
+        file.write(if (compressed) data.compress() else data)
+        return (tell() - offset).toInt()
     }
 
-    public fun writeBytes(s: String, length: Int = s.length()) {
-        file.writeBytes(s)
-        skipBytes(0, length - s.length())
-    }
+    override fun writeBytes(s: String) = file.writeBytes(s)
 
     override fun writeByte(v: Int) = file.writeByte(v)
 
@@ -257,5 +265,43 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
         public fun of(path: Path, order: ByteOrder = ByteOrder.BIG_ENDIAN): SeekableDataOutput {
             return SeekableDataOutput(RandomAccessFile(path.toFile(), "rw"), order)
         }
+    }
+}
+
+private class ByteArrayDataOutput(private val data: ByteArrayOutputStream,
+                                  public override val order: ByteOrder) : OrderedDataOutput {
+    private val output: DataOutput = DataOutputStream(data)
+
+    override fun writeBytes(s: String) = output.writeBytes(s)
+
+    override fun writeByte(v: Int) = output.writeByte(v)
+}
+
+private fun ByteArray.decompress(): ByteArray {
+    val inf = Inflater()
+    inf.setInput(this)
+    return ByteArrayOutputStream(size()).use { out ->
+        val buf = ByteArray(1024)
+        while (!inf.finished()) {
+            val count = inf.inflate(buf)
+            out.write(buf, 0, count)
+        }
+
+        out.toByteArray()
+    }
+}
+
+private fun ByteArray.compress(): ByteArray {
+    val def = Deflater()
+    def.setInput(this)
+    def.finish()
+    return ByteArrayOutputStream(size()).use { out ->
+        val buf = ByteArray(1024)
+        while (!def.finished()) {
+            val count = def.deflate(buf)
+            out.write(buf, 0, count)
+        }
+
+        out.toByteArray()
     }
 }

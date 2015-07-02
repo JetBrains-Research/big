@@ -63,7 +63,6 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
                                         compressed: Boolean = false) {
-            require(!compressed, "output compression is not supported")
             SeekableDataOutput.of(outputPath).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
@@ -80,18 +79,18 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
+                var uncompressBufSize = 0
                 BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
                     val (name, items) = entry
                     Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
                     val chromId = resolver[name]!!
                     for (i in 0 until items.size() step itemsPerSlot) {
-                        with (output) {
-                            val dataOffset = tell()
+                        val dataOffset = output.tell()
+                        val start = items[i].start
+                        var end = 0
+                        val current = output.with(compressed) {
                             val slotSize = Math.min(items.size() - i, itemsPerSlot)
-                            val start = items[i].start
-                            var end = 0
-
                             for (j in 0 until slotSize) {
                                 val item = items[i + j]
                                 writeInt(chromId)
@@ -102,10 +101,11 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
                                 end = Math.max(end, item.end)
                             }
-
-                            leaves.add(RTreeIndexLeaf(Interval.of(chromId, start, end),
-                                                      dataOffset, tell() - dataOffset))
                         }
+
+                        leaves.add(RTreeIndexLeaf(Interval.of(chromId, start, end),
+                                                  dataOffset, output.tell() - dataOffset))
+                        uncompressBufSize = Math.max(uncompressBufSize, current)
                     }
                 }
 
@@ -120,7 +120,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 3, definedFieldCount = 3,
                         asOffset = 0, totalSummaryOffset = 0,
-                        uncompressBufSize = 0,
+                        uncompressBufSize = if (compressed) uncompressBufSize else 0,
                         extendedHeaderOffset = 0)
                 header.write(output, MAGIC)
             }
