@@ -36,7 +36,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
         val isLeaf = input.readBoolean()
         input.readByte()  // reserved.
-        val childCount = input.readShort().toInt()
+        val childCount = input.readUnsignedShort()
 
         return if (isLeaf) {
             (0 until childCount)
@@ -73,8 +73,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
         input.seek(blockStart)
 
         val isLeaf = input.readBoolean()
-        input.readBoolean() // reserved
-        val childCount = input.readShort().toInt()
+        input.readByte()  // reserved.
+        val childCount = input.readUnsignedShort()
 
         if (isLeaf) {
             for (i in 0 until childCount) {
@@ -102,7 +102,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     }
 
     class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
-                 val itemCount: Long, val rootOffset: Long) {
+                 val itemCount: Int, val rootOffset: Long) {
         val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 
         throws(IOException::class)
@@ -111,7 +111,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
             writeInt(blockSize)
             writeInt(keySize)
             writeInt(valSize)
-            writeLong(itemCount)
+            writeLong(itemCount.toLong())
             writeLong(0L)  // reserved
         }
 
@@ -134,7 +134,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 readLong()  // reserved.
                 val rootOffset = tell()
 
-                return Header(order, blockSize, keySize, itemCount, rootOffset)
+                return Header(order, blockSize, keySize,
+                              Ints.checkedCast(itemCount), rootOffset)
             }
         }
     }
@@ -179,8 +180,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
             val itemCount = items.size()
             val keySize = items.map { it.key.length() }.max()!!
 
-            val header = Header(output.order, blockSize, keySize,
-                                itemCount.toLong(),
+            val header = Header(output.order, blockSize, keySize, itemCount,
                                 output.tell() + Header.BYTES)
             header.write(output)
             var indexOffset = header.rootOffset

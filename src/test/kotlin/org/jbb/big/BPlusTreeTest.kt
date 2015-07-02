@@ -17,7 +17,7 @@ public class BPlusTreeTest {
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
             assertEquals(8, bpt.header.valSize)
-            assertEquals(1L, bpt.header.itemCount)
+            assertEquals(1, bpt.header.itemCount)
             assertEquals(216L, bpt.header.rootOffset)
         }
     }

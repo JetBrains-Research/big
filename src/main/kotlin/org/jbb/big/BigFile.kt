@@ -37,14 +37,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         if (header.extendedHeaderOffset > 0) {
             with(input) {
                 skipBytes(Shorts.BYTES)  // extensionSize.
-                val extraIndexCount = readShort().toInt()
+                val extraIndexCount = readUnsignedShort()
                 skipBytes(Longs.BYTES)   // extraIndexListOffset.
                 skipBytes(48)            // reserved.
 
                 for (i in 0 until extraIndexCount) {
-                    val type = readShort()
-                    assert(type == 0.toShort())
-                    val extraFieldCount = readShort()
+                    val type = readUnsignedShort()
+                    assert(type == 0)
+                    val extraFieldCount = readUnsignedShort()
                     skipBytes(Longs.BYTES)      // indexOffset.
                     skipBytes(extraFieldCount *
                               (Shorts.BYTES +   // fieldId,
@@ -63,7 +63,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         // XXX I wonder if sequential numbering is always the case for
         // Big files?
         with (bPlusTree) {
-            val res = arrayOfNulls<String>(header.itemCount.toInt())
+            val res = arrayOfNulls<String>(header.itemCount)
             for (leaf in traverse(input)) {
                 res[leaf.id] = leaf.key
             }
@@ -109,23 +109,23 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     throws(IOException::class)
     override fun close() = input.close()
 
-    class Header(val order: ByteOrder, val version: Short, val zoomLevelCount: Short,
+    class Header(val order: ByteOrder, val version: Int, val zoomLevelCount: Int,
                  val chromTreeOffset: Long, val unzoomedDataOffset: Long,
-                 val unzoomedIndexOffset: Long, val fieldCount: Short,
-                 val definedFieldCount: Short, val asOffset: Long,
+                 val unzoomedIndexOffset: Long, val fieldCount: Int,
+                 val definedFieldCount: Int, val asOffset: Long,
                  val totalSummaryOffset: Long, val uncompressBufSize: Int,
                  val extendedHeaderOffset: Long) {
 
         fun write(output: SeekableDataOutput, magic: Int) = with(output) {
             seek(0L)  // a header is always first.
             writeInt(magic)
-            writeShort(version.toInt())
-            writeShort(zoomLevelCount.toInt())
+            writeShort(version)
+            writeShort(zoomLevelCount)
             writeLong(chromTreeOffset)
             writeLong(unzoomedDataOffset)
             writeLong(unzoomedIndexOffset)
             writeShort(fieldCount.toInt())
-            writeShort(definedFieldCount.toInt())
+            writeShort(definedFieldCount)
             writeLong(asOffset)
             writeLong(totalSummaryOffset)
             writeInt(uncompressBufSize)
@@ -140,13 +140,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
                 guess(magic)
 
-                val version = readShort()
-                val zoomLevelCount = readShort()
+                val version = readUnsignedShort()
+                val zoomLevelCount = readUnsignedShort()
                 val chromTreeOffset = readLong()
                 val unzoomedDataOffset = readLong()
                 val unzoomedIndexOffset = readLong()
-                val fieldCount = readShort()
-                val definedFieldCount = readShort()
+                val fieldCount = readUnsignedShort()
+                val definedFieldCount = readUnsignedShort()
                 val asOffset = readLong()
                 val totalSummaryOffset = readLong()
                 val uncompressBufSize = readInt()

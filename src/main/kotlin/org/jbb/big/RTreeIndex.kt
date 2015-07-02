@@ -54,7 +54,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
         val isLeaf = input.readBoolean()
         input.readByte()  // reserved.
-        val childCount = input.readShort().toInt()
+        val childCount = input.readUnsignedShort()
 
         // XXX we have to eagerly read the blocks because 'input' is
         // shared between calls.
