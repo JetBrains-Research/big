@@ -74,9 +74,9 @@ public class BigWigTest {
         assertTrue(lastStep is VariableStepSection)
 
         assertEquals(position1, firstStep.start + 1)
-        assertEquals(value1, firstStep.values.toArray().first())
+        assertEquals(value1, firstStep.query().first().score)
         assertEquals(position2, lastStep.end)
-        assertEquals(value2, lastStep.values.toArray().last())
+        assertEquals(value2, lastStep.query().last().score)
     }
 
     private fun assertFixedStep(firstStep: WigSection, lastStep: WigSection,
@@ -86,9 +86,9 @@ public class BigWigTest {
         assertTrue(lastStep is FixedStepSection)
 
         assertEquals(position1, firstStep.start + 1)
-        assertEquals(value1, firstStep.values.toArray().first())
+        assertEquals(value1, firstStep.query().first().score)
         assertEquals(position2, lastStep.end)
-        assertEquals(value2, lastStep.values.toArray().last())
+        assertEquals(value2, lastStep.query().last().score)
     }
 }
 

@@ -252,8 +252,6 @@ public interface WigSection {
      */
     val end: Int
 
-    val values: TFloatList
-
     /**
      * Returns a list with all intervals in the section.
      */
@@ -294,8 +292,8 @@ public class VariableStepSection(
         positions[positions.size() - 1] + span
     }
 
-    public val positions: TIntList = TIntArrayList()
-    public override val values: TFloatList = TFloatArrayList()
+    private val positions: TIntList = TIntArrayList()
+    private val values: TFloatList = TFloatArrayList()
 
     public fun set(pos: Int, value: Float) {
         val i = positions.binarySearch(pos)
@@ -361,7 +359,7 @@ public class FixedStepSection(
 
     override val end: Int get() = start + step * (values.size() - 1) + span
 
-    public override val values: TFloatList = TFloatArrayList()
+    private val values: TFloatList = TFloatArrayList()
 
     public fun add(value: Float) {
         values.add(value)
