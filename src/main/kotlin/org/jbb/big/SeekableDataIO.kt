@@ -9,7 +9,6 @@ import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.Inflater
 
-
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */

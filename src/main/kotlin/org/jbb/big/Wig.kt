@@ -216,10 +216,10 @@ public interface WigSection {
      */
     public fun query(from: Int, to: Int): List<WigInterval>
 
-    public enum class Type(public val id: Int) {
-        BED_GRAPH(1),
-        VARIABLE_STEP(2),
-        FIXED_STEP(3)
+    public enum class Type() {
+        BED_GRAPH,
+        VARIABLE_STEP,
+        FIXED_STEP
     }
 }
 
