@@ -124,7 +124,7 @@ public class RTreeIndexTest {
         return BigBedFile.read(Examples.get("example1.bb"))
     }
 
-    private val exampleItems: List<BedData> by Delegates.lazy {
+    private val exampleItems: List<BedEntry> by Delegates.lazy {
         BedFile.read(Examples.get("example1.bed")).toList()
     }
 

@@ -5,11 +5,11 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.platform.platformStatic
 
-class BedFile(private val path: Path) : Iterable<BedData> {
-    override fun iterator(): Iterator<BedData> = Files.lines(path).map { line ->
+class BedFile(private val path: Path) : Iterable<BedEntry> {
+    override fun iterator(): Iterator<BedEntry> = Files.lines(path).map { line ->
         val chunks = line.split('\t', limit = 4)
-        BedData(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
-                if (chunks.size() == 3) "" else chunks[3])
+        BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
+                 if (chunks.size() == 3) "" else chunks[3])
     }.iterator()
 
     companion object {
@@ -21,7 +21,7 @@ class BedFile(private val path: Path) : Iterable<BedData> {
 /**
  * A minimal representation of a BED file entry.
  */
-public data class BedData(
+public data class BedEntry(
         /** Chromosome name, e.g. `"chr9"`. */
         public val name: String,
         /** 0-based start offset (inclusive). */

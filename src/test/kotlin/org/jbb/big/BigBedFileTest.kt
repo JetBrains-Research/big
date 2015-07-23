@@ -15,7 +15,7 @@ public class BigBedFileTest {
     private fun testWriteQuery(compressed: Boolean) {
         val path = Files.createTempFile("example1", ".bb")
         try {
-            BigBedFile.write(Examples.get("example1.bed"),
+            BigBedFile.write(BedFile.read(Examples.get("example1.bed")),
                              Examples.get("hg19.chrom.sizes"),
                              path, compressed = compressed)
 
@@ -35,7 +35,7 @@ public class BigBedFileTest {
         testQueryLarge(path, items)
     }
 
-    private fun testQuerySmall(path: Path, items: List<BedData>) {
+    private fun testQuerySmall(path: Path, items: List<BedEntry>) {
         BigBedFile.read(path).use { bbf ->
             for (i in 0 until 100) {
                 testQuery(bbf, items, items[RANDOM.nextInt(items.size())])
@@ -43,18 +43,18 @@ public class BigBedFileTest {
         }
     }
 
-    private fun testQueryLarge(path: Path, items: List<BedData>) {
+    private fun testQueryLarge(path: Path, items: List<BedEntry>) {
         BigBedFile.read(path).use { bbf ->
             for (i in 0 until 10) {
                 val a = items[RANDOM.nextInt(items.size())]
                 val b = items[RANDOM.nextInt(items.size())]
-                testQuery(bbf, items, BedData(a.name, Math.min(a.start, b.start),
-                                              Math.max(a.end, b.end)))
+                testQuery(bbf, items, BedEntry(a.name, Math.min(a.start, b.start),
+                                               Math.max(a.end, b.end)))
             }
         }
     }
 
-    private fun testQuery(bbf: BigBedFile, items: List<BedData>, query: BedData) {
+    private fun testQuery(bbf: BigBedFile, items: List<BedEntry>, query: BedEntry) {
         val actual = bbf.query(query.name, query.start, query.end).toList()
         for (item in actual) {
             assertTrue(item.start >= query.start && item.end <= query.end)

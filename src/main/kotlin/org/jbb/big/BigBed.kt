@@ -13,14 +13,14 @@ import kotlin.platform.platformStatic
  * Just like BED only BIGGER.
  */
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
-        BigFile<BedData>(path, magic = BigBedFile.MAGIC) {
+        BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     throws(IOException::class)
     override fun queryInternal(dataOffset: Long, dataSize: Long,
-                               query: ChromosomeInterval): Sequence<BedData> {
+                               query: ChromosomeInterval): Sequence<BedEntry> {
         val chrom = chromosomes[query.chromIx]
         return input.with(dataOffset, dataSize, compressed) {
-            val chunk = ArrayList<BedData>()
+            val chunk = ArrayList<BedEntry>()
             do {
                 assert(readInt() == query.chromIx, "interval contains wrong chromosome")
                 val startOffset = readInt()
@@ -43,7 +43,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                     break
                 }
 
-                chunk.add(BedData(chrom, startOffset, endOffset, sb.toString()))
+                chunk.add(BedEntry(chrom, startOffset, endOffset, sb.toString()))
             } while (!finished)
 
             chunk.asSequence()
@@ -58,7 +58,8 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
 
         throws(IOException::class)
-        public platformStatic fun write(bedPath: Path, chromSizesPath: Path,
+        public platformStatic fun write(bedEntries: Iterable<BedEntry>,
+                                        chromSizesPath: Path,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
                                         compressed: Boolean = false) {
@@ -79,7 +80,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                BedFile.read(bedPath).groupBy { it.name }.forEach { entry ->
+                bedEntries.groupBy { it.name }.forEach { entry ->
                     val (name, items) = entry
                     Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
