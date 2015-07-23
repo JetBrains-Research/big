@@ -1,7 +1,5 @@
 package org.jbb.big
 
-import com.google.common.collect.ImmutableList
-import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.Closeable
@@ -109,12 +107,12 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     throws(IOException::class)
     override fun close() = input.close()
 
-    class Header(val order: ByteOrder, val version: Int, val zoomLevelCount: Int,
+    class Header(val order: ByteOrder, val version: Int = 4, val zoomLevelCount: Int = 0,
                  val chromTreeOffset: Long, val unzoomedDataOffset: Long,
                  val unzoomedIndexOffset: Long, val fieldCount: Int,
-                 val definedFieldCount: Int, val asOffset: Long,
-                 val totalSummaryOffset: Long, val uncompressBufSize: Int,
-                 val extendedHeaderOffset: Long) {
+                 val definedFieldCount: Int, val asOffset: Long = 0,
+                 val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
+                 val extendedHeaderOffset: Long = 0) {
 
         fun write(output: SeekableDataOutput, magic: Int) = with(output) {
             seek(0L)  // a header is always first.

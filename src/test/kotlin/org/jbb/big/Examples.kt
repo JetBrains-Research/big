@@ -6,7 +6,7 @@ import kotlin.platform.platformStatic
 
 public object Examples {
     platformStatic fun get(name: String): Path {
-        val url = javaClass<Examples>().getClassLoader().getResource(name)
+        val url = Examples.javaClass.getClassLoader().getResource(name)
                 ?: throw IllegalStateException("resource not found")
 
         return Paths.get(url.toURI()).toFile().toPath()

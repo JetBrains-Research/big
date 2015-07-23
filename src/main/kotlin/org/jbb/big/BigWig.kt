@@ -5,7 +5,7 @@ import com.google.common.primitives.Ints
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
+import java.util.Collections
 import kotlin.platform.platformStatic
 
 /**
@@ -109,14 +109,11 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
 
                 val header = BigFile.Header(
                         output.order,
-                        version = 4, zoomLevelCount = 0,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 0, definedFieldCount = 0,
-                        asOffset = 0, totalSummaryOffset = 0,
-                        uncompressBufSize = if (compressed) uncompressBufSize else 0,
-                        extendedHeaderOffset = 0)
+                        uncompressBufSize = if (compressed) uncompressBufSize else 0)
                 header.write(output, MAGIC)
             }
         }

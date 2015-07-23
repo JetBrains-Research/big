@@ -115,14 +115,11 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
                 val header = BigFile.Header(
                         output.order,
-                        version = 4, zoomLevelCount = 0,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 3, definedFieldCount = 3,
-                        asOffset = 0, totalSummaryOffset = 0,
-                        uncompressBufSize = if (compressed) uncompressBufSize else 0,
-                        extendedHeaderOffset = 0)
+                        uncompressBufSize = if (compressed) uncompressBufSize else 0)
                 header.write(output, MAGIC)
             }
         }

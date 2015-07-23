@@ -5,8 +5,6 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.IOException
 import java.nio.ByteOrder
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.platform.platformStatic
 
 /**

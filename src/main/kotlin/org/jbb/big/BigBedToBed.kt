@@ -1,7 +1,6 @@
 package org.jbb.big
 
 import com.google.common.base.Joiner
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 

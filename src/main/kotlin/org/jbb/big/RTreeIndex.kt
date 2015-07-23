@@ -1,12 +1,10 @@
 package org.jbb.big
 
-import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.IOException
 import java.nio.ByteOrder
-import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
 
