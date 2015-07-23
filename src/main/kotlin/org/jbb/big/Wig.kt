@@ -75,13 +75,15 @@ private class WigIterator(private val reader: BufferedReader) :
         loop@ while (lines.hasNext()) {
             val line = lines.peek()
             when {
-                line.startsWith('#') ->
+                line.startsWith('#') -> {
+                    lines.next()
                     continue@loop  // Skip comments.
+                }
                 state != State.WAITING && !RE_VALUE.matches(line) ->
                     break@loop     // My job here is done.
             }
 
-            val chunks = RE_WHITESPACE.split(line, 2)
+            val chunks = RE_WHITESPACE.split(line.trim(), 2)
             when (state) {
                 State.WAITING -> {
                     val (type, rest) = chunks
@@ -216,6 +218,8 @@ public interface WigSection {
      */
     public fun query(from: Int, to: Int): List<WigInterval>
 
+    public fun size(): Int
+
     public enum class Type() {
         BED_GRAPH,
         VARIABLE_STEP,
@@ -243,8 +247,8 @@ public class VariableStepSection(
         positions[positions.size() - 1] + span
     }
 
-    private val positions: TIntList = TIntArrayList()
-    private val values: TFloatList = TFloatArrayList()
+    val positions: TIntList = TIntArrayList()
+    val values: TFloatList = TFloatArrayList()
 
     public fun set(pos: Int, value: Float) {
         val i = positions.binarySearch(pos)
@@ -280,6 +284,8 @@ public class VariableStepSection(
         return acc
     }
 
+    override fun size(): Int = values.size()
+
     override fun toString(): String = MoreObjects.toStringHelper(this)
             .addValue(span)
             .toString()
@@ -310,7 +316,7 @@ public class FixedStepSection(
 
     override val end: Int get() = start + step * (values.size() - 1) + span
 
-    private val values: TFloatList = TFloatArrayList()
+    val values: TFloatList = TFloatArrayList()
 
     public fun add(value: Float) {
         values.add(value)
@@ -331,6 +337,8 @@ public class FixedStepSection(
 
         return ranges
     }
+
+    override fun size(): Int = values.size()
 
     override fun toString(): String = MoreObjects.toStringHelper(this)
             .add("start", start)

@@ -22,7 +22,8 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         return input.with(dataOffset, dataSize, compressed) {
             val chunk = ArrayList<BedEntry>()
             do {
-                assert(readInt() == query.chromIx, "interval contains wrong chromosome")
+                val chromIx = readInt()
+                assert(chromIx == query.chromIx, "interval contains wrong chromosome")
                 val startOffset = readInt()
                 val endOffset = readInt()
                 val sb = StringBuilder()

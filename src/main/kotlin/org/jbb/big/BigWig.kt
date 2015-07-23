@@ -1,21 +1,26 @@
 package org.jbb.big
 
-import java.io.*
+import com.google.common.collect.Lists
+import com.google.common.primitives.Ints
+import java.io.IOException
+import java.nio.file.Files
 import java.nio.file.Path
+import java.util.*
 import kotlin.platform.platformStatic
 
 /**
  * Bigger brother of the good-old WIG format.
  */
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
-        BigFile<WigSection>(path, magic = 0x888FFC26.toInt()) {
+        BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
     throws(IOException::class)
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
         return listOf(input.with(dataOffset, dataSize, compressed) {
-            assert(readInt() == query.chromIx, "section contains wrong chromosome")
+            val chromIx = readInt()
+            assert(chromIx == query.chromIx, "section contains wrong chromosome")
             val start = readInt()
             readInt()   // end.
             val step = readInt()
@@ -51,7 +56,102 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     }
 
     companion object {
+        /** Magic number used for determining [ByteOrder]. */
+        private val MAGIC: Int = 0x888FFC26.toInt()
+
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
+
+        throws(IOException::class)
+        public platformStatic fun write(wigSections: Iterable<WigSection>,
+                                        chromSizesPath: Path,
+                                        outputPath: Path,
+                                        compressed: Boolean = false) {
+            SeekableDataOutput.of(outputPath).use { output ->
+                output.skipBytes(0, BigFile.Header.BYTES)
+
+                val unsortedChromosomes
+                        = Files.readAllLines(chromSizesPath).mapIndexed { i, line ->
+                    val chunks = line.split('\t', limit = 2)
+                    BPlusLeaf(chunks[0], i, chunks[1].toInt())
+                }
+
+                val chromTreeOffset = output.tell()
+                BPlusTree.write(output, unsortedChromosomes)
+
+                // XXX move to 'BedFile'?
+                val unzoomedDataOffset = output.tell()
+                val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
+                val leaves = Lists.newArrayList<RTreeIndexLeaf>()
+                var uncompressBufSize = 0
+                wigSections.groupBy { it.chrom }.forEach { entry ->
+                    val (name, sections) = entry
+                    Collections.sort(sections) { e1, e2 -> Ints.compare(e1.start, e2.start) }
+
+                    val chromId = resolver[name]!!
+                    for (section in sections) {
+                        val dataOffset = output.tell()
+                        val current = output.with(compressed) {
+                            when (section) {
+                                is FixedStepSection    -> section.write(this, resolver)
+                                is VariableStepSection -> section.write(this, resolver)
+                            }
+                        }
+
+                        leaves.add(RTreeIndexLeaf(Interval.of(chromId, section.start, section.end),
+                                                  dataOffset, output.tell() - dataOffset))
+                        uncompressBufSize = Math.max(uncompressBufSize, current)
+                    }
+                }
+
+                val unzoomedIndexOffset = output.tell()
+                RTreeIndex.write(output, leaves, itemsPerSlot = 1)
+
+                val header = BigFile.Header(
+                        output.order,
+                        version = 4, zoomLevelCount = 0,
+                        chromTreeOffset = chromTreeOffset,
+                        unzoomedDataOffset = unzoomedDataOffset,
+                        unzoomedIndexOffset = unzoomedIndexOffset,
+                        fieldCount = 0, definedFieldCount = 0,
+                        asOffset = 0, totalSummaryOffset = 0,
+                        uncompressBufSize = if (compressed) uncompressBufSize else 0,
+                        extendedHeaderOffset = 0)
+                header.write(output, MAGIC)
+            }
+        }
+    }
+}
+
+private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<String, Int>) {
+    with(output) {
+        writeInt(resolver[chrom]!!)
+        writeInt(start)
+        writeInt(end)
+        writeInt(step)
+        writeInt(span)
+        writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
+        writeByte(0) // reserved.
+        writeShort(values.size())
+        for (i in 0 until values.size()) {
+            writeFloat(values[i])
+        }
+    }
+}
+
+private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<String, Int>) {
+    with(output) {
+        writeInt(resolver[chrom]!!)
+        writeInt(start)
+        writeInt(end)
+        writeInt(0)
+        writeInt(span)
+        writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
+        writeByte(0) // reserved.
+        writeShort(values.size())
+        for (i in 0 until values.size()) {
+            writeInt(positions[i])
+            writeFloat(values[i])
+        }
     }
 }

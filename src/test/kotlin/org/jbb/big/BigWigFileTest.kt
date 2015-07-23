@@ -1,11 +1,33 @@
 package org.jbb.big
 
 import org.junit.Test
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-public class BigWigTest {
+public class BigWigFileTest {
+    Test fun testWriteReadCompressed() = testWriteRead(true)
+
+    Test fun testWriteReadUncompressed() = testWriteRead(false)
+
+    private fun testWriteRead(compressed: Boolean) {
+        val path = Files.createTempFile("example", ".bw")
+        try {
+            val wigSections = WigParser(Examples.get("example.wig").toFile().bufferedReader())
+                    .map { it.second }
+                    .toList()
+            BigWigFile.write(wigSections, Examples.get("hg19.chrom.sizes"),
+                             path, compressed = compressed)
+
+            BigWigFile.read(path).use { bwf ->
+                assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
+            }
+        } finally {
+            Files.deleteIfExists(path)
+        }
+    }
+
     Test fun testCompressedExample2() {
         assertVariableStep(Examples.get("example2.bw"),
                            "chr21", 9411191, 50f, 48119895, 60f)
