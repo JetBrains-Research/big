@@ -1,5 +1,6 @@
 package org.jbb.big
 
+import gnu.trove.TDecorators
 import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -74,7 +75,7 @@ public class BigWigFileTest {
         val chromosomes = file.chromosomes
 
         assertEquals(1, chromosomes.size())
-        assertEquals(chromosome, chromosomes.first())
+        assertEquals(chromosome, chromosomes.values().first())
 
         val steps = file.query(chromosome, 0, 0).toList()
         assertTrue(steps.isNotEmpty())
