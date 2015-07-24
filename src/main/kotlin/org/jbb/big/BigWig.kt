@@ -14,7 +14,6 @@ import kotlin.platform.platformStatic
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
-    throws(IOException::class)
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
@@ -62,6 +61,17 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
 
+        /**
+         * Creates a BigWIG file from given sections.
+         *
+         * @param wigSections sections to write and index.
+         * @param chromSizesPath path to the TSV file with chromosome
+         *                       names and sizes.
+         * @param outputPath BigWIG file path.
+         * @param compressed compress BigWIG data sections with gzip.
+         *                   Defaults to `false`.
+         * @throws IOException if any of the read or write operations failed.
+         */
         throws(IOException::class)
         public platformStatic fun write(wigSections: Iterable<WigSection>,
                                         chromSizesPath: Path,

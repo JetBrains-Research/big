@@ -2,6 +2,9 @@ package org.jbb.big
 
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
+import gnu.trove.TCollections
+import gnu.trove.map.TIntObjectMap
+import gnu.trove.map.hash.TIntObjectHashMap
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -57,17 +60,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         check(rTree.header.order == header.order)
     }
 
-    public val chromosomes: List<String> by Delegates.lazy {
-        // XXX I wonder if sequential numbering is always the case for
-        // Big files?
-        with (bPlusTree) {
-            val res = arrayOfNulls<String>(header.itemCount)
-            for (leaf in traverse(input)) {
-                res[leaf.id] = leaf.key
-            }
-
-            res.asSequence().filterNotNull().toArrayList()
-        }
+    public val chromosomes: TIntObjectMap<String> by Delegates.lazy {
+        bPlusTree.toMap(input)
     }
 
     public val compressed: Boolean get() {
@@ -134,7 +128,6 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             /** Number of bytes used for this header. */
             val BYTES = 64
 
-            throws(IOException::class)
             fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
                 guess(magic)
 

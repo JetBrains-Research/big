@@ -82,7 +82,9 @@ public interface OrderedDataInput {
 
 public open class SeekableDataInput protected constructor(
         private val file: RandomAccessFile,
-        public override var order: ByteOrder) : OrderedDataInput, Closeable, AutoCloseable {
+        public override var order: ByteOrder)
+:
+        OrderedDataInput, Closeable, AutoCloseable {
 
     /** Guess byte order from a given big-endian `magic`. */
     public fun guess(magic: Int) {
@@ -134,7 +136,10 @@ public open class SeekableDataInput protected constructor(
 }
 
 private class ByteArrayDataInput(private val data: ByteArray,
-                                 public override val order: ByteOrder) : OrderedDataInput {
+                                 public override val order: ByteOrder)
+:
+        OrderedDataInput {
+
     private val input: DataInput = DataInputStream(ByteArrayInputStream(data))
     private var bytesRead: Int = 0
 
@@ -237,7 +242,8 @@ public interface OrderedDataOutput {
 }
 
 public open class SeekableDataOutput(private val file: RandomAccessFile,
-                                     public override var order: ByteOrder) :
+                                     public override var order: ByteOrder)
+:
         OrderedDataOutput, Closeable, AutoCloseable {
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
@@ -268,7 +274,10 @@ public open class SeekableDataOutput(private val file: RandomAccessFile,
 }
 
 private class ByteArrayDataOutput(private val data: ByteArrayOutputStream,
-                                  public override val order: ByteOrder) : OrderedDataOutput {
+                                  public override val order: ByteOrder)
+:
+        OrderedDataOutput {
+
     private val output: DataOutput = DataOutputStream(data)
 
     override fun writeBytes(s: String) = output.writeBytes(s)

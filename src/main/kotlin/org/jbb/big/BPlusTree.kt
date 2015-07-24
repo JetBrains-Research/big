@@ -3,6 +3,9 @@ package org.jbb.big
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
+import gnu.trove.TCollections
+import gnu.trove.map.TIntObjectMap
+import gnu.trove.map.hash.TIntObjectHashMap
 import java.io.IOException
 import java.nio.ByteOrder
 import kotlin.platform.platformStatic
@@ -26,7 +29,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
         return traverseRecursively(input, header.rootOffset)
     }
 
-    throws(IOException::class)
     private fun traverseRecursively(input: SeekableDataInput,
                                     offset: Long): Sequence<BPlusLeaf> {
         assert(input.order == header.order)
@@ -64,7 +66,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
-    throws(IOException::class)
     private fun findRecursively(input: SeekableDataInput, blockStart: Long,
                                 query: String): BPlusLeaf? {
         assert(input.order == header.order)
@@ -97,6 +98,17 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
             return findRecursively(input, node.childOffset, query)
         }
+    }
+
+    fun toMap(input: SeekableDataInput): TIntObjectMap<String> {
+        // XXX I wonder if sequential numbering is always the case for
+        // Big files?
+        val res = TIntObjectHashMap<String>(header.itemCount)
+        for (leaf in traverse(input)) {
+            res.put(leaf.id, leaf.key)
+        }
+
+        return TCollections.unmodifiableMap(res)
     }
 
     class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
@@ -164,9 +176,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
          * @param itemCount total number of leaves in a B+ tree
          * @return required number of levels.
          */
-        fun countLevels(blockSize: Int, itemCount: Int): Int {
-            return itemCount.logCeiling(blockSize)
-        }
+        fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
 
         throws(IOException::class)
         fun write(output: SeekableDataOutput, unsortedItems: List<BPlusLeaf>,

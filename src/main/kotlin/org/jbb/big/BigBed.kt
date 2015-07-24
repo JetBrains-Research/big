@@ -15,7 +15,6 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
-    throws(IOException::class)
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<BedEntry> {
         val chrom = chromosomes[query.chromIx]
@@ -58,6 +57,19 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
 
+        /**
+         * Creates a BigBED file from given entries.
+         *
+         * @param bedEntries entries to write and index.
+         * @param chromSizesPath path to the TSV file with chromosome
+         *                       names and sizes.
+         * @param outputPath BigBED file path.
+         * @param itemsPerSlot number of items to store in a single
+         *                     R+ tree index node. Defaults to `1024`.
+         * @param compressed compress BigBED data sections with gzip.
+         *                   Defaults to `false`.
+         * @throws IOException if any of the read or write operations failed.
+         */
         throws(IOException::class)
         public platformStatic fun write(bedEntries: Iterable<BedEntry>,
                                         chromSizesPath: Path,
