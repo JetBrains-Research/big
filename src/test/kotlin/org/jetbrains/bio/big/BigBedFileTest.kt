@@ -72,11 +72,14 @@ public class BigBedFileTest {
 
     Test fun testSummarizeWholeFile() {
         val bbf = BigBedFile.read(Examples.get("example1.bb"))
-        val (summary) = bbf.summarize("chr21", 0, 0, 1)
         val bedEntries = bbf.query("chr21", 0, 0).toList()
+        val (summary) = bbf.summarize(
+                bbf.chromosomes.valueCollection().first(),
+                0, 0, numBins = 1)
         assertEquals(bedEntries.map { it.score.toDouble() }.sum(),
-                     summary.getSum())
-        assertEquals(bedEntries.size().toLong(), summary.getN())
+                     summary.sum)
+        assertEquals(bedEntries.map { it.end - it.start }.sum().toLong(),
+                     summary.count)
     }
 
     Test fun testSummarizeTwoBins() {
@@ -93,11 +96,12 @@ public class BigBedFileTest {
             BigBedFile.write(bedEntries, Examples.get("hg19.chrom.sizes"), path)
 
             BigBedFile.read(path).use { bbf ->
-                val (summary1, summary2) = bbf.summarize(name, 0, 0, 2)
+                val (summary1, summary2) = bbf.summarize(name, 0, 0, numBins = 2)
+
                 assertEquals(bedEntries.map { it.score.toDouble() }.sum(),
-                             summary1.getSum() + summary2.getSum())
-                assertEquals(bedEntries.size().toLong(),
-                             summary1.getN() + summary2.getN())
+                             summary1.sum + summary2.sum)
+                assertEquals(bedEntries.map { it.end - it.start }.sum(),
+                             summary1.count + summary2.count)
             }
         } finally {
             Files.deleteIfExists(path)

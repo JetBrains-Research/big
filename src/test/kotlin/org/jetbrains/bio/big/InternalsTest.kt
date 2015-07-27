@@ -62,14 +62,14 @@ public class IntervalTest {
     }
 
     private fun assertOverlaps(interval1: Interval, interval2: Interval) {
-        assertTrue(interval1.overlaps(interval2), "$interval1 must overlap $interval2")
-        assertTrue(interval2.overlaps(interval1), "$interval2 must overlap $interval1")
+        assertTrue(interval1.intersects(interval2), "$interval1 must overlap $interval2")
+        assertTrue(interval2.intersects(interval1), "$interval2 must overlap $interval1")
     }
 
     private fun assertNotOverlaps(interval1: Interval, interval2: Interval) {
-        assertFalse(interval1.overlaps(interval2),
+        assertFalse(interval1.intersects(interval2),
                     "$interval1 must not overlap $interval2")
-        assertFalse(interval2.overlaps(interval1),
+        assertFalse(interval2.intersects(interval1),
                     "$interval1 must not overlap $interval1")
     }
 }

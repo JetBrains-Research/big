@@ -29,7 +29,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         // Skip total summary block.
         if (header.totalSummaryOffset > 0) {
-            Summary.read(input)
+            BigSummary.read(input)
         }
 
         // Skip extended header. Ideally, we should issue a warning
@@ -162,23 +162,6 @@ data class ZoomLevel(public val reductionLevel: Int,
             val dataOffset = readLong()
             val indexOffset = readLong()
             ZoomLevel(reductionLevel, dataOffset, indexOffset)
-        }
-    }
-}
-
-data class Summary(public val basesCovered: Long,
-                   public val minVal: Double,
-                   public val maxVal: Double,
-                   public val sumData: Double,
-                   public val sumSquared: Double) {
-    companion object {
-        fun read(input: SeekableDataInput) = with(input) {
-            val basesCovered = readLong()
-            val minVal = readDouble()
-            val maxVal = readDouble()
-            val sumData = readDouble()
-            val sumSquared = readDouble()
-            Summary(basesCovered, minVal, maxVal, sumData, sumSquared)
         }
     }
 }

@@ -34,7 +34,7 @@ public class RTreeIndexTest {
                 val query = Interval.of(0, items[left].start, items[right].end)
 
                 for (block in rti.findOverlappingBlocks(bbf.input, query)) {
-                    assertTrue(block.interval.overlaps(query))
+                    assertTrue(block.interval.intersects(query))
                 }
             }
         }

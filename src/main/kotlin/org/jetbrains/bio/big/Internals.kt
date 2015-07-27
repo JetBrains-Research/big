@@ -4,6 +4,7 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
 import java.math.RoundingMode
+import kotlin.platform.platformStatic
 
 /**
  * Various internal helpers.
@@ -47,8 +48,20 @@ interface Interval {
     /** End offset (exclusive).  */
     public val right: Offset
 
-    public fun overlaps(other: Interval): Boolean {
+    public fun intersects(other: Interval): Boolean {
         return !(other.right <= left || other.left >= right)
+    }
+
+    /**
+     * Returns an intersection of the two intervals, i.e. an interval which
+     * is completely contained in both of them.
+     */
+    public fun intersection(other: Interval): Interval {
+        val ord = Ordering.natural<Offset>()
+        val interLeft = ord.max(left, other.left)
+        val interRight = ord.min(right, other.right)
+        return Interval.of(interLeft.chromIx, interLeft.offset,
+                           interRight.chromIx, interRight.offset)
     }
 
     /**
@@ -57,8 +70,20 @@ interface Interval {
      */
     public fun union(other: Interval): Interval {
         val ord = Ordering.natural<Offset>()
-        return MultiInterval(ord.min(left, other.left),
-                             ord.max(right, other.right))
+        val unionLeft = ord.min(left, other.left)
+        val unionRight = ord.max(right, other.right)
+        return Interval.of(unionLeft.chromIx, unionLeft.offset,
+                           unionRight.chromIx, unionRight.offset)
+    }
+
+    /**
+     * Returns interval length for a [ChromosomeInterval]. Raises
+     * exception otherwise.
+     */
+    public fun length(): Int {
+        check(this is ChromosomeInterval)
+        val cast = this as ChromosomeInterval
+        return cast.endOffset - cast.startOffset
     }
 
     override fun toString(): String = "[$left; $right)"

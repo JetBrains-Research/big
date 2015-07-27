@@ -19,25 +19,30 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
     public fun summarize(name: String,
                          startOffset: Int, endOffset: Int,
-                         numBins: Int): List<StatisticalSummary> {
+                         numBins: Int): List<BigSummary> {
         val it = Iterators.peekingIterator(
                 query(name, startOffset, endOffset).iterator())
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
-        val res = ArrayList<StatisticalSummary>()
+        val res = ArrayList<BigSummary>()
         val binSize = (if (endOffset == 0) chromosome.size else endOffset -
                        Math.max(0, startOffset)) / numBins
         for (i in 0..numBins - 1) {
             val bin = Interval.of(chromosome.id,
                                   startOffset + i * binSize,
                                   startOffset + (i + 1) * binSize)
-            val summary = SummaryStatistics()
+            val s = IntervalStatistics(binSize)
             while (it.hasNext() && it.peek().end <= bin.endOffset) {
-                summary.addValue(it.next().score.toDouble())
+                val bedEntry = it.next()
+                val interval = Interval.of(chromosome.id, bedEntry.start, bedEntry.end)
+                val intersection = interval intersection  bin
+                if (intersection.length() > 0) {
+                    s.add(bedEntry.score.toDouble(), intersection.length())
+                }
             }
 
-            res.add(summary.getSummary())
+            res.add(s.summary)
         }
 
         return res
