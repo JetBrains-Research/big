@@ -5,6 +5,7 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
+import gnu.trove.map.TObjectIntMap
 import gnu.trove.map.hash.TIntObjectHashMap
 import java.io.IOException
 import java.nio.ByteOrder

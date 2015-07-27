@@ -3,7 +3,7 @@ package org.jetbrains.bio.big
 import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Random
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -19,8 +19,8 @@ public class BigBedFileTest {
             BigBedFile.write(bedEntries, Examples.get("hg19.chrom.sizes"),
                              path, compressed = compressed)
 
-            BigBedFile.read(path).use { bwf ->
-                assertEquals(bedEntries, bwf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
             }
         } finally {
             Files.deleteIfExists(path)
@@ -50,14 +50,14 @@ public class BigBedFileTest {
             for (i in 0 until 10) {
                 val a = items[RANDOM.nextInt(items.size())]
                 val b = items[RANDOM.nextInt(items.size())]
-                testQuery(bbf, items, BedEntry(a.name, Math.min(a.start, b.start),
+                testQuery(bbf, items, BedEntry(a.chrom, Math.min(a.start, b.start),
                                                Math.max(a.end, b.end)))
             }
         }
     }
 
     private fun testQuery(bbf: BigBedFile, items: List<BedEntry>, query: BedEntry) {
-        val actual = bbf.query(query.name, query.start, query.end).toList()
+        val actual = bbf.query(query.chrom, query.start, query.end).toList()
         for (item in actual) {
             assertTrue(item.start >= query.start && item.end <= query.end)
         }
@@ -68,6 +68,40 @@ public class BigBedFileTest {
 
         assertEquals(expected.size(), actual.size());
         assertEquals(expected, actual, message = query.toString())
+    }
+
+    Test fun testSummarizeWholeFile() {
+        val bbf = BigBedFile.read(Examples.get("example1.bb"))
+        val (summary) = bbf.summarize("chr21", 0, 0, 1)
+        val bedEntries = bbf.query("chr21", 0, 0).toList()
+        assertEquals(bedEntries.map { it.score.toDouble() }.sum(),
+                     summary.getSum())
+        assertEquals(bedEntries.size().toLong(), summary.getN())
+    }
+
+    Test fun testSummarizeTwoBins() {
+        val name = "chr1"
+        val path = Files.createTempFile("example", ".bb")
+        try {
+            val bedEntries = (0..(2 pow 16)).asSequence().map {
+                val startOffset = RANDOM.nextInt(1000000)
+                val endOffset = startOffset + RANDOM.nextInt(999) + 1
+                val score = RANDOM.nextInt(1000)
+                BedEntry(name, startOffset, endOffset, ",$score,+")
+            }.toList().sortBy { it.start }
+
+            BigBedFile.write(bedEntries, Examples.get("hg19.chrom.sizes"), path)
+
+            BigBedFile.read(path).use { bbf ->
+                val (summary1, summary2) = bbf.summarize(name, 0, 0, 2)
+                assertEquals(bedEntries.map { it.score.toDouble() }.sum(),
+                             summary1.getSum() + summary2.getSum())
+                assertEquals(bedEntries.size().toLong(),
+                             summary1.getN() + summary2.getN())
+            }
+        } finally {
+            Files.deleteIfExists(path)
+        }
     }
 
     companion object {

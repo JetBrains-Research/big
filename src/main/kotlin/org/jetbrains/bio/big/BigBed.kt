@@ -1,12 +1,14 @@
 package org.jetbrains.bio.big
 
+import com.google.common.collect.Iterators
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
+import org.apache.commons.math3.stat.descriptive.StatisticalSummary
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.ArrayList
-import java.util.Collections
+import java.util.*
 import kotlin.platform.platformStatic
 
 /**
@@ -14,6 +16,32 @@ import kotlin.platform.platformStatic
  */
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
+
+    public fun summarize(name: String,
+                         startOffset: Int, endOffset: Int,
+                         numBins: Int): List<StatisticalSummary> {
+        val it = Iterators.peekingIterator(
+                query(name, startOffset, endOffset).iterator())
+        val chromosome = bPlusTree.find(input, name)
+                         ?: throw NoSuchElementException(name)
+
+        val res = ArrayList<StatisticalSummary>()
+        val binSize = (if (endOffset == 0) chromosome.size else endOffset -
+                       Math.max(0, startOffset)) / numBins
+        for (i in 0..numBins - 1) {
+            val bin = Interval.of(chromosome.id,
+                                  startOffset + i * binSize,
+                                  startOffset + (i + 1) * binSize)
+            val summary = SummaryStatistics()
+            while (it.hasNext() && it.peek().end <= bin.endOffset) {
+                summary.addValue(it.next().score.toDouble())
+            }
+
+            res.add(summary.getSummary())
+        }
+
+        return res
+    }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<BedEntry> {
@@ -32,7 +60,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         break
                     }
 
-                    sb.append(ch)
+                    sb.append(ch.toChar())
                 }
 
                 // This was somewhat tricky to get right, please make sure
@@ -93,7 +121,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                bedEntries.groupBy { it.name }.forEach { entry ->
+                bedEntries.groupBy { it.chrom }.forEach { entry ->
                     val (name, items) = entry
                     Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
@@ -109,7 +137,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                 writeInt(chromId)
                                 writeInt(item.start)
                                 writeInt(item.end)
-                                writeBytes(item.rest)
+                                writeBytes("${item.name},${item.score},${item.strand},${item.rest}")
                                 writeByte(0)  // null-terminated.
 
                                 end = Math.max(end, item.end)

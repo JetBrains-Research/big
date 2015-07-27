@@ -3,6 +3,7 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.map.TIntObjectMap
+import org.apache.commons.math3.stat.descriptive.StatisticalSummary
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
