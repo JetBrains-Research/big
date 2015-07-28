@@ -3,12 +3,12 @@ package org.jetbrains.bio.big
 import com.google.common.collect.Iterators
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
-import org.apache.commons.math3.stat.descriptive.StatisticalSummary
-import org.apache.commons.math3.stat.descriptive.SummaryStatistics
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
+import java.util.ArrayList
+import java.util.Collections
+import java.util.NoSuchElementException
 import kotlin.platform.platformStatic
 
 /**
@@ -17,32 +17,65 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
+    /**
+     * Splits the interval `[startOffset, endOffset)` into `numBins`
+     * non-intersecting sub-intervals (aka bins) and computes a summary
+     * of the data values for each bin.
+     *
+     * @param name human-readable chromosome name, e.g. `"chr9"`.
+     * @param startOffset 0-based start offset (inclusive).
+     * @param endOffset 0-based end offset (exclusive), if 0 than the whole
+     *                  chromosome is used.
+     * @param numBins number of summaries to compute
+     * @return a list of summaries.
+     */
     public fun summarize(name: String,
                          startOffset: Int, endOffset: Int,
                          numBins: Int): List<BigSummary> {
-        val it = Iterators.peekingIterator(
-                query(name, startOffset, endOffset).iterator())
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
-        val res = ArrayList<BigSummary>()
         val binSize = (if (endOffset == 0) chromosome.size else endOffset -
                        Math.max(0, startOffset)) / numBins
+        val bedEntries = query(name, startOffset, endOffset).toList()
+        var edge = 0
+        val res = ArrayList<BigSummary>()
         for (i in 0..numBins - 1) {
             val bin = Interval.of(chromosome.id,
                                   startOffset + i * binSize,
                                   startOffset + (i + 1) * binSize)
-            val s = IntervalStatistics(binSize)
-            while (it.hasNext() && it.peek().end <= bin.endOffset) {
-                val bedEntry = it.next()
+
+            var count = 0L
+            var min = Double.POSITIVE_INFINITY
+            var max = Double.NEGATIVE_INFINITY
+            var sum = 0.0
+            var sumSquares = 0.0
+
+            for (j in edge until bedEntries.size()) {
+                val bedEntry = bedEntries[j]
+                if (bedEntry.end <= bin.startOffset) {
+                    edge = j + 1
+                    continue
+                } else if (bedEntry.start > bin.endOffset) {
+                    break
+                }
+
                 val interval = Interval.of(chromosome.id, bedEntry.start, bedEntry.end)
-                val intersection = interval intersection  bin
-                if (intersection.length() > 0) {
-                    s.add(bedEntry.score.toDouble(), intersection.length())
+                if (interval intersects bin) {
+                    val intersection = interval intersection  bin
+                    assert(intersection.length() > 0)
+                    val value = bedEntry.score.toDouble()
+                    val weight = intersection.length().toDouble() / interval.length()
+                    count += intersection.length();
+                    sum += value * weight;
+                    sumSquares += value * value * weight
+                    min = Math.min(min, value);
+                    max = Math.max(max, value);
                 }
             }
 
-            res.add(s.summary)
+            res.add(BigSummary(count = count, minValue = min, maxValue = max,
+                               sum = sum, sumSquares = sumSquares))
         }
 
         return res

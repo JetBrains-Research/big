@@ -3,6 +3,12 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.1.1
+-------------
+
+- Added basic support for summarising BigBED data. The implementation does
+  not use pre-computed zoom levels.
+
 Version 0.1.0
 -------------
 

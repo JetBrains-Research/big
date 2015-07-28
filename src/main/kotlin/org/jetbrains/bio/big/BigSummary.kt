@@ -22,27 +22,3 @@ data class BigSummary(
         }
     }
 }
-
-class IntervalStatistics(private val length: Int) {
-    private var count = 0L
-    private var min = Double.POSITIVE_INFINITY
-    private var max = Double.NEGATIVE_INFINITY
-    private var sum = 0.0
-    private var sumSquares = 0.0
-
-    fun add(value: Double, intersection: Int) {
-        val weight = intersection.toDouble() / length
-        count += intersection;
-        sum += value * weight;
-        sumSquares += value * value * weight
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-    }
-
-    val summary: BigSummary get() {
-        return BigSummary(count = count,
-                          minValue = min, maxValue = max,
-                          sum = sum,
-                          sumSquares = sumSquares)
-    }
-}

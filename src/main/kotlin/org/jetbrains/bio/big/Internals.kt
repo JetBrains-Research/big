@@ -53,18 +53,6 @@ interface Interval {
     }
 
     /**
-     * Returns an intersection of the two intervals, i.e. an interval which
-     * is completely contained in both of them.
-     */
-    public fun intersection(other: Interval): Interval {
-        val ord = Ordering.natural<Offset>()
-        val interLeft = ord.max(left, other.left)
-        val interRight = ord.min(right, other.right)
-        return Interval.of(interLeft.chromIx, interLeft.offset,
-                           interRight.chromIx, interRight.offset)
-    }
-
-    /**
      * Returns a union of the two intervals, i.e. an interval which
      * completely covers both of them.
      */
@@ -74,16 +62,6 @@ interface Interval {
         val unionRight = ord.max(right, other.right)
         return Interval.of(unionLeft.chromIx, unionLeft.offset,
                            unionRight.chromIx, unionRight.offset)
-    }
-
-    /**
-     * Returns interval length for a [ChromosomeInterval]. Raises
-     * exception otherwise.
-     */
-    public fun length(): Int {
-        check(this is ChromosomeInterval)
-        val cast = this as ChromosomeInterval
-        return cast.endOffset - cast.startOffset
     }
 
     override fun toString(): String = "[$left; $right)"
@@ -113,6 +91,18 @@ data class ChromosomeInterval(public val chromIx: Int,
                               public val endOffset: Int) : Interval {
     override val left: Offset get() = Offset(chromIx, startOffset)
     override val right: Offset get() = Offset(chromIx, endOffset)
+
+    /**
+     * Returns an intersection of the two intervals, i.e. an interval which
+     * is completely contained in both of them.
+     */
+    public fun intersection(other: ChromosomeInterval): ChromosomeInterval {
+        return Interval.of(chromIx,
+                           Math.max(startOffset, other.startOffset),
+                           Math.min(endOffset, other.endOffset))
+    }
+
+    public fun length(): Int = endOffset - startOffset
 
     override fun toString(): String = "$chromIx:[$startOffset; $endOffset)"
 }
