@@ -165,3 +165,22 @@ data class ZoomLevel(public val reductionLevel: Int,
         }
     }
 }
+
+fun List<ZoomLevel>.pick(desiredReduction: Int): ZoomLevel? {
+    require(desiredReduction >= 0, "desired must be >=0")
+    return if (desiredReduction <= 1) {
+        null
+    } else {
+        var acc = Int.MAX_VALUE
+        var closest: ZoomLevel? = null
+        for (zoomLevel in this) {
+            val d = desiredReduction - zoomLevel.reductionLevel
+            if (d >= 0 && d < acc) {
+                acc = d
+                closest = zoomLevel
+            }
+        }
+
+        closest
+    }
+}
