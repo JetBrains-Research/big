@@ -17,6 +17,9 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
+    // XXX unlike UCSC implementation we summarize BED scores,
+    // and NOT genomic coverage. However, this might change in
+    // the future.
     override fun summarizeInternal(chromosome: BPlusLeaf,
                                    startOffset: Int, endOffset: Int,
                                    numBins: Int): List<BigSummary> {

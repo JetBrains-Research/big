@@ -71,7 +71,7 @@ public class BigBedFileTest {
         assertEquals(expected, actual, message = query.toString())
     }
 
-    Test fun testSummarizeWholeFile() {
+    Test(expected = UnsupportedOperationException::class) fun testSummarizeWholeFile() {
         val bbf = BigBedFile.read(Examples["example1.bb"])
         val bedEntries = bbf.query("chr21", 0, 0).toList()
         val (summary) = bbf.summarize(

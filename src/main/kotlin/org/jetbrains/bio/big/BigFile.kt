@@ -89,7 +89,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we won't be able to estimate SD.
-        val zoomLevel = zoomLevels.pick((endOffset - startOffset) / ( 2 * numBins))
+        val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
+        val desiredReduction = (properEndOffset - startOffset) / (2 * numBins)
+        val zoomLevel = zoomLevels.pick(desiredReduction)
         return if (zoomLevel == null) {
             summarizeInternal(chromosome, startOffset, endOffset, numBins)
         } else {
@@ -215,5 +217,47 @@ fun List<ZoomLevel>.pick(desiredReduction: Int): ZoomLevel? {
         }
 
         closest
+    }
+}
+
+data class ZoomData(
+        /** Chromosome id as defined by B+ tree. */
+        val chromIx: Int,
+        /** 0-based start offset (inclusive). */
+        val startOffset: Int,
+        /** 0-based end offset (exclusive). */
+        val endOffset: Int,
+        /**
+         * These are just inlined fields of [BigSummary] downcasted
+         * to 4 bytes. Top-notch academic design! */
+        val count: Int,
+        val minValue: Float,
+        val maxValue: Float,
+        val sum: Float,
+        val sumSquares: Float) {
+
+    val interval: ChromosomeInterval get() {
+        return Interval.of(chromIx, startOffset, endOffset)
+    }
+
+    val summary: BigSummary get() {
+        return BigSummary(count.toLong(),
+                          minValue.toDouble(), maxValue.toDouble(),
+                          sum.toDouble(), sumSquares.toDouble())
+    }
+
+    companion object {
+        fun read(input: SeekableDataInput) = with(input) {
+            val chromIx = readInt()
+            val startOffset = readInt()
+            val endOffset = readInt()
+            val count = readInt()
+            val minValue = readFloat()
+            val maxValue = readFloat()
+            val sum = readFloat();
+            val sumSquares = readFloat();
+            return ZoomData(chromIx, startOffset, endOffset, count,
+                            minValue, maxValue, sum, sumSquares);
+        }
     }
 }
