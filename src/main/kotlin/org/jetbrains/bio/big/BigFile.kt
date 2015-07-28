@@ -5,9 +5,10 @@ import com.google.common.primitives.Shorts
 import gnu.trove.map.TIntObjectMap
 import java.io.Closeable
 import java.io.IOException
+import java.lang
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.*
+import java.util.NoSuchElementException
 import kotlin.properties.Delegates
 
 /**
@@ -87,14 +88,31 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
+        val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we won't be able to estimate SD.
-        val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
         val desiredReduction = (properEndOffset - startOffset) / (2 * numBins)
         val zoomLevel = zoomLevels.pick(desiredReduction)
         return if (zoomLevel == null) {
             summarizeInternal(chromosome, startOffset, endOffset, numBins)
         } else {
+            val query = Interval.of(chromosome.id, startOffset, properEndOffset)
+            val zRTree = RTreeIndex.read(input, zoomLevel.dataOffset)
+            zRTree.findOverlappingBlocks(input, query).forEach { block ->
+                assert(block.dataSize % ZoomData.SIZE == 0L)
+                input.with(block.dataOffset, block.dataSize, compressed) {
+                    do {
+                        val zoomData = ZoomData.read(input)
+                        assert(zoomData.chromIx == chromosome.id,
+                               "zoom data contains wrong chromosome")
+
+                        if (query intersects zoomData.interval) {
+                            
+                        }
+                    } while (!finished)
+                }
+            }
+
             throw UnsupportedOperationException()  // not implemented.
         }
     }
@@ -247,7 +265,10 @@ data class ZoomData(
     }
 
     companion object {
-        fun read(input: SeekableDataInput) = with(input) {
+        val SIZE: Int = Integer.SIZE * 3 +
+                        Integer.SIZE + java.lang.Float.SIZE * 4
+
+        fun read(input: SeekableDataInput): ZoomData = with(input) {
             val chromIx = readInt()
             val startOffset = readInt()
             val endOffset = readInt()
