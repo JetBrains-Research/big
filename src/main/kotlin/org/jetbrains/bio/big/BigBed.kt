@@ -17,29 +17,14 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
-    /**
-     * Splits the interval `[startOffset, endOffset)` into `numBins`
-     * non-intersecting sub-intervals (aka bins) and computes a summary
-     * of the data values for each bin.
-     *
-     * @param name human-readable chromosome name, e.g. `"chr9"`.
-     * @param startOffset 0-based start offset (inclusive).
-     * @param endOffset 0-based end offset (exclusive), if 0 than the whole
-     *                  chromosome is used.
-     * @param numBins number of summaries to compute
-     * @return a list of summaries.
-     */
-    public fun summarize(name: String,
-                         startOffset: Int, endOffset: Int,
-                         numBins: Int): List<BigSummary> {
-        val chromosome = bPlusTree.find(input, name)
-                         ?: throw NoSuchElementException(name)
-
-        val binSize = (if (endOffset == 0) chromosome.size else endOffset -
-                       Math.max(0, startOffset)) / numBins
+    override fun summarizeInternal(chromosome: BPlusLeaf,
+                                   startOffset: Int, endOffset: Int,
+                                   numBins: Int): List<BigSummary> {
+        val binSize = (if (endOffset == 0) chromosome.size else
+            endOffset - Math.max(0, startOffset)) / numBins
         // XXX we can avoid explicit '#toList' call here, but the
         // worst-case space complexity will still be O(n).
-        val bedEntries = query(name, startOffset, endOffset).toList()
+        val bedEntries = query(chromosome.key, startOffset, endOffset).toList()
         var edge = 0
         val res = ArrayList<BigSummary>()
         for (i in 0..numBins - 1) {

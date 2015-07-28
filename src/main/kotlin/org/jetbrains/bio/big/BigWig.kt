@@ -14,6 +14,12 @@ import kotlin.platform.platformStatic
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
+    override fun summarizeInternal(chromosome: BPlusLeaf,
+                                   startOffset: Int, endOffset: Int,
+                                   numBins: Int): List<BigSummary> {
+        throw UnsupportedOperationException()
+    }
+
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]

@@ -3,11 +3,11 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.map.TIntObjectMap
-import org.apache.commons.math3.stat.descriptive.StatisticalSummary
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
+import java.util.*
 import kotlin.properties.Delegates
 
 /**
@@ -68,6 +68,39 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         // bbiFile.h in UCSC sources.
         return header.version >= 3 && header.uncompressBufSize > 0
     }
+
+    /**
+     * Splits the interval `[startOffset, endOffset)` into `numBins`
+     * non-intersecting sub-intervals (aka bins) and computes a summary
+     * of the data values for each bin.
+     *
+     * @param name human-readable chromosome name, e.g. `"chr9"`.
+     * @param startOffset 0-based start offset (inclusive).
+     * @param endOffset 0-based end offset (exclusive), if 0 than the whole
+     *                  chromosome is used.
+     * @param numBins number of summaries to compute
+     * @return a list of summaries.
+     */
+    public fun summarize(name: String,
+                         startOffset: Int, endOffset: Int,
+                         numBins: Int): List<BigSummary> {
+        val chromosome = bPlusTree.find(input, name)
+                         ?: throw NoSuchElementException(name)
+
+        // The 2-factor guarantees that we get at least two data points
+        // per bin. Otherwise we won't be able to estimate SD.
+        val zoomLevel = zoomLevels.pick((endOffset - startOffset) / ( 2 * numBins))
+        return if (zoomLevel == null) {
+            summarizeInternal(chromosome, startOffset, endOffset, numBins)
+        } else {
+            throw UnsupportedOperationException()  // not implemented.
+        }
+    }
+
+    throws(IOException::class)
+    protected abstract fun summarizeInternal(chromosome: BPlusLeaf,
+                                             startOffset: Int, endOffset: Int,
+                                             numBins: Int): List<BigSummary>
 
     /**
      * Queries an R+-tree.
