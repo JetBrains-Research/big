@@ -16,8 +16,8 @@ public class BigBedFileTest {
     private fun testWriteRead(compressed: Boolean) {
         val path = Files.createTempFile("example1", ".bb")
         try {
-            val bedEntries = BedFile.read(Examples.get("example1.bed")).toList()
-            BigBedFile.write(bedEntries, Examples.get("hg19.chrom.sizes"),
+            val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes"],
                              path, compressed = compressed)
 
             BigBedFile.read(path).use { bbf ->
@@ -28,12 +28,12 @@ public class BigBedFileTest {
         }
     }
 
-    Test fun testQueryCompressed() = testQuery(Examples.get("example1-compressed.bb"))
+    Test fun testQueryCompressed() = testQuery(Examples["example1-compressed.bb"])
 
-    Test fun testQueryUncompressed() = testQuery(Examples.get("example1.bb"))
+    Test fun testQueryUncompressed() = testQuery(Examples["example1.bb"])
 
     private fun testQuery(path: Path) {
-        val items = BedFile.read(Examples.get("example1.bed")).toList()
+        val items = BedFile.read(Examples["example1.bed"]).toList()
         testQuerySmall(path, items)
         testQueryLarge(path, items)
     }
@@ -72,7 +72,7 @@ public class BigBedFileTest {
     }
 
     Test fun testSummarizeWholeFile() {
-        val bbf = BigBedFile.read(Examples.get("example1.bb"))
+        val bbf = BigBedFile.read(Examples["example1.bb"])
         val bedEntries = bbf.query("chr21", 0, 0).toList()
         val (summary) = bbf.summarize(
                 bbf.chromosomes.valueCollection().first(),
@@ -124,7 +124,7 @@ public class BigBedFileTest {
         val name = bedEntries.map { it.chrom }.first()
         val path = Files.createTempFile("example", ".bb")
         try {
-            BigBedFile.write(bedEntries, Examples.get("hg19.chrom.sizes"), path)
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes"], path)
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries.size(), bbf.query(name, 0, 0).count())
 

@@ -14,11 +14,11 @@ public class BigWigFileTest {
     private fun testWriteRead(compressed: Boolean) {
         val path = Files.createTempFile("example", ".bw")
         try {
-            val wigSections = WigParser(Examples.get("example.wig").toFile().bufferedReader())
+            val wigSections = WigParser(Examples["example.wig"].toFile().bufferedReader())
                     .map { it.second }
                     .toList()
-            BigWigFile.write(wigSections, Examples.get("hg19.chrom.sizes"),
-                                         path, compressed = compressed)
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes"],
+                             path, compressed = compressed)
 
             BigWigFile.read(path).use { bwf ->
                 assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
@@ -29,27 +29,27 @@ public class BigWigFileTest {
     }
 
     Test fun testCompressedExample2() {
-        assertVariableStep(Examples.get("example2.bw"),
+        assertVariableStep(Examples["example2.bw"],
                            "chr21", 9411191, 50f, 48119895, 60f)
     }
 
     Test fun testVariableStep() {
-        assertVariableStep(Examples.get("variable_step.bw"),
+        assertVariableStep(Examples["variable_step.bw"],
                            "chr2", 300701, 12.5f, 300705, 12.5f)
     }
 
     Test fun testVariableStepWithSpan() {
-        assertVariableStep(Examples.get("variable_step_with_span.bw"),
+        assertVariableStep(Examples["variable_step_with_span.bw"],
                            "chr2", 300701, 12.5f, 300705, 12.5f)
     }
 
     Test fun testFixedStep() {
-        assertFixedStep(Examples.get("fixed_step.bw"),
+        assertFixedStep(Examples["fixed_step.bw"],
                         "chr3", 400601, 11f, 400801, 33f)
     }
 
     Test fun testFixedStepWithSpan() {
-        assertFixedStep(Examples.get("fixed_step_with_span.bw"),
+        assertFixedStep(Examples["fixed_step_with_span.bw"],
                         "chr3", 400601, 11f, 400805, 33f)
     }
 

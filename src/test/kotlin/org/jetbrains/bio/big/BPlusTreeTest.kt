@@ -1,13 +1,18 @@
 package org.jetbrains.bio.big
 
+import com.google.common.math.IntMath
 import org.junit.Test
+import java.nio.file.Files
+import java.util.Random
+import java.util.stream.Collectors
+import java.util.stream.IntStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 public class BPlusTreeTest {
     Test fun testReadHeader() {
-        BigBedFile.read(Examples.get("example1.bb")).use { bf ->
+        BigBedFile.read(Examples["example1.bb"]).use { bf ->
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
@@ -18,7 +23,7 @@ public class BPlusTreeTest {
     }
     
     Test fun testFind() {
-        BigBedFile.read(Examples.get("example1.bb")).use { bf ->
+        BigBedFile.read(Examples["example1.bb"]).use { bf ->
             var leaf = bf.bPlusTree.find(bf.input, "chr1")
             assertNull(leaf)
 
@@ -48,7 +53,7 @@ public class BPlusTreeTest {
 
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
-        SeekableDataInput.of(Examples.get(example)).use { input ->
+        SeekableDataInput.of(Examples[example]).use { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -71,13 +76,13 @@ public class BPlusTreeTest {
     }
 
     Test fun testWriteReadLarge() {
-        testWriteRead(8, getSequentialItems(com.google.common.math.IntMath.pow(8, 3)))
+        testWriteRead(8, getSequentialItems(IntMath.pow(8, 3)))
     }
 
     private fun getSequentialItems(itemCount: Int): List<BPlusLeaf> {
-        return java.util.stream.IntStream.rangeClosed(1, itemCount)
+        return IntStream.rangeClosed(1, itemCount)
                 .mapToObj { i -> BPlusLeaf("chr" + i, i - 1, i * 100) }
-                .collect(java.util.stream.Collectors.toList())
+                .collect(Collectors.toList())
     }
 
     Test fun testWriteReadRandom() {
@@ -89,10 +94,10 @@ public class BPlusTreeTest {
 
     private fun getRandomItems(itemCount: Int): List<BPlusLeaf> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
-        return java.util.stream.IntStream.range(0, names.size()).mapToObj { i ->
+        return IntStream.range(0, names.size()).mapToObj { i ->
             val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
             BPlusLeaf("chr" + names[i], i, size)
-        }.collect(java.util.stream.Collectors.toList())
+        }.collect(Collectors.toList())
     }
 
     Test fun testWriteReadRealChromosomes() {
@@ -101,15 +106,15 @@ public class BPlusTreeTest {
     }
 
     private fun getExampleItems(example: String): List<BPlusLeaf> {
-        val lines = java.nio.file.Files.readAllLines(Examples.get(example))
-        return java.util.stream.IntStream.range(0, lines.size()).mapToObj { i ->
+        val lines = Files.readAllLines(Examples[example])
+        return IntStream.range(0, lines.size()).mapToObj { i ->
             val chunks = lines[i].split('\t', limit = 2)
             BPlusLeaf(chunks[0], i, chunks[1].toInt())
-        }.collect(java.util.stream.Collectors.toList())
+        }.collect(Collectors.toList())
     }
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
-        val path = java.nio.file.Files.createTempFile("bpt", ".bb")
+        val path = Files.createTempFile("bpt", ".bb")
         try {
             SeekableDataOutput.of(path).use { output ->
                 BPlusTree.write(output, items, blockSize)
@@ -126,11 +131,11 @@ public class BPlusTreeTest {
                 assertEquals(items.toSet(), bpt.traverse(input).toSet())
             }
         } finally {
-            java.nio.file.Files.delete(path)
+            Files.delete(path)
         }
     }
 
     companion object {
-        private val RANDOM = java.util.Random()
+        private val RANDOM = Random()
     }
 }

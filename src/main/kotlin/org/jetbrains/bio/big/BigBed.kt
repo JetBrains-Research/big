@@ -37,6 +37,8 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
         val binSize = (if (endOffset == 0) chromosome.size else endOffset -
                        Math.max(0, startOffset)) / numBins
+        // XXX we can avoid explicit '#toList' call here, but the
+        // worst-case space complexity will still be O(n).
         val bedEntries = query(name, startOffset, endOffset).toList()
         var edge = 0
         val res = ArrayList<BigSummary>()

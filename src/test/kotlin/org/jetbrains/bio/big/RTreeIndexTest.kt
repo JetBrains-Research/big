@@ -41,11 +41,11 @@ public class RTreeIndexTest {
     }
 
     private val exampleFile: BigBedFile get() {
-        return BigBedFile.read(Examples.get("example1.bb"))
+        return BigBedFile.read(Examples["example1.bb"])
     }
 
     private val exampleItems: List<BedEntry> by Delegates.lazy {
-        BedFile.read(Examples.get("example1.bed")).toList()
+        BedFile.read(Examples["example1.bed"]).toList()
     }
 
     companion object {
