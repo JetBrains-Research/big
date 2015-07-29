@@ -28,24 +28,31 @@ public data class BedEntry(
         public val start: Int,
         /** 0-based end offset (exclusive). */
         public val end: Int,
-        rest: String = "") {
-
-    /** Name of feature. */
-    public val name: String
-    /** A number from [0, 1000] that controls shading of item. */
-    public val score: Short
-    /** + or – or . for unknown. */
-    public val strand: Char
-    /** Comma-separated string of additional BED values. */
-    public val rest: String
+        /** Name of feature. */
+        public val name: String,
+        /** A number from [0, 1000] that controls shading of item. */
+        public val score: Short,
+        /** + or – or . for unknown. */
+        public val strand: Char,
+        /** Comma-separated string of additional BED values. */
+        public val rest: String = "") {
 
     init {
-        val it = rest.split(',', limit = 4).iterator()
-        name = if (it.hasNext()) it.next() else ""
-        score = if (it.hasNext()) it.next().toShort() else 0
         require(score >= 0 && score <= 1000)
-        strand = if (it.hasNext()) it.next().first() else '.'
         require(strand == '+' || strand == '-' || strand == '.')
-        this.rest = if (it.hasNext()) it.next() else ""
+    }
+
+    companion object {
+        public fun invoke(chrom: String, start: Int, end: Int,
+                          rest: String = ""): BedEntry {
+            val it = rest.split(',', limit = 4).iterator()
+            return BedEntry(
+                chrom, start, end,
+                name = if (it.hasNext()) it.next() else "",
+                score = if (it.hasNext()) it.next().toShort() else 0,
+                strand = if (it.hasNext()) it.next().first() else '.',
+                rest = if (it.hasNext()) it.next() else ""
+            )
+        }
     }
 }

@@ -86,9 +86,9 @@ interface Interval {
 }
 
 /** An interval on a chromosome. */
-data class ChromosomeInterval(public val chromIx: Int,
-                              public val startOffset: Int,
-                              public val endOffset: Int) : Interval {
+data open class ChromosomeInterval(public val chromIx: Int,
+                                   public val startOffset: Int,
+                                   public val endOffset: Int) : Interval {
     override val left: Offset get() = Offset(chromIx, startOffset)
     override val right: Offset get() = Offset(chromIx, endOffset)
 
@@ -100,6 +100,20 @@ data class ChromosomeInterval(public val chromIx: Int,
         return Interval.of(chromIx,
                            Math.max(startOffset, other.startOffset),
                            Math.min(endOffset, other.endOffset))
+    }
+
+    /** Produces a sequence of `n` sub-intervals. */
+    fun slice(n: Int): Sequence<ChromosomeInterval> {
+        require(n >= 1)
+        return if (n == 1) {
+            sequenceOf(this)
+        } else {
+            val width = length() / n
+            (0 until n).asSequence().map { i ->
+                Interval.of(chromIx, startOffset + i * width,
+                            Math.min(startOffset + (i + 1) * width, endOffset))
+            }
+        }
     }
 
     public fun length(): Int = endOffset - startOffset

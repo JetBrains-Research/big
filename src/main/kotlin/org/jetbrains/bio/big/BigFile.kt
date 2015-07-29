@@ -1,13 +1,15 @@
 package org.jetbrains.bio.big
 
+import com.google.common.primitives.Floats
+import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.map.TIntObjectMap
 import java.io.Closeable
 import java.io.IOException
-import java.lang
 import java.nio.ByteOrder
 import java.nio.file.Path
+import java.util.ArrayList
 import java.util.NoSuchElementException
 import kotlin.properties.Delegates
 
@@ -80,47 +82,88 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param endOffset 0-based end offset (exclusive), if 0 than the whole
      *                  chromosome is used.
      * @param numBins number of summaries to compute
+     * @param index if `true` pre-computed is index is used if possible.
      * @return a list of summaries.
      */
     public fun summarize(name: String,
                          startOffset: Int, endOffset: Int,
-                         numBins: Int): List<BigSummary> {
+                         numBins: Int, index: Boolean = true): List<BigSummary> {
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
         val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
+        val query = Interval.of(chromosome.id, startOffset, properEndOffset)
+
         // The 2-factor guarantees that we get at least two data points
-        // per bin. Otherwise we won't be able to estimate SD.
-        val desiredReduction = (properEndOffset - startOffset) / (2 * numBins)
-        val zoomLevel = zoomLevels.pick(desiredReduction)
-        return if (zoomLevel == null) {
-            summarizeInternal(chromosome, startOffset, endOffset, numBins)
+        // per bin. Otherwise we might not be able to estimate SD.
+        val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
+        return if (zoomLevel == null || !index) {
+            summarizeInternal(query, numBins)
         } else {
-            val query = Interval.of(chromosome.id, startOffset, properEndOffset)
-            val zRTree = RTreeIndex.read(input, zoomLevel.dataOffset)
-            zRTree.findOverlappingBlocks(input, query).forEach { block ->
-                assert(block.dataSize % ZoomData.SIZE == 0L)
-                input.with(block.dataOffset, block.dataSize, compressed) {
-                    do {
-                        val zoomData = ZoomData.read(input)
-                        assert(zoomData.chromIx == chromosome.id,
-                               "zoom data contains wrong chromosome")
-
-                        if (query intersects zoomData.interval) {
-                            
-                        }
-                    } while (!finished)
-                }
-            }
-
-            throw UnsupportedOperationException()  // not implemented.
+            summarizeFromZoom(query, zoomLevel, numBins)
         }
     }
 
     throws(IOException::class)
-    protected abstract fun summarizeInternal(chromosome: BPlusLeaf,
-                                             startOffset: Int, endOffset: Int,
+    protected abstract fun summarizeInternal(query: ChromosomeInterval,
                                              numBins: Int): List<BigSummary>
+
+    private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
+                                  numBins: Int): List<BigSummary> {
+        val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
+        val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
+            assert(block.dataSize % ZoomData.SIZE == 0L)
+            input.with(block.dataOffset, block.dataSize, compressed) {
+                val res = ArrayList<ZoomData>()
+                do {
+                    val zoomData = ZoomData.read(this)
+                    assert(zoomData.chromIx == query.chromIx,
+                           "zoom data contains wrong chromosome")
+
+                    if (query intersects zoomData.interval) {
+                        res.add(zoomData)
+                    }
+                } while (!finished)
+
+                res.asSequence()
+            }
+
+            // XXX we can avoid explicit '#toList' call here, but the
+            // worst-case space complexity will still be O(n).
+        }.toList()
+
+        var edge = 0  // yay! map with a side effect.
+        return query.slice(numBins).map { bin ->
+            var count = 0L
+            var min = Double.POSITIVE_INFINITY
+            var max = Double.NEGATIVE_INFINITY
+            var sum = 0.0
+            var sumSquares = 0.0
+            for (j in edge until zoomData.size()) {
+                val interval = zoomData[j].interval
+                if (interval.endOffset <= bin.startOffset) {
+                    edge = j + 1
+                    continue
+                } else if (interval.startOffset > bin.endOffset) {
+                    break
+                }
+
+                if (interval intersects bin) {
+                    val intersection = interval intersection  bin
+                    assert(intersection.length() > 0)
+                    val weight = intersection.length().toDouble() / interval.length()
+                    count += Math.round(zoomData[j].count * weight)
+                    sum += zoomData[j].sum * weight;
+                    sumSquares += zoomData[j].sumSquares * weight
+                    min = Math.min(min, zoomData[j].minValue.toDouble());
+                    max = Math.max(max, zoomData[j].maxValue.toDouble());
+                }
+            }
+
+            BigSummary(count = count, minValue = min, maxValue = max,
+                       sum = sum, sumSquares = sumSquares)
+        }.toList()
+    }
 
     /**
      * Queries an R+-tree.
@@ -139,11 +182,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             emptySequence()
         } else {
             val (_key, chromIx, size) = res
-            val query = Interval.of(chromIx, startOffset,
-                                    if (endOffset == 0) size else endOffset)
-            rTree.findOverlappingBlocks(input, query)
-                    .flatMap { queryInternal(it.dataOffset, it.dataSize, query) }
+            val properEndOffset = if (endOffset == 0) size else endOffset
+            query(Interval.of(chromIx, startOffset, properEndOffset))
         }
+    }
+
+    protected fun query(query: ChromosomeInterval): Sequence<T> {
+        return rTree.findOverlappingBlocks(input, query)
+                .flatMap { queryInternal(it.dataOffset, it.dataSize, query) }
     }
 
     throws(IOException::class)
@@ -265,10 +311,10 @@ data class ZoomData(
     }
 
     companion object {
-        val SIZE: Int = Integer.SIZE * 3 +
-                        Integer.SIZE + java.lang.Float.SIZE * 4
+        val SIZE: Int = Ints.BYTES * 3 +
+                        Ints.BYTES + Floats.BYTES * 4
 
-        fun read(input: SeekableDataInput): ZoomData = with(input) {
+        fun read(input: OrderedDataInput): ZoomData = with(input) {
             val chromIx = readInt()
             val startOffset = readInt()
             val endOffset = readInt()

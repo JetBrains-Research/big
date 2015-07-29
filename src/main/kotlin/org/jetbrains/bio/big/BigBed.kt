@@ -1,6 +1,6 @@
 package org.jetbrains.bio.big
 
-import com.google.common.collect.Iterators
+import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import java.io.IOException
@@ -8,7 +8,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
-import java.util.NoSuchElementException
 import kotlin.platform.platformStatic
 
 /**
@@ -17,24 +16,10 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
-    // XXX unlike UCSC implementation we summarize BED scores,
-    // and NOT genomic coverage. However, this might change in
-    // the future.
-    override fun summarizeInternal(chromosome: BPlusLeaf,
-                                   startOffset: Int, endOffset: Int,
-                                   numBins: Int): List<BigSummary> {
-        val binSize = (if (endOffset == 0) chromosome.size else
-            endOffset - Math.max(0, startOffset)) / numBins
-        // XXX we can avoid explicit '#toList' call here, but the
-        // worst-case space complexity will still be O(n).
-        val bedEntries = query(chromosome.key, startOffset, endOffset).toList()
+    override fun summarizeInternal(query: ChromosomeInterval, numBins: Int): List<BigSummary> {
+        val bedEntries = query(query).aggregate()
         var edge = 0
-        val res = ArrayList<BigSummary>()
-        for (i in 0..numBins - 1) {
-            val bin = Interval.of(chromosome.id,
-                                  startOffset + i * binSize,
-                                  startOffset + (i + 1) * binSize)
-
+        return query.slice(numBins).map { bin ->
             var count = 0L
             var min = Double.POSITIVE_INFINITY
             var max = Double.NEGATIVE_INFINITY
@@ -50,9 +35,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                     break
                 }
 
-                val interval = Interval.of(chromosome.id, bedEntry.start, bedEntry.end)
+                val interval = Interval.of(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
-                    val intersection = interval intersection  bin
+                    val intersection = interval intersection bin
                     assert(intersection.length() > 0)
                     val value = bedEntry.score.toDouble()
                     val weight = intersection.length().toDouble() / interval.length()
@@ -64,11 +49,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 }
             }
 
-            res.add(BigSummary(count = count, minValue = min, maxValue = max,
-                               sum = sum, sumSquares = sumSquares))
-        }
-
-        return res
+            BigSummary(count = count, minValue = min, maxValue = max,
+                       sum = sum, sumSquares = sumSquares)
+        }.toList()
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
@@ -172,8 +155,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                             }
                         }
 
-                        leaves.add(RTreeIndexLeaf(Interval.of(chromId, start, end),
-                                                              dataOffset, output.tell() - dataOffset))
+                        leaves.add(RTreeIndexLeaf(
+                                Interval.of(chromId, start, end),
+                                dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }
                 }
@@ -192,4 +176,61 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
             }
         }
     }
+}
+
+private class AggregationEvent(val offset: Int, val type: Int,
+                               val item: BedEntry) : Comparable<AggregationEvent> {
+
+    override fun toString() = "${if (type == END) "END" else "START"}@$offset"
+
+    override fun compareTo(other: AggregationEvent): Int = ComparisonChain.start()
+            .compare(offset, other.offset)
+            .compare(type, other.type)
+            .result()
+}
+
+private val END = 0    // must be before start.
+private val START = 1
+
+/** Computes intervals of uniform coverage. */
+fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
+    val events = flatMap {
+        listOf(AggregationEvent(it.start, START, it),
+               AggregationEvent(it.end, END, it)).asSequence()
+    }.toArrayList()
+
+    Collections.sort(events)
+
+    var current = 0
+    var left = 0
+    val res = ArrayList<BedEntry>()
+    events.forEachIndexed { i, event ->
+        when {
+            event.type == START -> {
+                if (current == 0) {
+                    left = event.offset
+                }
+
+                current += 1
+            }
+            event.type == END || i == events.size() - 1 -> {
+                assert(event.offset >= left)
+                // Produce a single aggregate for duplicate intervals.
+                // For ease of use we abuse the semantics of the
+                // '#score' field in 'BedEntry'.
+                if (event.offset > left) {
+                    val item = event.item
+                    res.add(BedEntry(item.chrom, left, event.offset,
+                                     item.name, current.toShort(), item.strand,
+                                     item.rest))
+
+                    left = event.offset
+                }
+
+                current -= 1
+            }
+        }
+    }
+
+    return res
 }
