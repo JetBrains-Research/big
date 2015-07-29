@@ -6,6 +6,8 @@ Here you can see the full list of changes between each big release.
 Version 0.1.1
 -------------
 
+Relased on July 29th 2015
+
 - Added basic support for summarising BigBED data. The implementation is only capable
   of using pre-computed zoom levels, i.e. 'BigBedFile.write' does not build zoomed
   indices.

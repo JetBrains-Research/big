@@ -304,12 +304,6 @@ data class ZoomData(
         return Interval.of(chromIx, startOffset, endOffset)
     }
 
-    val summary: BigSummary get() {
-        return BigSummary(count.toLong(),
-                          minValue.toDouble(), maxValue.toDouble(),
-                          sum.toDouble(), sumSquares.toDouble())
-    }
-
     companion object {
         val SIZE: Int = Ints.BYTES * 3 +
                         Ints.BYTES + Floats.BYTES * 4

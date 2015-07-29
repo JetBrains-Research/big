@@ -4,7 +4,6 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
 import java.math.RoundingMode
-import kotlin.platform.platformStatic
 
 /**
  * Various internal helpers.
