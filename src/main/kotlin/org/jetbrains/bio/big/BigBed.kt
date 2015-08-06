@@ -119,7 +119,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
                 val unsortedChromosomes = chromSizesPath.bufferedReader()
                         .lineSequence().mapIndexed { i, line ->
-                    val chunks = line.split('\t', limit = 2)
+                    val chunks = line.split('\t', limit = 3)
                     BPlusLeaf(chunks[0], i, chunks[1].toInt())
                 }.toList()
 
