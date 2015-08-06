@@ -3,14 +3,22 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.1.2
+-------------
+
+Bugfix release
+
+- Changed 'RTreeIndex' not to enforce the leaves to only contain items
+  from a single chromosome.
+
 Version 0.1.1
 -------------
 
-Relased on July 29th 2015
+Released on July 29th 2015
 
-- Added basic support for summarising BigBED data. The implementation is only capable
-  of using pre-computed zoom levels, i.e. 'BigBedFile.write' does not build zoomed
-  indices.
+- Added basic support for summarising BigBED data. The implementation
+  is only capable of using pre-computed zoom levels, i.e. 'BigBedFile.write'
+  does not build zoomed indices.
 
 Version 0.1.0
 -------------
