@@ -39,26 +39,26 @@ public class InternalsTest {
 
 public class IntervalTest {
     Test fun testOverlapsSameChromosome() {
-        val interval = Interval.of(1, 100, 200)
+        val interval = Interval(1, 100, 200)
         assertOverlaps(interval, interval)
-        assertOverlaps(interval, Interval.of(1, 50, 150))
-        assertOverlaps(interval, Interval.of(1, 50, 250))
-        assertOverlaps(interval, Interval.of(1, 150, 250))
-        assertNotOverlaps(interval, Interval.of(1, 250, 300))
+        assertOverlaps(interval, Interval(1, 50, 150))
+        assertOverlaps(interval, Interval(1, 50, 250))
+        assertOverlaps(interval, Interval(1, 150, 250))
+        assertNotOverlaps(interval, Interval(1, 250, 300))
         // This is OK because right end is exclusive.
-        assertNotOverlaps(interval, Interval.of(1, 200, 300))
+        assertNotOverlaps(interval, Interval(1, 200, 300))
     }
 
     Test fun testOverlapsDifferentChromosomes() {
-        assertNotOverlaps(Interval.of(1, 100, 200), Interval.of(2, 50, 150))
-        assertNotOverlaps(Interval.of(1, 100, 200), Interval.of(2, 50, 3, 150))
+        assertNotOverlaps(Interval(1, 100, 200), Interval(2, 50, 150))
+        assertNotOverlaps(Interval(1, 100, 200), Interval(2, 50, 3, 150))
 
-        assertOverlaps(Interval.of(1, 100, 2, 200), Interval.of(2, 50, 3, 150))
-        assertNotOverlaps(Interval.of(1, 100, 2, 200), Interval.of(2, 300, 3, 400))
-        assertOverlaps(Interval.of(1, 100, 2, 200), Interval.of(2, 50, 3, 250))
-        assertOverlaps(Interval.of(1, 100, 3, 200), Interval.of(2, 50, 3, 250))
-        assertOverlaps(Interval.of(1, 100, 3, 200), Interval.of(2, 300, 3, 400))
-        assertOverlaps(Interval.of(1, 100, 3, 200), Interval.of(2, 50, 3, 100))
+        assertOverlaps(Interval(1, 100, 2, 200), Interval(2, 50, 3, 150))
+        assertNotOverlaps(Interval(1, 100, 2, 200), Interval(2, 300, 3, 400))
+        assertOverlaps(Interval(1, 100, 2, 200), Interval(2, 50, 3, 250))
+        assertOverlaps(Interval(1, 100, 3, 200), Interval(2, 50, 3, 250))
+        assertOverlaps(Interval(1, 100, 3, 200), Interval(2, 300, 3, 400))
+        assertOverlaps(Interval(1, 100, 3, 200), Interval(2, 50, 3, 100))
     }
 
     private fun assertOverlaps(interval1: Interval, interval2: Interval) {

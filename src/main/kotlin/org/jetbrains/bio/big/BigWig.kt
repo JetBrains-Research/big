@@ -27,7 +27,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     break
                 }
 
-                val interval = Interval.of(query.chromIx, wigItem.start, wigItem.end)
+                val interval = Interval(query.chromIx, wigItem.start, wigItem.end)
                 if (interval intersects bin) {
                     summary.update(wigItem.score.toDouble(),
                                    (interval intersection bin).length(),
@@ -133,8 +133,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                             }
                         }
 
-                        leaves.add(RTreeIndexLeaf(Interval.of(chromId, section.start, section.end),
-                                                              dataOffset, output.tell() - dataOffset))
+                        leaves.add(RTreeIndexLeaf(Interval(chromId, section.start, section.end),
+                                                  dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }
                 }

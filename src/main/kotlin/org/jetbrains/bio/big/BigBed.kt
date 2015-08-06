@@ -29,7 +29,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                     break
                 }
 
-                val interval = Interval.of(query.chromIx, bedEntry.start, bedEntry.end)
+                val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
                     summary.update(bedEntry.score.toDouble(),
                                    (interval intersection bin).length(),
@@ -143,7 +143,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         }
 
                         leaves.add(RTreeIndexLeaf(
-                                Interval.of(chromId, start, end),
+                                Interval(chromId, start, end),
                                 dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }

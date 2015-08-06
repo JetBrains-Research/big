@@ -92,7 +92,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                          ?: throw NoSuchElementException(name)
 
         val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
-        val query = Interval.of(chromosome.id, startOffset, properEndOffset)
+        val query = Interval(chromosome.id, startOffset, properEndOffset)
 
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we might not be able to estimate SD.
@@ -180,7 +180,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         } else {
             val (_key, chromIx, size) = res
             val properEndOffset = if (endOffset == 0) size else endOffset
-            query(Interval.of(chromIx, startOffset, properEndOffset))
+            query(Interval(chromIx, startOffset, properEndOffset))
         }
     }
 
@@ -297,9 +297,7 @@ data class ZoomData(
         val sum: Float,
         val sumSquares: Float) {
 
-    val interval: ChromosomeInterval get() {
-        return Interval.of(chromIx, startOffset, endOffset)
-    }
+    val interval: ChromosomeInterval get() = Interval(chromIx, startOffset, endOffset)
 
     companion object {
         val SIZE: Int = Ints.BYTES * 3 +

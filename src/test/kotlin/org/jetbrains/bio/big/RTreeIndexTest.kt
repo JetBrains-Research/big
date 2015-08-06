@@ -31,7 +31,7 @@ public class RTreeIndexTest {
             for (i in 0 until 100) {
                 val left = RANDOM.nextInt(items.size() - 1)
                 val right = left + RANDOM.nextInt(items.size() - left)
-                val query = Interval.of(0, items[left].start, items[right].end)
+                val query = Interval(0, items[left].start, items[right].end)
 
                 for (block in rti.findOverlappingBlocks(bbf.input, query)) {
                     assertTrue(block.interval intersects query)

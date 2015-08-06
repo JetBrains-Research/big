@@ -4,7 +4,6 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
 import java.io.BufferedReader
-import java.io.InputStream
 import java.math.RoundingMode
 import java.nio.file.Files
 import java.nio.file.OpenOption
@@ -75,22 +74,22 @@ interface Interval {
         val ord = Ordering.natural<Offset>()
         val unionLeft = ord.min(left, other.left)
         val unionRight = ord.max(right, other.right)
-        return Interval.of(unionLeft.chromIx, unionLeft.offset,
-                           unionRight.chromIx, unionRight.offset)
+        return Interval(unionLeft.chromIx, unionLeft.offset,
+                        unionRight.chromIx, unionRight.offset)
     }
 
     override fun toString(): String = "[$left; $right)"
 
     companion object {
-        fun of(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
+        fun invoke(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
             require(startOffset < endOffset, "start must be <end")
             return ChromosomeInterval(chromIx, startOffset, endOffset)
         }
 
-        fun of(startChromIx: Int, startOffset: Int,
-               endChromIx: Int, endOffset: Int): Interval {
+        fun invoke(startChromIx: Int, startOffset: Int,
+                   endChromIx: Int, endOffset: Int): Interval {
             return if (startChromIx == endChromIx) {
-                of(startChromIx, startOffset, endOffset)
+                invoke(startChromIx, startOffset, endOffset)
             } else {
                 MultiInterval(Offset(startChromIx, startOffset),
                               Offset(endChromIx, endOffset))
@@ -112,9 +111,9 @@ data open class ChromosomeInterval(public val chromIx: Int,
      * is completely contained in both of them.
      */
     public fun intersection(other: ChromosomeInterval): ChromosomeInterval {
-        return Interval.of(chromIx,
-                           Math.max(startOffset, other.startOffset),
-                           Math.min(endOffset, other.endOffset))
+        return Interval(chromIx,
+                        Math.max(startOffset, other.startOffset),
+                        Math.min(endOffset, other.endOffset))
     }
 
     /** Produces a sequence of `n` sub-intervals. */
@@ -125,8 +124,8 @@ data open class ChromosomeInterval(public val chromIx: Int,
         } else {
             val width = length() / n
             (0 until n).asSequence().map { i ->
-                Interval.of(chromIx, startOffset + i * width,
-                            Math.min(startOffset + (i + 1) * width, endOffset))
+                Interval(chromIx, startOffset + i * width,
+                         Math.min(startOffset + (i + 1) * width, endOffset))
             }
         }
     }

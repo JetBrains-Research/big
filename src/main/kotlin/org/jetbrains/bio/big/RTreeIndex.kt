@@ -229,7 +229,7 @@ data class RTreeIndexLeaf(public val interval: Interval,
             val startOffset = readInt()
             val endChromIx = readInt()
             val endOffset = readInt()
-            val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
+            val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
             RTreeIndexLeaf(interval, dataOffset = readLong(), dataSize = readLong())
         }
     }
@@ -254,7 +254,7 @@ data class RTreeIndexNode(public val interval: Interval,
             val startOffset = readInt()
             val endChromIx = readInt()
             val endOffset = readInt()
-            val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
+            val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
             RTreeIndexNode(interval, dataOffset = readLong())
         }
     }
