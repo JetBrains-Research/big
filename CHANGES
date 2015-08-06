@@ -7,8 +7,8 @@ Version 0.1.3
 -------------
 
 - Compression for the data section is now turned on by default.
-- Implemented 'BigWIG#summarise'. Note, that summary support is
-  still read-only.
+- Implemented summarisation for BigWIG data. Note, that summary support
+  is still read-only.
 
 Version 0.1.2
 -------------
