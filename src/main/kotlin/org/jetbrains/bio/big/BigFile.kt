@@ -112,7 +112,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                   numBins: Int): List<BigSummary> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
-            //assert(block.dataSize % ZoomData.SIZE == 0L)
+            assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
             input.with(block.dataOffset, block.dataSize, compressed) {
                 val res = ArrayList<ZoomData>()
                 do {
