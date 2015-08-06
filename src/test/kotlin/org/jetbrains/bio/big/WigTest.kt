@@ -34,18 +34,18 @@ public class FixedStepSectionTest {
         val it = section.query().iterator()
         var interval: WigInterval
         interval = it.next()
-        assertEquals(400601, interval.startOffset)
-        assertEquals(400606, interval.endOffset)
+        assertEquals(400601, interval.start)
+        assertEquals(400606, interval.end)
         assertEquals(11f, interval.score)
 
         interval = it.next()
-        assertEquals(400701, interval.startOffset)
-        assertEquals(400706, interval.endOffset)
+        assertEquals(400701, interval.start)
+        assertEquals(400706, interval.end)
         assertEquals(22f, interval.score)
 
         interval = it.next()
-        assertEquals(400801, interval.startOffset)
-        assertEquals(400806, interval.endOffset)
+        assertEquals(400801, interval.start)
+        assertEquals(400806, interval.end)
         assertEquals(33f, interval.score)
         assertFalse(it.hasNext())
     }
@@ -67,18 +67,18 @@ public class FixedStepSectionTest {
         val it = section.query().iterator()
         var interval: WigInterval
         interval = it.next()
-        assertEquals(400601, interval.startOffset)
-        assertEquals(400651, interval.endOffset)
+        assertEquals(400601, interval.start)
+        assertEquals(400651, interval.end)
         assertEquals(11f, interval.score)
 
         interval = it.next()
-        assertEquals(400611, interval.startOffset)
-        assertEquals(400661, interval.endOffset)
+        assertEquals(400611, interval.start)
+        assertEquals(400661, interval.end)
         assertEquals(22f, interval.score)
 
         interval = it.next()
-        assertEquals(400621, interval.startOffset)
-        assertEquals(400671, interval.endOffset)
+        assertEquals(400621, interval.start)
+        assertEquals(400671, interval.end)
         assertEquals(33f, interval.score)
         assertFalse(it.hasNext())
     }

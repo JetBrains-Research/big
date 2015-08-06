@@ -19,12 +19,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         val bedEntries = query(query).aggregate()
         var edge = 0
         return query.slice(numBins).map { bin ->
-            var count = 0L
-            var min = Double.POSITIVE_INFINITY
-            var max = Double.NEGATIVE_INFINITY
-            var sum = 0.0
-            var sumSquares = 0.0
-
+            val summary = BigSummary()
             for (j in edge until bedEntries.size()) {
                 val bedEntry = bedEntries[j]
                 if (bedEntry.end <= bin.startOffset) {
@@ -36,20 +31,13 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
                 val interval = Interval.of(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
-                    val intersection = interval intersection bin
-                    assert(intersection.length() > 0)
-                    val value = bedEntry.score.toDouble()
-                    val weight = intersection.length().toDouble() / interval.length()
-                    count += intersection.length();
-                    sum += value * weight;
-                    sumSquares += value * value * weight
-                    min = Math.min(min, value);
-                    max = Math.max(max, value);
+                    summary.update(bedEntry.score.toDouble(),
+                                   (interval intersection bin).length(),
+                                   interval.length())
                 }
             }
 
-            BigSummary(count = count, minValue = min, maxValue = max,
-                       sum = sum, sumSquares = sumSquares)
+            summary
         }.toList()
     }
 

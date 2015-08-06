@@ -172,7 +172,7 @@ public class WigPrinter jvmOverloads constructor(
         writer.write("variableStep chrom=${track.chrom} span=${track.span}\n")
 
         for (range in track.query()) {
-            writer.write("${range.startOffset + 1} ${range.score}\n")
+            writer.write("${range.start + 1} ${range.score}\n")
         }
     }
 
@@ -357,6 +357,4 @@ public class FixedStepSection(
     override fun hashCode(): Int = Objects.hash(start, step, span, values)
 }
 
-public data class WigInterval(val startOffset: Int,
-                              val endOffset: Int,
-                              val score: Float)
+public data class WigInterval(val start: Int, val end: Int, val score: Float)

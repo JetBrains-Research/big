@@ -2,15 +2,25 @@ package org.jetbrains.bio.big
 
 data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
-        public val count: Long,
+        public var count: Long = 0L,
         /** Minimum item value. */
-        public val minValue: Double,
+        public var minValue: Double = Double.POSITIVE_INFINITY,
         /** Maximum item value. */
-        public val maxValue: Double,
+        public var maxValue: Double = Double.NEGATIVE_INFINITY,
         /** Sum of values for each base. */
-        public val sum: Double,
+        public var sum: Double = 0.0,
         /** Sum of squares for each base. */
-        public val sumSquares: Double) {
+        public var sumSquares: Double = 0.0) {
+
+    fun update(value: Double, intersection: Int, total: Int) {
+        val weight = intersection.toDouble() / total
+        count += intersection
+        sum += value * weight;
+        sumSquares += value * value * weight
+        minValue = Math.min(minValue, value);
+        maxValue = Math.max(maxValue, value);
+    }
+
     companion object {
         fun read(input: SeekableDataInput) = with(input) {
             val count = readLong()

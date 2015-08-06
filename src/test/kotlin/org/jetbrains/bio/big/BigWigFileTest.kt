@@ -1,8 +1,10 @@
 package org.jetbrains.bio.big
 
+import org.apache.commons.math3.util.Precision
 import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -104,5 +106,52 @@ public class BigWigFileTest {
         assertEquals(value1, firstStep.query().first().score)
         assertEquals(position2, lastStep.end)
         assertEquals(value2, lastStep.query().last().score)
+    }
+
+    Test fun testSummarizeWholeFile() {
+        val bwf = BigWigFile.read(Examples["example2.bw"])
+        val name = bwf.chromosomes.valueCollection().first()
+        val (expected) = bwf.summarize(name, 0, 0, numBins = 1, index = false)
+        val (summary) = bwf.summarize(name, 0, 0, numBins = 1)
+
+        // Because zoom levels smooth the data we can only make sure
+        // that raw data estimate does not exceed the one reported
+        // via index.
+        assertTrue(summary.count >= expected.count)
+        assertTrue(summary.sum >= expected.sum)
+    }
+
+    Test fun testSummarizeFourBins() {
+        val wigSections = (0 until 128).asSequence().map {
+            var startOffset = RANDOM.nextInt(1000000)
+            val section = FixedStepSection("chr1", startOffset)
+            for (i in 0 until RANDOM.nextInt(127) + 1) {
+                section.add(RANDOM.nextFloat())
+            }
+
+            section
+        }.toList().sortBy { it.start }
+
+        testSummarize(wigSections, numBins = 4)
+    }
+
+    private fun testSummarize(wigSections: List<WigSection>, numBins: Int) {
+        val name = wigSections.map { it.chrom }.first()
+        val path = Files.createTempFile("example", ".bw")
+        try {
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"], path)
+            BigWigFile.read(path).use { bbf ->
+                val summaries = bbf.summarize(name, 0, 0, numBins)
+                assertTrue(Precision.equals(
+                        wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble(),
+                        summaries.map { it.sum }.sum(), 0.1))
+            }
+        } finally {
+            Files.deleteIfExists(path)
+        }
+    }
+
+    companion object {
+        private val RANDOM = Random()
     }
 }

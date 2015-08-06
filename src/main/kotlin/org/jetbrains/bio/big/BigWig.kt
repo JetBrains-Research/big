@@ -14,7 +14,29 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval, numBins: Int): List<BigSummary> {
-        throw UnsupportedOperationException()
+        val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
+        var edge = 0
+        return query.slice(numBins).map { bin ->
+            val summary = BigSummary()
+            for (j in edge until wigItems.size()) {
+                val wigItem = wigItems[j]
+                if (wigItem.end <= bin.startOffset) {
+                    edge = j + 1
+                    continue
+                } else if (wigItem.start > bin.endOffset) {
+                    break
+                }
+
+                val interval = Interval.of(query.chromIx, wigItem.start, wigItem.end)
+                if (interval intersects bin) {
+                    summary.update(wigItem.score.toDouble(),
+                                   (interval intersection bin).length(),
+                                   interval.length())
+                }
+            }
+
+            summary
+        }.toList()
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
@@ -157,7 +179,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(0)
         writeInt(span)
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
-        writeByte(0) // reserved.
+        writeByte(0)  // reserved.
         writeShort(values.size())
         for (i in 0 until values.size()) {
             writeInt(positions[i])
