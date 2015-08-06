@@ -3,7 +3,14 @@ package org.jetbrains.bio.big
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
+import java.io.BufferedReader
+import java.io.InputStream
 import java.math.RoundingMode
+import java.nio.file.Files
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 
 /**
  * Various internal helpers.
@@ -37,6 +44,15 @@ fun Int.logCeiling(base: Int): Int {
 fun Int.until(other: Int) = this..other - 1
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
+
+fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
+    val inputStream = Files.newInputStream(this, *options).buffered()
+    return when (toFile().extension) {
+        "gz"  -> GZIPInputStream(inputStream)
+        "zip" -> ZipInputStream(inputStream)
+        else  -> inputStream
+    }.bufferedReader()
+}
 
 /**
  * A semi-closed interval.

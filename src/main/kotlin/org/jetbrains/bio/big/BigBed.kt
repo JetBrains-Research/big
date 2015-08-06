@@ -4,7 +4,6 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
@@ -118,11 +117,11 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
             SeekableDataOutput.of(outputPath).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
-                val unsortedChromosomes
-                        = Files.readAllLines(chromSizesPath).mapIndexed { i, line ->
+                val unsortedChromosomes = chromSizesPath.bufferedReader()
+                        .lineSequence().mapIndexed { i, line ->
                     val chunks = line.split('\t', limit = 2)
                     BPlusLeaf(chunks[0], i, chunks[1].toInt())
-                }
+                }.toList()
 
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
