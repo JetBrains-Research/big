@@ -10,6 +10,7 @@ Bugfix release
 
 - Changed 'RTreeIndex' not to enforce the leaves to only contain items
   from a single chromosome.
+- Fixed 'RTreeIndex#write' for the case of a few items to be indexed.
 
 Version 0.1.1
 -------------

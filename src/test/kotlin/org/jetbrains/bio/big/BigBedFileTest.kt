@@ -9,6 +9,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigBedFileTest {
+    Test fun testWriteReadSmall() {
+        val path = Files.createTempFile("small", ".bb")
+        try {
+            val bedEntries = listOf(BedEntry("chr21", 0, 100))
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(1, bbf.query("chr21", 0, 0).count())
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            }
+        } finally {
+            Files.deleteIfExists(path)
+        }
+    }
+
     Test fun testWriteReadCompressed() = testWriteRead(true)
 
     Test fun testWriteReadUncompressed() = testWriteRead(false)

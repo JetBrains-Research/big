@@ -138,8 +138,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                                 output.tell() + Header.BYTES)
             header.write(output)
 
-            val levels = compute(leaves, blockSize)
-
             // HEAVY COMPUTER SCIENCE CALCULATION!
             val bytesInNodeHeader = 1 + 1 + com.google.common.primitives.Shorts.BYTES
             val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
@@ -149,7 +147,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             // Omit root because it's trivial and leaves --- we'll deal
             // with them later.
-            levels.subList(1, levels.size() - 1).forEachIndexed { i, level ->
+            val levels = compute(leaves, blockSize)
+            levels.subList(1, Math.max(1, levels.size() - 1)).forEachIndexed { i, level ->
                 val bytesInCurrentBlock = bytesInIndexBlock
                 val bytesInNextLevelBlock =
                         if (i == levels.size() - 3) bytesInLeafBlock else bytesInCurrentBlock
