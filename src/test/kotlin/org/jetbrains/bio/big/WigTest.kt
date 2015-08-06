@@ -47,6 +47,7 @@ public class FixedStepSectionTest {
         assertEquals(400801, interval.startOffset)
         assertEquals(400806, interval.endOffset)
         assertEquals(33f, interval.score)
+        assertFalse(it.hasNext())
     }
 
     Test fun testQuery() {
@@ -54,6 +55,31 @@ public class FixedStepSectionTest {
         // interval, in this case to '400601'.
         val it = section.query(400600, 400607).iterator()
         assertNotNull(it.next())
+        assertFalse(it.hasNext())
+    }
+
+    Test fun testQueryWithOverlaps() {
+        val section = FixedStepSection("chr1", 400601, 10, 50)
+        section.add(11f)
+        section.add(22f)
+        section.add(33f)
+
+        val it = section.query().iterator()
+        var interval: WigInterval
+        interval = it.next()
+        assertEquals(400601, interval.startOffset)
+        assertEquals(400651, interval.endOffset)
+        assertEquals(11f, interval.score)
+
+        interval = it.next()
+        assertEquals(400611, interval.startOffset)
+        assertEquals(400661, interval.endOffset)
+        assertEquals(22f, interval.score)
+
+        interval = it.next()
+        assertEquals(400621, interval.startOffset)
+        assertEquals(400671, interval.endOffset)
+        assertEquals(33f, interval.score)
         assertFalse(it.hasNext())
     }
 }

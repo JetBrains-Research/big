@@ -10,7 +10,8 @@ Bugfix release, released on August 6th 2015
 
 - Changed 'RTreeIndex' not to enforce the leaves to only contain items
   from a single chromosome.
-- Fixed 'RTreeIndex#write' for the case of a few items to be indexed.
+- Fixed 'RTreeIndex.write' for the case of a few items to be indexed.
+- Fixed 'FixedStepSection#query' for the case of overlapping intervals.
 
 Version 0.1.1
 -------------

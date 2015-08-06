@@ -330,7 +330,7 @@ public class FixedStepSection(
     override fun query(from: Int, to: Int): List<WigInterval> {
         val ranges = ArrayList<WigInterval>()
         var i = Math.max(start, from - from % span)
-        while (i < Math.min(end, to - to % span)) {
+        while (i < Math.min(start + step * size(), to - to % span)) {
             ranges.add(WigInterval(i, i + span, get(i)))
             i += step
         }
