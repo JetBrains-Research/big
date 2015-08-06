@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.1.2
 -------------
 
-Bugfix release
+Bugfix release, released on August 6th 2015
 
 - Changed 'RTreeIndex' not to enforce the leaves to only contain items
   from a single chromosome.
