@@ -113,7 +113,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         chromSizesPath: Path,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
-                                        compressed: Boolean = false) {
+                                        compressed: Boolean = true) {
             SeekableDataOutput.of(outputPath).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 

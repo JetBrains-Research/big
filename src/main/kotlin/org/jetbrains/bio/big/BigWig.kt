@@ -79,7 +79,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         public platformStatic fun write(wigSections: Iterable<WigSection>,
                                         chromSizesPath: Path,
                                         outputPath: Path,
-                                        compressed: Boolean = false) {
+                                        compressed: Boolean = true) {
             SeekableDataOutput.of(outputPath).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
