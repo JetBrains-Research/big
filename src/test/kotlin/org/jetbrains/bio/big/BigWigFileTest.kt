@@ -17,7 +17,7 @@ public class BigWigFileTest {
             val wigSections = WigParser(Examples["example.wig"].toFile().bufferedReader())
                     .map { it.second }
                     .toList()
-            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes"],
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"],
                              path, compressed = compressed)
 
             BigWigFile.read(path).use { bwf ->

@@ -17,7 +17,7 @@ public class BigBedFileTest {
         val path = Files.createTempFile("example1", ".bb")
         try {
             val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes"],
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"],
                              path, compressed = compressed)
 
             BigBedFile.read(path).use { bbf ->
@@ -148,7 +148,7 @@ public class BigBedFileTest {
         val name = bedEntries.map { it.chrom }.first()
         val path = Files.createTempFile("example", ".bb")
         try {
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes"], path)
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
             BigBedFile.read(path).use { bbf ->
                 val aggregate = bedEntries.asSequence().aggregate()
                 val summaries = bbf.summarize(name, 0, 0, numBins)
