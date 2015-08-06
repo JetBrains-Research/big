@@ -127,13 +127,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                          leaves: List<RTreeIndexLeaf>,
                          blockSize: Int = 256,
                          itemsPerSlot: Int = 512): Unit {
-            val leftmost = leaves.first().interval
-            var rightmost = leaves.last().interval
+            val leftmost = leaves.first().interval.left
+            var rightmost = leaves.last().interval.right
 
             val header = Header(output.order, blockSize,
                                 leaves.size().toLong(),
-                                leftmost.chromIx, leftmost.startOffset,
-                                rightmost.chromIx, rightmost.endOffset,
+                                leftmost.chromIx, leftmost.offset,
+                                rightmost.chromIx, rightmost.offset,
                                 output.tell(), itemsPerSlot,
                                 output.tell() + Header.BYTES)
             header.write(output)
@@ -212,26 +212,25 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 /**
  * External node aka *leaf* of the chromosome R-tree.
  */
-data class RTreeIndexLeaf(public val interval: ChromosomeInterval,
+data class RTreeIndexLeaf(public val interval: Interval,
                           public val dataOffset: Long,
                           public val dataSize: Long) {
     fun write(output: SeekableDataOutput) = with(output) {
-        writeInt(interval.chromIx)
-        writeInt(interval.startOffset)
-        writeInt(interval.chromIx)
-        writeInt(interval.endOffset)
+        writeInt(interval.left.chromIx)
+        writeInt(interval.left.offset)
+        writeInt(interval.right.chromIx)
+        writeInt(interval.right.offset)
         writeLong(dataOffset)
         writeLong(dataSize)
     }
 
     companion object {
-        fun read(input: SeekableDataInput) = with (input) {
+        fun read(input: SeekableDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()
             val endOffset = readInt()
-            assert(startChromIx == endChromIx)
-            val interval = Interval.of(startChromIx, startOffset, endOffset)
+            val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
             RTreeIndexLeaf(interval, dataOffset = readLong(), dataSize = readLong())
         }
     }
@@ -251,12 +250,12 @@ data class RTreeIndexNode(public val interval: Interval,
     }
 
     companion object {
-        fun read(input: SeekableDataInput) = with (input) {
+        fun read(input: SeekableDataInput) = with(input) {
             val startChromIx = readInt()
-            val startBase = readInt()
+            val startOffset = readInt()
             val endChromIx = readInt()
-            val endBase = readInt()
-            val interval = Interval.of(startChromIx, startBase, endChromIx, endBase)
+            val endOffset = readInt()
+            val interval = Interval.of(startChromIx, startOffset, endChromIx, endOffset)
             RTreeIndexNode(interval, dataOffset = readLong())
         }
     }

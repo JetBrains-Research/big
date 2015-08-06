@@ -112,14 +112,11 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                   numBins: Int): List<BigSummary> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
-            assert(block.dataSize % ZoomData.SIZE == 0L)
+            //assert(block.dataSize % ZoomData.SIZE == 0L)
             input.with(block.dataOffset, block.dataSize, compressed) {
                 val res = ArrayList<ZoomData>()
                 do {
                     val zoomData = ZoomData.read(this)
-                    assert(zoomData.chromIx == query.chromIx,
-                           "zoom data contains wrong chromosome")
-
                     if (query intersects zoomData.interval) {
                         res.add(zoomData)
                     }
@@ -214,7 +211,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             writeLong(chromTreeOffset)
             writeLong(unzoomedDataOffset)
             writeLong(unzoomedIndexOffset)
-            writeShort(fieldCount.toInt())
+            writeShort(fieldCount)
             writeShort(definedFieldCount)
             writeLong(asOffset)
             writeLong(totalSummaryOffset)
