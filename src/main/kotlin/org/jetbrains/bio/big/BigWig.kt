@@ -1,10 +1,8 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.Lists
-import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import java.io.IOException
-import java.math.RoundingMode
 import java.nio.file.Path
 import java.util.Collections
 import kotlin.platform.platformStatic
@@ -44,7 +42,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
-        return listOf(input.with(dataOffset, dataSize, compressed) {
+        return sequenceOf(input.with(dataOffset, dataSize, compressed) {
             val chromIx = readInt()
             assert(chromIx == query.chromIx, "section contains wrong chromosome")
             val start = readInt()
@@ -78,7 +76,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     section
                 }
             }
-        }).asSequence()
+        })
     }
 
     companion object {
