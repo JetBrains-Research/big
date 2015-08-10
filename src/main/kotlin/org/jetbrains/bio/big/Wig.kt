@@ -397,4 +397,6 @@ public class FixedStepSection(
     override fun hashCode(): Int = Objects.hash(start, step, span, values)
 }
 
-public data class WigInterval(val start: Int, val end: Int, val score: Float)
+public data class WigInterval(val start: Int, val end: Int, val score: Float) {
+    override fun toString(): String = "$score@[$start; $end)"
+}
