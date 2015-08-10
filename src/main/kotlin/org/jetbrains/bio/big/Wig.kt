@@ -316,7 +316,7 @@ public class VariableStepSection(
             .toString()
 
     override fun equals(other: Any?): Boolean = when {
-        other identityEquals this -> true
+        other === this -> true
         other !is VariableStepSection -> false
         else -> span == other.span &&
                 positions == other.positions &&
@@ -387,7 +387,7 @@ public class FixedStepSection(
             .toString()
 
     override fun equals(other: Any?): Boolean = when {
-        other identityEquals this -> true
+        other === this -> true
         other !is FixedStepSection -> false
         else -> start == start &&
                 step == other.step && span == other.span &&
