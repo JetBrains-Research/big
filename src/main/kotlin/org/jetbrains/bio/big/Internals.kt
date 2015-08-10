@@ -106,6 +106,18 @@ data open class ChromosomeInterval(public val chromIx: Int,
     override val left: Offset get() = Offset(chromIx, startOffset)
     override val right: Offset get() = Offset(chromIx, endOffset)
 
+    /** Checks if a given `offset` is contained in this interval. */
+    public fun contains(offset: Int): Boolean {
+        return offset >= startOffset && offset < endOffset
+    }
+
+    /** Checks if a given interval is contained in this interval. */
+    public fun contains(other: ChromosomeInterval): Boolean {
+        return other.chromIx == chromIx &&
+               other.startOffset >= startOffset &&
+               other.endOffset <= endOffset
+    }
+
     /**
      * Returns an intersection of the two intervals, i.e. an interval which
      * is completely contained in both of them.

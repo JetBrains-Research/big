@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 public class BigWigFileTest {
@@ -77,16 +78,16 @@ public class BigWigFileTest {
     }
 
     private fun assertChromosome(path: Path, chromosome: String): List<WigSection> {
-        val file = BigWigFile.read(path)
-        val chromosomes = file.chromosomes
+        return BigWigFile.read(path).use { bwf ->
+            val chromosomes = bwf.chromosomes
 
-        assertEquals(1, chromosomes.size())
-        assertEquals(chromosome, chromosomes.values().first())
+            assertEquals(1, chromosomes.size())
+            assertEquals(chromosome, chromosomes.values().first())
 
-        val steps = file.query(chromosome, 0, 0).toList()
-        assertTrue(steps.isNotEmpty())
-
-        return steps
+            val steps = bwf.query(chromosome, 0, 0).toList()
+            assertTrue(steps.isNotEmpty())
+            steps
+        }
     }
 
     private fun assertVariableStep(firstStep: WigSection, lastStep: WigSection,
@@ -114,16 +115,17 @@ public class BigWigFileTest {
     }
 
     Test fun testSummarizeWholeFile() {
-        val bwf = BigWigFile.read(Examples["example2.bw"])
-        val name = bwf.chromosomes.valueCollection().first()
-        val (expected) = bwf.summarize(name, 0, 0, numBins = 1, index = false)
-        val (summary) = bwf.summarize(name, 0, 0, numBins = 1)
+        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+            val name = bwf.chromosomes.valueCollection().first()
+            val (expected) = bwf.summarize(name, 0, 0, numBins = 1, index = false)
+            val (summary) = bwf.summarize(name, 0, 0, numBins = 1)
 
-        // Because zoom levels smooth the data we can only make sure
-        // that raw data estimate does not exceed the one reported
-        // via index.
-        assertTrue(summary.count >= expected.count)
-        assertTrue(summary.sum >= expected.sum)
+            // Because zoom levels smooth the data we can only make sure
+            // that raw data estimate does not exceed the one reported
+            // via index.
+            assertTrue(summary.count >= expected.count)
+            assertTrue(summary.sum >= expected.sum)
+        }
     }
 
     Test fun testSummarizeFourBins() {
@@ -153,6 +155,24 @@ public class BigWigFileTest {
             }
         } finally {
             Files.deleteIfExists(path)
+        }
+    }
+
+    Test fun testQueryPartialVariable() = testQueryPartial(Examples["example2.bw"])
+
+    Test fun testQueryPartialFixed() = testQueryPartial(Examples["fixed_step.bw"])
+
+    private fun testQueryPartial(path: Path) {
+        BigWigFile.read(path).use { bwf ->
+            val name = bwf.chromosomes.valueCollection().first()
+            val expected = bwf.query(name, 0, 0).first()
+            assertEquals(expected,
+                         bwf.query(name, expected.start, expected.end).first())
+
+            // omit first interval.
+            val (start, end, _score) = expected.query().first()
+            assertEquals(expected.size() - 1,
+                         bwf.query(name, end, expected.end).first().size())
         }
     }
 

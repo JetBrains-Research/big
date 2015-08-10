@@ -11,6 +11,8 @@ Version 0.1.3
   is still read-only.
 - Changed 'BigWigFile.write' to splice WIG sections larger than
   'Short.MAX_VALUE'.
+- Fixed 'BigWigFile#query' which sometimes returned values outside
+  of a given query interval.
 - It is now possible to create BigWIG and BigBED files using a non-native
   byte order.
 

@@ -62,16 +62,24 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 WigSection.Type.VARIABLE_STEP -> {
                     val section = VariableStepSection(chrom, span)
                     for (i in 0 until count) {
-                        val position = readInt()
-                        section[position] = readFloat()
+                        val pos = readInt()
+                        val value = readFloat()
+                        if (query.contains(pos)) {
+                            section[pos] = value
+                        }
                     }
 
                     section
                 }
                 WigSection.Type.FIXED_STEP -> {
-                    val section = FixedStepSection(chrom, start, step, span)
+                    val section = FixedStepSection(
+                            chrom, Math.max(start, query.startOffset), step, span)
                     for (i in 0 until count) {
-                        section.add(readFloat())
+                        val pos = start + i * step
+                        val value = readFloat()
+                        if (Interval(query.chromIx, pos, pos + span) in query) {
+                            section.add(value)
+                        }
                     }
 
                     section
