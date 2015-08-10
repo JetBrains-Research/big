@@ -7,7 +7,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 public class BigWigFileTest {
