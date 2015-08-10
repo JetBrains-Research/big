@@ -218,6 +218,11 @@ public interface WigSection {
      */
     public fun query(from: Int, to: Int): List<WigInterval>
 
+    /**
+     * Splices a section into sub-section of size at most [Short.MAX_SIZE].
+     */
+    fun splice(): Sequence<WigSection>
+
     public fun size(): Int
 
     public enum class Type() {
@@ -235,7 +240,15 @@ public interface WigSection {
 public class VariableStepSection(
         public override val chrom: String,
         /** Range width. */
-        public val span: Int = 1) : WigSection {
+        public val span: Int = 1,
+        /** Per-range position. */
+        val positions: TIntList = TIntArrayList(),
+        /** Per-range values. */
+        val values: TFloatList = TFloatArrayList()) : WigSection {
+
+    init {
+        require(positions.size() == values.size())
+    }
 
     override val start: Int get() {
         return if (positions.isEmpty()) 0 else positions[0]
@@ -246,9 +259,6 @@ public class VariableStepSection(
     } else {
         positions[positions.size() - 1] + span
     }
-
-    val positions: TIntList = TIntArrayList()
-    val values: TFloatList = TFloatArrayList()
 
     public fun set(pos: Int, value: Float) {
         val i = positions.binarySearch(pos)
@@ -284,6 +294,21 @@ public class VariableStepSection(
         return acc
     }
 
+    override fun splice(): Sequence<VariableStepSection> {
+        val max = Short.MAX_VALUE.toInt()
+        val chunks = size() divCeiling max
+        return if (chunks == 1) {
+            sequenceOf(this)
+        } else {
+            (0 until chunks).asSequence().map { i ->
+                val from = i * max
+                val to = (i + 1) * max
+                VariableStepSection(chrom, span, positions.subList(from, to),
+                                    values.subList(from, to))
+            }
+        }
+    }
+
     override fun size(): Int = values.size()
 
     override fun toString(): String = MoreObjects.toStringHelper(this)
@@ -312,11 +337,11 @@ public class FixedStepSection(
         /** Distance between consecutive ranges. */
         public val step: Int = 1,
         /** Range width. */
-        public val span: Int = 1) : WigSection {
+        public val span: Int = 1,
+        /** Per-range values. */
+        val values: TFloatList = TFloatArrayList()) : WigSection {
 
     override val end: Int get() = start + step * (values.size() - 1) + span
-
-    val values: TFloatList = TFloatArrayList()
 
     public fun add(value: Float) {
         values.add(value)
@@ -336,6 +361,21 @@ public class FixedStepSection(
         }
 
         return ranges
+    }
+
+    override fun splice(): Sequence<FixedStepSection> {
+        val max = Short.MAX_VALUE.toInt()
+        val chunks = size() divCeiling max
+        return if (chunks == 1) {
+            sequenceOf(this)
+        } else {
+            (0 until chunks).asSequence().map { i ->
+                val from = i * max
+                val to = (i + 1) * max
+                FixedStepSection(chrom, start + step * from, step, span,
+                                 values.subList(from, to))
+            }
+        }
     }
 
     override fun size(): Int = values.size()

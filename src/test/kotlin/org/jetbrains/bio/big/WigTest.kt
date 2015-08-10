@@ -10,6 +10,58 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+public class VariableStepSectionTest {
+    private var section: VariableStepSection by Delegates.notNull()
+
+    Before fun setUp() {
+        section = VariableStepSection("chr1", 20)
+        section[100500] = 42.0f
+        section[500100] = 24.0f
+    }
+
+    Test fun testSet() {
+        section[100500] = 42.0f
+        assertEquals(42f + 42f , section[100500])
+    }
+
+    Test fun testQueryNoBounds() {
+        val correct = arrayOf(WigInterval(100500, 100520, 42f),
+                              WigInterval(500100, 500120, 24f))
+
+        assertEquals(correct.toList(), section.query())
+    }
+
+    Test fun testQuery() {
+        // Add a few ranges from both sides.
+        section[100100] = 4242.0f
+        section[500500] = 2424.0f
+
+        val correct = arrayOf(WigInterval(100500, 100520, 42f),
+                              WigInterval(500100, 500120, 24f))
+
+        // Note: why '500200'? because the 'end' value corresponds
+        // to the right border of the rightmost 'Range', i. e.:
+        //                 end
+        //                  V
+        // |----|----|----|----|----|
+        //           +----+
+        //       rightmost range
+        assertEquals(correct.toList(), section.query(100500, 500200))
+    }
+
+    Test fun testSplice() {
+        section = VariableStepSection("chr1", 20)
+        for (i in 0 until Short.MAX_VALUE * 2 - 100) {
+            section[i] = i.toFloat()
+        }
+
+        val subsections = section.splice().toList()
+        assertEquals(2, subsections.size())
+        assertEquals(0, subsections[0].start)
+        assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
+    }
+}
+
 public class FixedStepSectionTest {
     private var section: FixedStepSection by Delegates.notNull()
 
@@ -82,45 +134,17 @@ public class FixedStepSectionTest {
         assertEquals(33f, interval.score)
         assertFalse(it.hasNext())
     }
-}
 
-public class VariableStepSectionTest {
-    private var section: VariableStepSection by Delegates.notNull()
+    Test fun testSplice() {
+        section = FixedStepSection("chr1", 0)
+        for (i in 0 until Short.MAX_VALUE * 2 - 100) {
+            section.add(i.toFloat())
+        }
 
-    Before fun setUp() {
-        section = VariableStepSection("chr1", 20)
-        section[100500] = 42.0f
-        section[500100] = 24.0f
-    }
-
-    Test fun testQueryNoBounds() {
-        val correct = arrayOf(WigInterval(100500, 100520, 42f),
-                              WigInterval(500100, 500120, 24f))
-
-        assertEquals(correct.toList(), section.query())
-    }
-
-    Test fun testQuery() {
-        // Add a few ranges from both sides.
-        section[100100] = 4242.0f
-        section[500500] = 2424.0f
-
-        val correct = arrayOf(WigInterval(100500, 100520, 42f),
-                              WigInterval(500100, 500120, 24f))
-
-        // Note: why '500200'? because the 'end' value corresponds
-        // to the right border of the rightmost 'Range', i. e.:
-        //                 end
-        //                  V
-        // |----|----|----|----|----|
-        //           +----+
-        //       rightmost range
-        assertEquals(correct.toList(), section.query(100500, 500200))
-    }
-
-    Test fun testSet() {
-        section[100500] = 42.0f
-        assertEquals(42f + 42f , section[100500])
+        val subsections = section.splice().toList()
+        assertEquals(2, subsections.size())
+        assertEquals(0, subsections[0].start)
+        assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
     }
 }
 
@@ -129,7 +153,7 @@ public class WigParserTest {
         val input = "track type=wiggle_1 windowingFunction=mean\n"
 
         // Any type other than 'wiggle_0' should raise an IllegalStateException
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     Test fun testVariableStep() {
@@ -137,7 +161,7 @@ public class WigParserTest {
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   0.4242\n" + "10481   0.2424"
 
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     Test fun testVariableStepNoSpan() {
@@ -161,7 +185,7 @@ public class WigParserTest {
                     "fixedStep chrom=chr1 start=10471 step=10 span=5\n" +
                     "0.4242\n" + "0.2424"
 
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     // Not implemented yet.
@@ -174,7 +198,7 @@ public class WigParserTest {
 
         // Both of the tracks should be merged, because one starts right
         // after another.
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     Test fun testManyChromosomes() {
@@ -199,7 +223,7 @@ public class WigParserTest {
 
         // Both of the tracks should be merged, because they're on
         // the same chromosome.
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     Test fun testNoReuseDifferentChromosomes() {
@@ -235,7 +259,7 @@ public class WigParserTest {
                     "10481   0.2424"
 
         // We'll have an assertion error, if the parser fails.
-        testGenomeTrack(input)
+        testWigSection(input)
     }
 
     Test fun testDoubleExp() {
@@ -250,7 +274,7 @@ public class WigParserTest {
 
     }
 
-    private fun testGenomeTrack(input: String) {
+    private fun testWigSection(input: String) {
         val it = WigParser(StringReader(input)).iterator()
         val pair = it.next()
 

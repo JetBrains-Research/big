@@ -1,8 +1,10 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.Lists
+import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import java.io.IOException
+import java.math.RoundingMode
 import java.nio.file.Path
 import java.util.Collections
 import kotlin.platform.platformStatic
@@ -124,7 +126,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     Collections.sort(sections) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
                     val chromId = resolver[name]!!
-                    for (section in sections) {
+                    for (section in sections.asSequence().flatMap { it.splice() }) {
                         val dataOffset = output.tell()
                         val current = output.with(compressed) {
                             when (section) {
