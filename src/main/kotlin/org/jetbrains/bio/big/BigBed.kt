@@ -4,6 +4,7 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import java.io.IOException
+import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.Collections
@@ -94,6 +95,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
          *                     R+ tree index node. Defaults to `1024`.
          * @param compressed compress BigBED data sections with gzip.
          *                   Defaults to `false`.
+         * @param order byte order used, see [java.nio.ByteOrder].
          * @throws IOException if any of the read or write operations failed.
          */
         throws(IOException::class)
@@ -101,8 +103,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         chromSizesPath: Path,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
-                                        compressed: Boolean = true) {
-            SeekableDataOutput.of(outputPath).use { output ->
+                                        compressed: Boolean = true,
+                                        order: ByteOrder = ByteOrder.nativeOrder()) {
+            SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.bufferedReader()

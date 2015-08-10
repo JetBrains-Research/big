@@ -3,6 +3,7 @@ package org.jetbrains.bio.big
 import com.google.common.collect.Lists
 import com.google.common.primitives.Ints
 import java.io.IOException
+import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.Collections
 import kotlin.platform.platformStatic
@@ -95,14 +96,16 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
          * @param outputPath BigWIG file path.
          * @param compressed compress BigWIG data sections with gzip.
          *                   Defaults to `false`.
+         * @param order byte order used, see [java.nio.ByteOrder].
          * @throws IOException if any of the read or write operations failed.
          */
         throws(IOException::class)
         public platformStatic fun write(wigSections: Iterable<WigSection>,
                                         chromSizesPath: Path,
                                         outputPath: Path,
-                                        compressed: Boolean = true) {
-            SeekableDataOutput.of(outputPath).use { output ->
+                                        compressed: Boolean = true,
+                                        order: ByteOrder = ByteOrder.nativeOrder()) {
+            SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.bufferedReader()

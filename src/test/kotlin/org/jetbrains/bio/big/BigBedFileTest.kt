@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
 import org.junit.Test
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
@@ -24,16 +25,20 @@ public class BigBedFileTest {
         }
     }
 
-    Test fun testWriteReadCompressed() = testWriteRead(true)
+    Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadUncompressed() = testWriteRead(false)
+    Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
 
-    private fun testWriteRead(compressed: Boolean) {
+    Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
+
+    Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
+
+    private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         val path = Files.createTempFile("example1", ".bb")
         try {
             val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"],
-                             path, compressed = compressed)
+                             path, compressed = compressed, order = order)
 
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())

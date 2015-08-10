@@ -2,25 +2,30 @@ package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
 import org.junit.Test
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
+import java.util.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigWigFileTest {
-    Test fun testWriteReadCompressed() = testWriteRead(true)
+    Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadUncompressed() = testWriteRead(false)
+    Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
 
-    private fun testWriteRead(compressed: Boolean) {
+    Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
+
+    Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
+
+    private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         val path = Files.createTempFile("example", ".bw")
         try {
             val wigSections = WigParser(Examples["example.wig"].toFile().bufferedReader())
                     .map { it.second }
                     .toList()
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"],
-                             path, compressed = compressed)
+                             path, compressed = compressed, order = order)
 
             BigWigFile.read(path).use { bwf ->
                 assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())

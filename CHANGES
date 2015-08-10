@@ -9,7 +9,10 @@ Version 0.1.3
 - Compression for the data section is now turned on by default.
 - Implemented summarisation for BigWIG data. Note, that summary support
   is still read-only.
-- WIG sections which are too large for BigWIG are spliced automatically.
+- Changed 'BigWigFile.write' to splice WIG sections larger than
+  'Short.MAX_VALUE'.
+- It is now possible to create BigWIG and BigBED files using a non-native
+  byte order.
 
 Version 0.1.2
 -------------
