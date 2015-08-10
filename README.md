@@ -2,6 +2,25 @@
 
 `big` implements classes for reading and writing BigWIG and BigBED for the JVM.
 
+Installation
+------------
+
+The latest version of `big` is available on [jCenter] [jcenter]. If you're using
+Gradle just add the following to your `build.gradle`:
+
+```gradle
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'org.jetbrains.bio:big:0.1.2'
+}
+
+```
+
+[jcenter]: https://bintray.com/bintray/jcenter
+
 Useful links
 ------------
 
