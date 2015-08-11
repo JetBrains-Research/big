@@ -302,7 +302,7 @@ public class VariableStepSection(
         } else {
             (0 until chunks).asSequence().map { i ->
                 val from = i * max
-                val to = (i + 1) * max
+                val to = Math.min((i + 1) * max, size())
                 VariableStepSection(chrom, span, positions.subList(from, to),
                                     values.subList(from, to))
             }
@@ -371,7 +371,7 @@ public class FixedStepSection(
         } else {
             (0 until chunks).asSequence().map { i ->
                 val from = i * max
-                val to = (i + 1) * max
+                val to = Math.min((i + 1) * max, values.size())
                 FixedStepSection(chrom, start + step * from, step, span,
                                  values.subList(from, to))
             }
