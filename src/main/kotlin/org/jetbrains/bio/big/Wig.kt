@@ -24,9 +24,6 @@ import java.util.Objects
  * convert them to 0-based during parsing.
  *
  * See http://genome.ucsc.edu/goldenPath/help/wiggle.html
- *
- * @author Sergei Lebedev
- * @since 23/06/15
  */
 public class WigParser(private val reader: Reader) :
         Iterable<Pair<String, WigSection>>, AutoCloseable, Closeable {

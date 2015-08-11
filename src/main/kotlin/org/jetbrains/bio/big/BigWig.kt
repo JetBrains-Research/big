@@ -125,7 +125,6 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
-                // XXX move to 'BedFile'?
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
