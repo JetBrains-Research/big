@@ -272,8 +272,12 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * specified in the file [Header]. Additionally the file must
          * contain `ZoomData.BYTES * header.zoomLevelCount` zero
          * bytes right after the header.
+         *
+         * @param path to [BigFile].
+         * @param step reduction step to use, i.e. the first zoom level
+         *             will be `step^2`, next `step^3` etc.
          */
-        fun zoom(path: Path, step: Int = 16): Unit {
+        fun zoom(path: Path, step: Int = 8): Unit {
             val bf = read(path)
             val zoomLevelCount = bf.zoomLevels.size()
             val chromosomes = bf.bPlusTree.traverse(bf.input).toList()

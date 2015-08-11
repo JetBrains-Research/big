@@ -7,8 +7,8 @@ Version 0.1.3
 -------------
 
 - Compression for the data section is now turned on by default.
-- Implemented summarisation for BigWIG data. Note, that summary support
-  is still read-only.
+- '.write' for both BigWIG and BigBED now pre-computes zoom levels.
+- BigWIG can be summarised the same way as BigBED.
 - Changed 'BigWigFile.write' to splice WIG sections larger than
   'Short.MAX_VALUE'.
 - Fixed 'BigWigFile#query' which sometimes returned values outside

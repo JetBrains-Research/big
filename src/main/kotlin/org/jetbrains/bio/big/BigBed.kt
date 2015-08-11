@@ -72,6 +72,8 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
          * @param outputPath BigBED file path.
          * @param itemsPerSlot number of items to store in a single
          *                     R+ tree index node. Defaults to `1024`.
+         * @param zoomLevelCount number of zoom levels to pre-compute.
+         *                       Defaults to `8`.
          * @param compressed compress BigBED data sections with gzip.
          *                   Defaults to `false`.
          * @param order byte order used, see [java.nio.ByteOrder].
@@ -82,7 +84,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         chromSizesPath: Path,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
-                                        zoomLevelCount: Int = 1,
+                                        zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
             SeekableDataOutput.of(outputPath, order).use { output ->

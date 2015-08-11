@@ -102,6 +102,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
          * @param wigSections sections to write and index.
          * @param chromSizesPath path to the TSV file with chromosome
          *                       names and sizes.
+         * @param zoomLevelCount number of zoom levels to pre-compute.
+         *                       Defaults to `8`.
          * @param outputPath BigWIG file path.
          * @param compressed compress BigWIG data sections with gzip.
          *                   Defaults to `false`.
@@ -112,10 +114,12 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         public platformStatic fun write(wigSections: Iterable<WigSection>,
                                         chromSizesPath: Path,
                                         outputPath: Path,
+                                        zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
             SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
+                output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                 val chromTreeOffset = output.tell()
@@ -158,6 +162,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
                 header.write(output, MAGIC)
             }
+
+            BigFile.zoom(outputPath)
         }
     }
 }
