@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
+import com.google.common.primitives.Longs
 
 data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
@@ -14,6 +15,9 @@ data class BigSummary(
         public var sum: Double = 0.0,
         /** Sum of squares for each base. */
         public var sumSquares: Double = 0.0) {
+
+    /** Returns `true` if a summary contains no data. */
+    fun isEmpty() = count == 0L
 
     fun update(value: Double, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
@@ -36,17 +40,27 @@ data class BigSummary(
     }
 }
 
-data class ZoomLevel(public val reductionLevel: Int,
+data class ZoomLevel(public val reduction: Int,
                      public val dataOffset: Long,
                      public val indexOffset: Long) {
+
+    fun write(output: OrderedDataOutput) = with(output) {
+        writeInt(reduction)
+        writeInt(0)  // reserved.
+        writeLong(dataOffset)
+        writeLong(indexOffset)
+    }
+
     companion object {
+        val BYTES = Ints.BYTES * 2 + Longs.BYTES * 2
+
         fun read(input: SeekableDataInput) = with(input) {
-            val reductionLevel = readInt()
+            val reduction = readInt()
             val reserved = readInt()
             check(reserved == 0)
             val dataOffset = readLong()
             val indexOffset = readLong()
-            ZoomLevel(reductionLevel, dataOffset, indexOffset)
+            ZoomLevel(reduction, dataOffset, indexOffset)
         }
     }
 }
@@ -59,8 +73,8 @@ fun List<ZoomLevel>.pick(desiredReduction: Int): ZoomLevel? {
         var acc = Int.MAX_VALUE
         var closest: ZoomLevel? = null
         for (zoomLevel in this) {
-            val d = desiredReduction - zoomLevel.reductionLevel
-            if (d >= 0 && d < acc) {
+            val d = desiredReduction - zoomLevel.reduction
+            if (d >= 0 && d < Math.min(desiredReduction, acc)) {
                 acc = d
                 closest = zoomLevel
             }
@@ -88,6 +102,17 @@ data class ZoomData(
 
     val interval: ChromosomeInterval get() = Interval(chromIx, startOffset, endOffset)
 
+    fun write(output: OrderedDataOutput) = with(output) {
+        writeInt(chromIx)
+        writeInt(startOffset)
+        writeInt(endOffset)
+        writeInt(count)
+        writeFloat(minValue)
+        writeFloat(maxValue)
+        writeFloat(sum)
+        writeFloat(sumSquares)
+    }
+
     companion object {
         val SIZE: Int = Ints.BYTES * 3 +
                         Ints.BYTES + Floats.BYTES * 4
@@ -105,4 +130,13 @@ data class ZoomData(
                             minValue, maxValue, sum, sumSquares);
         }
     }
+}
+
+fun Pair<ChromosomeInterval, BigSummary>.toZoomData(): ZoomData {
+    val (chromIx, startOffset, endOffset) = first
+    val (count, minValue, maxValue, sum, sumSquares) = second
+    return ZoomData(chromIx, startOffset, endOffset,
+                    count.toInt(),
+                    minValue.toFloat(), maxValue.toFloat(),
+                    sum.toFloat(), sumSquares.toFloat())
 }

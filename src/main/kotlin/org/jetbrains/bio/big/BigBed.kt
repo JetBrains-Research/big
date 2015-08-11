@@ -16,30 +16,9 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
-    override fun summarizeInternal(query: ChromosomeInterval, numBins: Int): List<BigSummary> {
-        val bedEntries = query(query).aggregate()
-        var edge = 0
-        return query.slice(numBins).map { bin ->
-            val summary = BigSummary()
-            for (j in edge until bedEntries.size()) {
-                val bedEntry = bedEntries[j]
-                if (bedEntry.end <= bin.startOffset) {
-                    edge = j + 1
-                    continue
-                } else if (bedEntry.start > bin.endOffset) {
-                    break
-                }
-
-                val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
-                if (interval intersects bin) {
-                    summary.update(bedEntry.score.toDouble(),
-                                   (interval intersection bin).length(),
-                                   interval.length())
-                }
-            }
-
-            summary
-        }.toList()
+    override fun summarizeInternal(query: ChromosomeInterval,
+                                   numBins: Int): Sequence<BigSummary> {
+        return query(query).aggregate().summarise(query, numBins)
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
@@ -79,7 +58,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        private val MAGIC: Int = 0x8789F2EB.toInt()
+        val MAGIC: Int = 0x8789F2EB.toInt()
 
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
@@ -103,21 +82,17 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         chromSizesPath: Path,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
+                                        zoomLevelCount: Int = 1,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
             SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
+                output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
 
-                val unsortedChromosomes = chromSizesPath.bufferedReader()
-                        .lineSequence().mapIndexed { i, line ->
-                    val chunks = line.split('\t', limit = 3)
-                    BPlusLeaf(chunks[0], i, chunks[1].toInt())
-                }.toList()
-
+                val unsortedChromosomes = chromSizesPath.chromosomes()
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
-                // XXX move to 'BedFile'?
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
@@ -126,7 +101,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                     val (name, items) = entry
                     Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
 
-                    val chromId = resolver[name]!!
+                    val chromIx = resolver[name]!!
                     for (i in 0 until items.size() step itemsPerSlot) {
                         val dataOffset = output.tell()
                         val start = items[i].start
@@ -135,7 +110,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                             val slotSize = Math.min(items.size() - i, itemsPerSlot)
                             for (j in 0 until slotSize) {
                                 val item = items[i + j]
-                                writeInt(chromId)
+                                writeInt(chromIx)
                                 writeInt(item.start)
                                 writeInt(item.end)
                                 writeBytes("${item.name},${item.score},${item.strand},${item.rest}")
@@ -146,7 +121,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         }
 
                         leaves.add(RTreeIndexLeaf(
-                                Interval(chromId, start, end),
+                                Interval(chromIx, start, end),
                                 dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }
@@ -156,7 +131,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
 
                 val header = BigFile.Header(
-                        output.order,
+                        output.order, zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,
@@ -164,7 +139,35 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
                 header.write(output, MAGIC)
             }
+
+            BigFile.zoom(outputPath)
         }
+    }
+}
+
+fun List<BedEntry>.summarise(query: ChromosomeInterval,
+                             numBins: Int): Sequence<BigSummary> {
+    var edge = 0
+    return query.slice(numBins).map { bin ->
+        val summary = BigSummary()
+        for (i in edge until size()) {
+            val bedEntry = this[i]
+            if (bedEntry.end <= bin.startOffset) {
+                edge = i + 1
+                continue;
+            } else if (bedEntry.start > bin.endOffset) {
+                break
+            }
+
+            val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
+            if (interval intersects bin) {
+                summary.update(bedEntry.score.toDouble(),
+                               (interval intersection bin).length(),
+                               interval.length())
+            }
+        }
+
+        summary
     }
 }
 

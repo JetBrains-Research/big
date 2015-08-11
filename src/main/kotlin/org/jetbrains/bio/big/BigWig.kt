@@ -14,7 +14,8 @@ import kotlin.platform.platformStatic
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
-    override fun summarizeInternal(query: ChromosomeInterval, numBins: Int): List<BigSummary> {
+    override fun summarizeInternal(query: ChromosomeInterval,
+                                   numBins: Int): Sequence<BigSummary> {
         val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
         var edge = 0
         return query.slice(numBins).map { bin ->
@@ -37,7 +38,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
             }
 
             summary
-        }.toList()
+        }
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
@@ -90,7 +91,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        private val MAGIC: Int = 0x888FFC26.toInt()
+        val MAGIC: Int = 0x888FFC26.toInt()
 
         throws(IOException::class)
         public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
@@ -116,12 +117,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
             SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
 
-                val unsortedChromosomes = chromSizesPath.bufferedReader()
-                        .lineSequence().mapIndexed { i, line ->
-                    val chunks = line.split('\t', limit = 3)
-                    BPlusLeaf(chunks[0], i, chunks[1].toInt())
-                }.toList()
-
+                val unsortedChromosomes = chromSizesPath.chromosomes()
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 

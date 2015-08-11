@@ -53,6 +53,14 @@ fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
     }.bufferedReader()
 }
 
+/** Fetches chromosome sizes from a UCSC provided TSV file. */
+fun Path.chromosomes(): List<BPlusLeaf> {
+    return bufferedReader().lineSequence().mapIndexed { i, line ->
+        val chunks = line.split('\t', limit = 3)
+        BPlusLeaf(chunks[0], i, chunks[1].toInt())
+    }.toList()
+}
+
 /**
  * A semi-closed interval.
  */

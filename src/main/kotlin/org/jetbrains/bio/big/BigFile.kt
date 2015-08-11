@@ -6,9 +6,11 @@ import gnu.trove.map.TIntObjectMap
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.NoSuchElementException
+import kotlin.platform.platformStatic
 import kotlin.properties.Delegates
 
 /**
@@ -99,15 +101,15 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             summarizeInternal(query, numBins)
         } else {
             summarizeFromZoom(query, zoomLevel, numBins)
-        }
+        }.toList()
     }
 
     throws(IOException::class)
     protected abstract fun summarizeInternal(query: ChromosomeInterval,
-                                             numBins: Int): List<BigSummary>
+                                             numBins: Int): Sequence<BigSummary>
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
-                                  numBins: Int): List<BigSummary> {
+                                  numBins: Int): Sequence<BigSummary> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
             assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
@@ -157,7 +159,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
             BigSummary(count = count, minValue = min, maxValue = max,
                        sum = sum, sumSquares = sumSquares)
-        }.toList()
+        }
     }
 
     /**
@@ -240,6 +242,83 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,
                               extendedHeaderOffset)
+            }
+        }
+    }
+
+    companion object {
+        /** Checks if a given `path` starts with a valid `magic`. */
+        public platformStatic fun check(path: Path, magic: Int): Boolean {
+            return SeekableDataInput.of(path).use { input ->
+                try {
+                    input.guess(magic)
+                    true
+                } catch (e: IllegalStateException) {
+                    false
+                }
+            }
+        }
+
+        fun read(path: Path): BigFile<*> = when {
+            check(path, BigBedFile.MAGIC) -> BigBedFile.read(path)
+            check(path, BigWigFile.MAGIC) -> BigWigFile.read(path)
+            else -> throw IllegalStateException()
+        }
+
+        /**
+         * Fills in zoom levels for a [BigFile] located at [path].
+         *
+         * Note that the number of zoom levels to compute must be
+         * specified in the file [Header]. Additionally the file must
+         * contain `ZoomData.BYTES * header.zoomLevelCount` zero
+         * bytes right after the header.
+         */
+        fun zoom(path: Path, step: Int = 16): Unit {
+            val bf = read(path)
+            val zoomLevelCount = bf.zoomLevels.size()
+            val chromosomes = bf.bPlusTree.traverse(bf.input).toList()
+
+            SeekableDataOutput.of(path, bf.header.order).use { output ->
+                output.seek(Files.size(path))
+
+                var reduction = step * step
+                val zoomLevels = ArrayList<ZoomLevel>(zoomLevelCount)
+                for (level in 0 until zoomLevelCount) {
+                    val leaves = ArrayList<RTreeIndexLeaf>()
+                    val zoomedDataOffset = output.tell()
+                    for ((name, chromIx, size) in chromosomes) {
+                        val numBins = size divCeiling reduction
+                        val query = Interval(chromIx, 0, size)
+                        val dataOffset = output.tell()
+                        val dataSize = output.with(bf.compressed) {
+                            val summaries = bf.summarizeInternal(query, numBins)
+                            for ((i, summary) in summaries.withIndex()) {
+                                if (summary.isEmpty()) {
+                                    continue  // omit all-zero summaries.
+                                }
+
+                                val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
+                                (bin to summary).toZoomData().write(this)
+                            }
+                        }
+
+                        // Currently we do a single R+ tree leaf per chromosome,
+                        // which is far from optimal. It is also possible that
+                        // the block is empty.
+                        leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
+                    }
+
+                    val zoomedIndexOffset = output.tell()
+                    RTreeIndex.write(output, leaves)
+                    zoomLevels.add(ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset))
+                    reduction *= step
+                }
+
+                output.seek(Header.BYTES.toLong())
+                for (zoomLevel in zoomLevels) {
+                    zoomLevel.write(output)
+                }
+                bf.close()
             }
         }
     }
