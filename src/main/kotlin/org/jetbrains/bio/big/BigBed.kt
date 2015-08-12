@@ -17,7 +17,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
-                                   numBins: Int): Sequence<BigSummary> {
+                                   numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
         return query(query).aggregate().summarise(query, numBins)
     }
 
@@ -148,7 +148,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
 }
 
 fun List<BedEntry>.summarise(query: ChromosomeInterval,
-                             numBins: Int): Sequence<BigSummary> {
+                             numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
     var edge = 0
     return query.slice(numBins).map { bin ->
         val summary = BigSummary()
@@ -169,7 +169,7 @@ fun List<BedEntry>.summarise(query: ChromosomeInterval,
             }
         }
 
-        summary
+        bin to summary
     }
 }
 

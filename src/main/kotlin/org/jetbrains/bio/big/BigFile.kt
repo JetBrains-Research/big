@@ -85,6 +85,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param index if `true` pre-computed is index is used if possible.
      * @return a list of summaries.
      */
+    throws(IOException::class)
     public fun summarize(name: String,
                          startOffset: Int, endOffset: Int,
                          numBins: Int, index: Boolean = true): List<BigSummary> {
@@ -94,8 +95,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
         val query = Interval(chromosome.id, startOffset, properEndOffset)
 
-        require(numBins <= properEndOffset - startOffset,
-                "number of bins must not exceed interval length")
+        require(numBins <= query.length()) {
+            "number of bins must not exceed interval length, got " +
+            "$numBins > ${query.length()}"
+        }
 
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we might not be able to estimate SD.
@@ -104,15 +107,16 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             summarizeInternal(query, numBins)
         } else {
             summarizeFromZoom(query, zoomLevel, numBins)
-        }.toList()
+        }.map { it.second }.toList()
     }
 
     throws(IOException::class)
-    protected abstract fun summarizeInternal(query: ChromosomeInterval,
-                                             numBins: Int): Sequence<BigSummary>
+    protected abstract fun summarizeInternal(
+            query: ChromosomeInterval,
+            numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>>
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
-                                  numBins: Int): Sequence<BigSummary> {
+                                  numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
             assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
@@ -160,8 +164,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 }
             }
 
-            BigSummary(count = count, minValue = min, maxValue = max,
-                       sum = sum, sumSquares = sumSquares)
+            val summary = BigSummary(count = count, minValue = min, maxValue = max,
+                                     sum = sum, sumSquares = sumSquares)
+            bin to summary
         }
     }
 
@@ -293,19 +298,19 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 for (level in 0 until zoomLevelCount) {
                     val leaves = ArrayList<RTreeIndexLeaf>()
                     val zoomedDataOffset = output.tell()
+                    var nonEmpty = 0
                     for ((name, chromIx, size) in chromosomes) {
                         val numBins = size divCeiling reduction
                         val query = Interval(chromIx, 0, size)
                         val dataOffset = output.tell()
                         val dataSize = output.with(bf.compressed) {
-                            val summaries = bf.summarizeInternal(query, numBins)
-                            for ((i, summary) in summaries.withIndex()) {
+                            for ((bin, summary) in bf.summarizeInternal(query, numBins)) {
                                 if (summary.isEmpty()) {
                                     continue  // omit all-zero summaries.
                                 }
 
-                                val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
                                 (bin to summary).toZoomData().write(this)
+                                nonEmpty++
                             }
                         }
 
@@ -319,6 +324,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                     RTreeIndex.write(output, leaves)
                     zoomLevels.add(ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset))
                     reduction *= step
+
+                    if (nonEmpty == chromosomes.size()) {
+                        break  // no need for trivial zoom levels.
+                    }
                 }
 
                 output.seek(Header.BYTES.toLong())
