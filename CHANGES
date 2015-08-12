@@ -6,6 +6,8 @@ Here you can see the full list of changes between each big release.
 Version 0.1.3
 -------------
 
+Released on August 12th 2015
+
 - Enabled data section compression by default for both BigWIG and BigBED.
 - Extended the API to allow non-standard byte order to be used when
   creating BigWIG and BigBED files.
