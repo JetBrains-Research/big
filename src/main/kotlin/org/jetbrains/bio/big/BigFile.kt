@@ -94,6 +94,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
         val query = Interval(chromosome.id, startOffset, properEndOffset)
 
+        require(numBins <= properEndOffset - startOffset,
+                "number of bins must not exceed interval length")
+
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we might not be able to estimate SD.
         val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))

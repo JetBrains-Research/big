@@ -127,6 +127,21 @@ public class BigWigFileTest {
         }
     }
 
+    Test fun testSummarizeSingleBpBins() {
+        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+            val name = bwf.chromosomes.valueCollection().first()
+            val summaries = bwf.summarize(name, 0, 100, numBins = 100)
+            assertEquals(100, summaries.size())
+        }
+    }
+
+    Test(expected = IllegalArgumentException::class) fun testSummarizeTooManyBins() {
+        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+            val name = bwf.chromosomes.valueCollection().first()
+            bwf.summarize(name, 0, 100, numBins = 200)
+        }
+    }
+
     Test fun testSummarizeFourBins() {
         val wigSections = (0 until 128).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
