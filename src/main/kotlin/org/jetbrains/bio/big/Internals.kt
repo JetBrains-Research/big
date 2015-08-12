@@ -19,10 +19,6 @@ import java.util.zip.ZipInputStream
 
 fun Int.divCeiling(other: Int) = IntMath.divide(this, other, RoundingMode.CEILING)
 
-fun Int.divHalfUp(other: Int) = IntMath.divide(this, other, RoundingMode.HALF_UP)
-
-fun Int.divHalfEven(other: Int) = IntMath.divide(this, other, RoundingMode.HALF_EVEN)
-
 // Remove once KT-8248 is done.
 fun Int.pow(other: Int) = IntMath.pow(this, other)
 
@@ -152,7 +148,7 @@ data open class ChromosomeInterval(public val chromIx: Int,
      */
     fun slice(n: Int): Sequence<ChromosomeInterval> {
         require(n > 0, "n must be >0")
-        require(n <= length(), "n must be <= length")
+        require(n <= length()) { "n must be <= length, got $n > ${length()}" }
         return if (n == 1) {
             sequenceOf(this)
         } else {
