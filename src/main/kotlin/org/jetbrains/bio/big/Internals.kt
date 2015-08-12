@@ -19,6 +19,10 @@ import java.util.zip.ZipInputStream
 
 fun Int.divCeiling(other: Int) = IntMath.divide(this, other, RoundingMode.CEILING)
 
+fun Int.divHalfUp(other: Int) = IntMath.divide(this, other, RoundingMode.HALF_UP)
+
+fun Int.divHalfEven(other: Int) = IntMath.divide(this, other, RoundingMode.HALF_EVEN)
+
 // Remove once KT-8248 is done.
 fun Int.pow(other: Int) = IntMath.pow(this, other)
 
@@ -90,7 +94,10 @@ interface Interval {
 
     companion object {
         fun invoke(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
-            require(startOffset < endOffset, "start must be <end")
+            require(startOffset < endOffset) {
+                "start must be <end, got [$startOffset, $endOffset)"
+            }
+
             return ChromosomeInterval(chromIx, startOffset, endOffset)
         }
 
@@ -136,16 +143,24 @@ data open class ChromosomeInterval(public val chromIx: Int,
                         Math.min(endOffset, other.endOffset))
     }
 
-    /** Produces a sequence of `n` sub-intervals. */
+    /**
+     * Produces a sequence of `n` sub-intervals.
+     *
+     * The behaviour for the case of `length() % n > 0` is unspecified.
+     * However, the sub-intervals are guaranteed to be disjoint and
+     * cover the whole interval.
+     */
     fun slice(n: Int): Sequence<ChromosomeInterval> {
-        require(n >= 1)
+        require(n > 0, "n must be >0")
+        require(n <= length(), "n must be <= length")
         return if (n == 1) {
             sequenceOf(this)
         } else {
-            val width = length() / n
+            val width = length().toDouble() / n
             (0 until n).asSequence().map { i ->
-                Interval(chromIx, startOffset + i * width,
-                         Math.min(startOffset + (i + 1) * width, endOffset))
+                val start = Math.round(startOffset + i * width).toInt()
+                val end = Math.round(startOffset + (i + 1) * width).toInt()
+                Interval(chromIx, start, Math.min(end, endOffset))
             }
         }
     }

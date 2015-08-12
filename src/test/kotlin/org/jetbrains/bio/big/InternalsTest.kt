@@ -72,6 +72,37 @@ public class IntervalTest {
         assertFalse(interval2.intersects(interval1),
                     "$interval1 must not overlap $interval1")
     }
+
+    Test fun testSlice() {
+        assertEquals(listOf(Interval(0, 0, 5), Interval(0, 5, 10)),
+                     Interval(0, 0, 10).slice(2).toList())
+        assertEquals(listOf(Interval(0, 0, 5), Interval(0, 5, 9)),
+                     Interval(0, 0, 9).slice(2).toList())
+
+        assertEquals(listOf(Interval(0, 0, 1),
+                            Interval(0, 1, 3),
+                            Interval(0, 3, 4),
+                            Interval(0, 4, 5)),
+                     Interval(0, 0, 5).slice(4).toList())
+
+        for (i in 0 until 100) {
+            val startOffset = RANDOM.nextInt(1000)
+            val endOffset = startOffset + RANDOM.nextInt(999) + 1
+            val interval = Interval(0, startOffset, endOffset)
+            val n = Math.min(RANDOM.nextInt(99) + 1, interval.length())
+            val slices = interval.slice(n).toList()
+
+            assertEquals(n, slices.size())
+            assertEquals(interval, slices.reduce(Interval::union))
+            for (slice in slices) {
+                assertTrue(slices.all { it == slice || !(it intersects slice) })
+            }
+        }
+    }
+
+    companion object {
+        val RANDOM = Random()
+    }
 }
 
 public class OffsetTest {
