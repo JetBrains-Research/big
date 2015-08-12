@@ -4,6 +4,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.StringReader
 import java.io.StringWriter
+import java.util.*
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -59,6 +60,27 @@ public class VariableStepSectionTest {
         assertEquals(2, subsections.size())
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
+        assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size())
+        assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size())
+    }
+
+    Test fun testSpliceRandom() {
+        for (i in 0 until 100) {
+            section = VariableStepSection("chr1", RANDOM.nextInt(99) + 1)
+            val max = RANDOM.nextInt(99) + 1
+            for (j in 0 until max * RANDOM.nextInt(99) + 1) {
+                section[j] = RANDOM.nextFloat()
+            }
+
+            val subsections = section.splice().toList()
+            assertEquals(section.size(), subsections.map { it.size() }.sum())
+            assertEquals(section.query(),
+                         subsections.map { it.query() }.reduce { a, b -> a + b })
+        }
+    }
+
+    companion object {
+        private val RANDOM = Random()
     }
 }
 
@@ -145,6 +167,25 @@ public class FixedStepSectionTest {
         assertEquals(2, subsections.size())
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
+    }
+
+    Test fun testSpliceRandom() {
+        for (i in 0 until 100) {
+            section = FixedStepSection("chr1", RANDOM.nextInt(99) + 1)
+            val max = RANDOM.nextInt(99) + 1
+            for (j in 0 until max * RANDOM.nextInt(99) + 1) {
+                section.add(RANDOM.nextFloat())
+            }
+
+            val subsections = section.splice().toList()
+            assertEquals(section.size(), subsections.map { it.size() }.sum())
+            assertEquals(section.query(),
+                         subsections.map { it.query() }.reduce { a, b -> a + b })
+        }
+    }
+
+    companion object {
+        private val RANDOM = Random()
     }
 }
 

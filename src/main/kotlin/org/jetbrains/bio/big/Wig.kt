@@ -218,7 +218,7 @@ public interface WigSection {
     /**
      * Splices a section into sub-section of size at most [Short.MAX_SIZE].
      */
-    fun splice(): Sequence<WigSection>
+    fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
     public fun size(): Int
 
@@ -291,8 +291,7 @@ public data class VariableStepSection(
         return acc
     }
 
-    override fun splice(): Sequence<VariableStepSection> {
-        val max = Short.MAX_VALUE.toInt()
+    override fun splice(max: Int): Sequence<VariableStepSection> {
         val chunks = size() divCeiling max
         return if (chunks == 1) {
             sequenceOf(this)
@@ -360,8 +359,7 @@ public data class FixedStepSection(
         return ranges
     }
 
-    override fun splice(): Sequence<FixedStepSection> {
-        val max = Short.MAX_VALUE.toInt()
+    override fun splice(max: Int): Sequence<FixedStepSection> {
         val chunks = size() divCeiling max
         return if (chunks == 1) {
             sequenceOf(this)
