@@ -5,8 +5,8 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
-import gnu.trove.map.TObjectIntMap
 import gnu.trove.map.hash.TIntObjectHashMap
+import org.apache.logging.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
 import kotlin.platform.platformStatic
@@ -152,6 +152,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
     }
 
     companion object {
+        private val LOG = LogManager.getLogger()
+
         throws(IOException::class)
         public platformStatic fun read(input: SeekableDataInput, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
@@ -184,6 +186,9 @@ public class BPlusTree(val header: BPlusTree.Header) {
                   blockSize: Int = 256) {
             require(unsortedItems.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
+
+            LOG.debug("Creating a B+ tree for ${unsortedItems.size()} items " +
+                      "($blockSize slots)")
 
             val items = unsortedItems.sortBy { it.key }
             val itemCount = items.size()
@@ -228,6 +233,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                         skipBytes(0, bytesInIndexSlot * (blockSize - childCount))
                     }
                 }
+
+                LOG.debug("Wrote $itemsPerSlot items at level $level")
             }
 
             // Now just write the leaves.
@@ -244,6 +251,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                     skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
+
+            LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
         }
     }
 }

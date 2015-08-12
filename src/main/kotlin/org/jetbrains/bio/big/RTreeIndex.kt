@@ -2,8 +2,11 @@ package org.jetbrains.bio.big
 
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
+import org.apache.logging.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
+import java.text.NumberFormat
+import java.util.Collections
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -117,6 +120,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
     }
 
     companion object {
+        private val LOG = LogManager.getLogger()
+
         throws(IOException::class)
         public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
@@ -127,6 +132,12 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                          leaves: List<RTreeIndexLeaf>,
                          blockSize: Int = 256,
                          itemsPerSlot: Int = 512): Unit {
+            require(leaves.isNotEmpty(), "no data")
+            require(blockSize > 1, "blockSize must be >1")
+
+            LOG.debug("Creating R+ tree for ${leaves.size()} items " +
+                      "($blockSize slots with $itemsPerSlot items/slot)")
+
             val leftmost = leaves.first().interval.left
             var rightmost = leaves.last().interval.right
 
@@ -166,6 +177,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     // Write out zeroes for empty slots in node.
                     skipBytes(0, bytesInIndexSlot * (blockSize - nodeCount))
                 }
+
+                LOG.debug("Wrote ${level.size()} items at level ${i + 1}")
             }
 
             with(output) {
@@ -182,6 +195,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
+
+            LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }
 
         private fun compute(leaves: List<RTreeIndexLeaf>,
@@ -202,7 +217,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 intervals = level
             }
 
-            java.util.Collections.reverse(levels)
+            Collections.reverse(levels)
             return levels
         }
     }
