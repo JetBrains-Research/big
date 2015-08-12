@@ -10,7 +10,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.ArrayList
 import java.util.NoSuchElementException
-import kotlin.platform.platformStatic
 import kotlin.properties.Delegates
 
 /**
@@ -256,7 +255,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     companion object {
         /** Checks if a given `path` starts with a valid `magic`. */
-        public platformStatic fun check(path: Path, magic: Int): Boolean {
+        fun check(path: Path, magic: Int): Boolean {
             return SeekableDataInput.of(path).use { input ->
                 try {
                     input.guess(magic)
@@ -309,8 +308,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                     continue  // omit all-zero summaries.
                                 }
 
-                                (bin to summary).toZoomData().write(this)
                                 nonEmpty++
+                                (bin to summary).toZoomData().write(this)
                             }
                         }
 

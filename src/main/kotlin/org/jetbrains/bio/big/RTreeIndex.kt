@@ -5,7 +5,6 @@ import com.google.common.primitives.Longs
 import org.apache.logging.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
-import java.text.NumberFormat
 import java.util.Collections
 
 /**
