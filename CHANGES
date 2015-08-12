@@ -6,16 +6,16 @@ Here you can see the full list of changes between each big release.
 Version 0.1.3
 -------------
 
-- Compression for the data section is now turned on by default.
-- '.write' for both BigWIG and BigBED now pre-computes zoom levels. The
-  implementation however is far from being optimal.
-- BigWIG can be summarised the same way as BigBED.
+- Enabled data section compression by default for both BigWIG and BigBED.
+- Extended the API to allow non-standard byte order to be used when
+  creating BigWIG and BigBED files.
+- Changed 'Big*.write' to pre-compute zoom levels. The current implementation
+  is far from being optimal, but it is, however, easy to comprehend.
+- Implemented summarisation for BigWIG files.
 - Changed 'BigWigFile.write' to splice WIG sections larger than
   'Short.MAX_VALUE'.
 - Fixed 'BigWigFile#query' which sometimes returned values outside
   of a given query interval.
-- It is now possible to create BigWIG and BigBED files using a non-native
-  byte order.
 
 Version 0.1.2
 -------------
