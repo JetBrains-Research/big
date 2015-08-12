@@ -234,7 +234,7 @@ public interface WigSection {
  * arbitrary distance from i-th range. Note, however, that range
  * width remains _fixed_ throughout the track.
  */
-public class VariableStepSection(
+public data class VariableStepSection(
         public override val chrom: String,
         /** Range width. */
         public val span: Int = 1,
@@ -300,8 +300,8 @@ public class VariableStepSection(
             (0 until chunks).asSequence().map { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, size())
-                VariableStepSection(chrom, span, positions.subList(from, to),
-                                    values.subList(from, to))
+                copy(positions = positions.subList(from, to),
+                     values = values.subList(from, to))
             }
         }
     }
@@ -327,7 +327,7 @@ public class VariableStepSection(
  * A section with contiguous ranges. Both the distance between consecutive
  * ranges and range width is fixed throughout the track.
  */
-public class FixedStepSection(
+public data class FixedStepSection(
         public override val chrom: String,
         /** Start offset of the first range on the track. */
         public override val start: Int,
@@ -369,8 +369,7 @@ public class FixedStepSection(
             (0 until chunks).asSequence().map { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, values.size())
-                FixedStepSection(chrom, start + step * from, step, span,
-                                 values.subList(from, to))
+                copy(start = start + step * from, values = values.subList(from, to))
             }
         }
     }
