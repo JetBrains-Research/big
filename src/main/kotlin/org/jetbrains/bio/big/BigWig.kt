@@ -76,8 +76,10 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     // Realign query start to the nearest (rightmost) interval.
                     // This ensures that all WIG intervals have proper offsets
                     // and are contained in query.
-                    val realignedStart = Math.max(
-                            start, query.startOffset + (step - query.startOffset % step))
+                    val shift = query.startOffset % step
+                    val realignedStart
+                            = Math.max(start,
+                                       query.startOffset + if (shift == 0) 0 else (step - shift))
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0 until count) {
                         val pos = start + i * step

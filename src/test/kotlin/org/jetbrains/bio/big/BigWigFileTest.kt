@@ -176,6 +176,63 @@ public class BigWigFileTest {
 
     Test fun testQueryPartialFixed() = testQueryPartial(Examples["fixed_step.bw"])
 
+    Test fun testQueryLeftEndAligned() {
+        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+            // precondition:
+            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
+            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+
+            assertWigSections(bwf, "chr3", 400700, 410000, listOf(
+                    WigInterval(400700, 400701, 22.0f),
+                    WigInterval(400800, 400801, 33.0f)
+            ))
+        }
+    }
+
+    Test fun testQueryRightEndAligned() {
+        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+            // precondition:
+            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
+            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+
+            assertWigSections(bwf, "chr3", 400620, 400801, listOf(
+                    WigInterval(400700, 400701, 22.0f),
+                    WigInterval(400800, 400801, 33.0f)
+            ))
+        }
+    }
+
+    Test fun testQueryInnerRange() {
+        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+            // precondition:
+            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
+            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+
+            assertWigSections(bwf, "chr3", 400620, 400800, listOf(
+                    WigInterval(400700, 400701, 22.0f)
+            ))
+        }
+    }
+
+    Test fun testQueryOuterRange() {
+        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+            // precondition:
+            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
+            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+
+            assertWigSections(bwf, "chr3", 400000, 410000, listOf(
+                    WigInterval(400600, 400601, 11.0f),
+                    WigInterval(400700, 400701, 22.0f),
+                    WigInterval(400800, 400801, 33.0f)
+            ))
+        }
+    }
+
+    private fun assertWigSections(bwf: BigWigFile, name:String, start: Int, end: Int, expected: List<WigInterval>) {
+        assertEquals(expected,
+                     bwf.query(name, start, end).flatMap { it.query().asSequence() }.toList())
+    }
+
     private fun testQueryPartial(path: Path) {
         BigWigFile.read(path).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()

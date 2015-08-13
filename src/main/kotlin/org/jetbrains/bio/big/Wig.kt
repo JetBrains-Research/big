@@ -376,6 +376,7 @@ public data class FixedStepSection(
 
     override fun toString(): String = MoreObjects.toStringHelper(this)
             .add("start", start)
+            .add("end", end)
             .add("step", step)
             .add("span", span)
             .toString()
