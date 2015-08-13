@@ -90,6 +90,8 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
             SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
+                val totalSummaryOffset = output.tell()
+                output.skipBytes(0, BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                 val chromTreeOffset = output.tell()
@@ -133,16 +135,18 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
 
                 val header = BigFile.Header(
-                        output.order, zoomLevelCount = zoomLevelCount,
+                        output.order, MAGIC, zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 3, definedFieldCount = 3,
+                        totalSummaryOffset = totalSummaryOffset,
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
-                header.write(output, MAGIC)
+                header.write(output)
             }
 
-            BigFile.zoom(outputPath)
+            BigFile.Post.zoom(outputPath)
+            //BigFile.Post.totalSummary(outputPath)
         }
     }
 }

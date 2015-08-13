@@ -26,7 +26,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     val rTree: RTreeIndex
 
     init {
-        // Skip AutoSQL string if any.
+        // Skip AutoSQL string if any. Note, that even though the format
+        // requires offsets for the following sections, their location
+        // is fixed.
         while (header.asOffset > 0 && input.readByte() != 0.toByte()) {}
 
         // Skip total summary block.
@@ -203,14 +205,15 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     throws(IOException::class)
     override fun close() = input.close()
 
-    class Header(val order: ByteOrder, val version: Int = 4, val zoomLevelCount: Int = 0,
-                 val chromTreeOffset: Long, val unzoomedDataOffset: Long,
-                 val unzoomedIndexOffset: Long, val fieldCount: Int,
-                 val definedFieldCount: Int, val asOffset: Long = 0,
-                 val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
-                 val extendedHeaderOffset: Long = 0) {
+    data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,
+                      val zoomLevelCount: Int = 0,
+                      val chromTreeOffset: Long, val unzoomedDataOffset: Long,
+                      val unzoomedIndexOffset: Long, val fieldCount: Int,
+                      val definedFieldCount: Int, val asOffset: Long = 0,
+                      val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
+                      val extendedHeaderOffset: Long = 0) {
 
-        fun write(output: SeekableDataOutput, magic: Int) = with(output) {
+        fun write(output: SeekableDataOutput) = with(output) {
             seek(0L)  // a header is always first.
             writeInt(magic)
             writeShort(version)
@@ -244,7 +247,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val totalSummaryOffset = readLong()
                 val uncompressBufSize = readInt()
                 val extendedHeaderOffset = readLong()
-                return Header(order, version, zoomLevelCount, chromTreeOffset,
+                return Header(order, magic, version, zoomLevelCount, chromTreeOffset,
                               unzoomedDataOffset, unzoomedIndexOffset,
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,
@@ -271,6 +274,21 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             check(path, BigWigFile.MAGIC) -> BigWigFile.read(path)
             else -> throw IllegalStateException()
         }
+    }
+
+    /** Ad hoc post-processing for [BigFile]. */
+    object Post {
+        private inline fun modify(
+                path: Path, block: (BigFile<*>, SeekableDataOutput) -> Unit) {
+            val bf = read(path)
+            try {
+                SeekableDataOutput.of(path, bf.header.order).use { output ->
+                    block(bf, output)
+                }
+            } finally {
+                bf.close()
+            }
+        }
 
         /**
          * Fills in zoom levels for a [BigFile] located at [path].
@@ -284,57 +302,74 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `step^2`, next `step^3` etc.
          */
-        fun zoom(path: Path, step: Int = 8): Unit {
-            val bf = read(path)
+        fun zoom(path: Path, step: Int = 8) = modify(path) { bf, output ->
+            output.seek(Files.size(path))  // Do NOT change this!
+
             val zoomLevelCount = bf.zoomLevels.size()
             val chromosomes = bf.bPlusTree.traverse(bf.input).toList()
 
-            SeekableDataOutput.of(path, bf.header.order).use { output ->
-                output.seek(Files.size(path))
-
-                var reduction = step * step
-                val zoomLevels = ArrayList<ZoomLevel>(zoomLevelCount)
-                for (level in 0 until zoomLevelCount) {
-                    val leaves = ArrayList<RTreeIndexLeaf>()
-                    val zoomedDataOffset = output.tell()
-                    var nonEmpty = 0
-                    for ((name, chromIx, size) in chromosomes) {
-                        val numBins = size divCeiling reduction
-                        val query = Interval(chromIx, 0, size)
-                        val dataOffset = output.tell()
-                        val dataSize = output.with(bf.compressed) {
-                            for ((bin, summary) in bf.summarizeInternal(query, numBins)) {
-                                if (summary.isEmpty()) {
-                                    continue  // omit all-zero summaries.
-                                }
-
-                                nonEmpty++
-                                (bin to summary).toZoomData().write(this)
+            var reduction = step * step
+            val zoomLevels = ArrayList<ZoomLevel>(zoomLevelCount)
+            for (level in 0 until zoomLevelCount) {
+                val leaves = ArrayList<RTreeIndexLeaf>()
+                val zoomedDataOffset = output.tell()
+                var nonEmpty = true
+                for ((name, chromIx, size) in chromosomes) {
+                    val numBins = size divCeiling reduction
+                    val query = Interval(chromIx, 0, size)
+                    val dataOffset = output.tell()
+                    var itemCount = 0
+                    val dataSize = output.with(bf.compressed) {
+                        for ((bin, summary) in bf.summarizeInternal(query, numBins)) {
+                            if (summary.isEmpty()) {
+                                continue  // omit all-zero summaries.
                             }
-                        }
 
-                        // Currently we do a single R+ tree leaf per chromosome,
-                        // which is far from optimal. It is also possible that
-                        // the block is empty.
-                        leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
+                            itemCount++
+                            (bin to summary).toZoomData().write(this)
+                        }
                     }
 
+                    // Currently we do a single R+ tree leaf per chromosome,
+                    // which is far from optimal.
+                    nonEmpty = nonEmpty && itemCount > 0
+                    if (itemCount > 0) {
+                        leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
+                    }
+                }
+
+                if (nonEmpty) {
                     val zoomedIndexOffset = output.tell()
                     RTreeIndex.write(output, leaves)
                     zoomLevels.add(ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset))
                     reduction *= step
-
-                    if (nonEmpty == chromosomes.size()) {
-                        break  // no need for trivial zoom levels.
-                    }
+                } else {
+                    break  // no need for trivial zoom levels.
                 }
-
-                output.seek(Header.BYTES.toLong())
-                for (zoomLevel in zoomLevels) {
-                    zoomLevel.write(output)
-                }
-                bf.close()
             }
+
+            output.seek(Header.BYTES.toLong())
+            for (zoomLevel in zoomLevels) {
+                val zoomHeaderOffset = output.tell()
+                zoomLevel.write(output)
+                assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
+            }
+        }
+
+        /**
+         * Fills in whole-file [BigSummary] for a [BigFile] located at [path].
+         *
+         * The file must contain `BigSummary.BYTES` zero bytes right after
+         * the zoom levels block.
+         */
+        fun totalSummary(path: Path) = modify(path) { bf, output ->
+            val totalSummaryOffset = bf.header.totalSummaryOffset
+            output.seek(totalSummaryOffset)
+            bf.chromosomes.valueCollection()
+                    .flatMap { bf.summarize(it, 0, 0, numBins = 1) }
+                    .reduceRight { a, b -> a + b }
+                    .write(output)
+            assert((output.tell() - totalSummaryOffset).toInt() == BigSummary.BYTES)
         }
     }
 }

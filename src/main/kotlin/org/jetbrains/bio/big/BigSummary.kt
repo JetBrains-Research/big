@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.primitives.Doubles
 import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
@@ -28,8 +29,29 @@ data class BigSummary(
         maxValue = Math.max(maxValue, value);
     }
 
+    /** Because monoids rock. */
+    fun plus(other: BigSummary): BigSummary = when {
+        isEmpty()       -> other
+        other.isEmpty() -> this
+        else -> BigSummary(count + other.count,
+                           Math.min(minValue, other.minValue),
+                           Math.max(maxValue, other.maxValue),
+                           sum + other.sum,
+                           sumSquares + other.sumSquares)
+    }
+
+    fun write(output: OrderedDataOutput) = with(output) {
+        writeLong(count)
+        writeDouble(minValue)
+        writeDouble(maxValue)
+        writeDouble(sum)
+        writeDouble(sumSquares)
+    }
+
     companion object {
-        fun read(input: SeekableDataInput) = with(input) {
+        val BYTES = Longs.BYTES + Doubles.BYTES * 4
+
+        fun read(input: OrderedDataInput) = with(input) {
             val count = readLong()
             val minValue = readDouble()
             val maxValue = readDouble()
@@ -114,8 +136,7 @@ data class ZoomData(
     }
 
     companion object {
-        val SIZE: Int = Ints.BYTES * 3 +
-                        Ints.BYTES + Floats.BYTES * 4
+        val SIZE: Int = Ints.BYTES * 3 + Ints.BYTES + Floats.BYTES * 4
 
         fun read(input: OrderedDataInput): ZoomData = with(input) {
             val chromIx = readInt()

@@ -74,6 +74,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 }
                 WigSection.Type.FIXED_STEP -> {
                     val section = FixedStepSection(
+                            // XXX round query.startOffset to the nearest bin!
+                            // !!!
                             chrom, Math.max(start, query.startOffset), step, span)
                     for (i in 0 until count) {
                         val pos = start + i * step
@@ -120,6 +122,8 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
             SeekableDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
+                val totalSummaryOffset = output.tell()
+                output.skipBytes(0, BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                 val chromTreeOffset = output.tell()
@@ -151,18 +155,19 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
 
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = 1)
-
                 val header = BigFile.Header(
-                        output.order,
+                        output.order, MAGIC, zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 0, definedFieldCount = 0,
+                        totalSummaryOffset = totalSummaryOffset,
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
-                header.write(output, MAGIC)
+                header.write(output)
             }
 
-            BigFile.zoom(outputPath)
+            BigFile.Post.zoom(outputPath)
+            BigFile.Post.totalSummary(outputPath)
         }
     }
 }
