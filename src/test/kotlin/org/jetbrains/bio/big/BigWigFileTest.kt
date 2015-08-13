@@ -195,6 +195,19 @@ public class BigWigFileTest {
         }
     }
 
+    Test fun testTrimmedQuery() {
+        val query = Interval(0, 56955102, 57854868)
+        val numBins = 1592
+        val slices = query.truncatedSlice1(listOf(WigInterval(56955200, 56955300, 0.0f),
+                                                  WigInterval(57854700, 57854800, 0.0f)),
+                                           numBins)
+                .toList()
+        assertTrue(slices.size() <= numBins)
+        for (slice in slices) {
+            assertTrue(slice in query)
+        }
+    }
+
     companion object {
         private val RANDOM = Random()
     }

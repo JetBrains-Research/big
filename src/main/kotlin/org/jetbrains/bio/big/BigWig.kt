@@ -18,7 +18,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
         var edge = 0
-        return query.slice(numBins).mapIndexed { i, bin ->
+        return query.truncatedSlice1(wigItems, numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until wigItems.size()) {
                 val wigItem = wigItems[j]
@@ -204,5 +204,23 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
             writeInt(positions[i])
             writeFloat(values[i])
         }
+    }
+}
+
+/**
+ * Truncate empty bins from [ChromosomeInterval.slice].
+ */
+fun ChromosomeInterval.truncatedSlice1(wigItems: List<WigInterval>,
+                                       numBins: Int): Sequence<ChromosomeInterval> {
+    return if (wigItems.isEmpty()) {
+        slice(numBins)
+    } else {
+        val width = length().toDouble() / numBins
+        val i = Math.floor((wigItems.first().start - startOffset) / width).toInt()
+        val j = numBins - Math.floor((endOffset - wigItems.last().end) / width).toInt()
+        val truncatedQuery = Interval(chromIx,
+                                      (startOffset + width * i).toInt(),
+                                      (startOffset + width * j).toInt())
+        truncatedQuery.slice(j - i)
     }
 }
