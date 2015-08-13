@@ -16,29 +16,11 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
-    /**
-     * Truncate empty bins from [ChromosomeInterval.slice].
-     */
-    fun ChromosomeInterval.truncatedSlice(bedEntries: List<BedEntry>,
-                                                  numBins: Int): Sequence<ChromosomeInterval> {
-        return if (bedEntries.isEmpty()) {
-            slice(numBins)
-        } else {
-            val width = length().toDouble() / numBins
-            val i = Math.floor((bedEntries.first().start - startOffset) / width).toInt()
-            val j = numBins - Math.floor((endOffset - bedEntries.last().end) / width).toInt()
-            val truncatedQuery = Interval(chromIx,
-                                          (startOffset + width * i).toInt(),
-                                          (startOffset + width * j).toInt())
-            truncatedQuery.slice(j - i)
-        }
-    }
-
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val coverage = query(query).aggregate()
         var edge = 0
-        return query.truncatedSlice(coverage, numBins).mapIndexed { i, bin ->
+        return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until coverage.size()) {
                 val bedEntry = coverage[j]
