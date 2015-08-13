@@ -2,7 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
-import org.apache.logging.log4j.LogManager
+import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
 import java.util.Collections
@@ -119,7 +119,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger()
+        private val LOG = LogManager.getLogger(javaClass)
 
         throws(IOException::class)
         public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {

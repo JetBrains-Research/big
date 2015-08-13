@@ -6,7 +6,7 @@ import com.google.common.primitives.Shorts
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
-import org.apache.logging.log4j.LogManager
+import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
 import kotlin.platform.platformStatic
@@ -152,7 +152,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger()
+        private val LOG = LogManager.getLogger(javaClass)
 
         throws(IOException::class)
         public platformStatic fun read(input: SeekableDataInput, offset: Long): BPlusTree {
