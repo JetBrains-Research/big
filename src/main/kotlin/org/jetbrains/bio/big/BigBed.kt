@@ -146,7 +146,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
             }
 
             BigFile.Post.zoom(outputPath)
-            //BigFile.Post.totalSummary(outputPath)
+            BigFile.Post.totalSummary(outputPath)
         }
     }
 }
