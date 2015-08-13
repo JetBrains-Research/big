@@ -65,7 +65,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     for (i in 0 until count) {
                         val pos = readInt()
                         val value = readFloat()
-                        if (query.contains(pos)) {
+                        if (pos in query) {
                             section[pos] = value
                         }
                     }
@@ -73,10 +73,12 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                     section
                 }
                 WigSection.Type.FIXED_STEP -> {
-                    val section = FixedStepSection(
-                            // XXX round query.startOffset to the nearest bin!
-                            // !!!
-                            chrom, Math.max(start, query.startOffset), step, span)
+                    // Realign query start to the nearest (rightmost) interval.
+                    // This ensures that all WIG intervals have proper offsets
+                    // and are contained in query.
+                    val realignedStart = Math.max(
+                            start, query.startOffset + (step - query.startOffset % step))
+                    val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0 until count) {
                         val pos = start + i * step
                         val value = readFloat()

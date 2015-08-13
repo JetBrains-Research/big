@@ -11,6 +11,10 @@ Bugfix release
 - Added total summary block which is required for version>=4
 - Changed 'Big*.write' to skip empty chromosomes when pre-computing
   zoom levels.
+- Fixed interval alignment for partial 'BigWigFile' queries. In the
+  case when WIG section was overlapping the query the section was
+  truncated to the query start instead of the first section interval
+  contained in the query. The bug did not affect variable step sections.
 
 Version 0.1.3
 -------------
