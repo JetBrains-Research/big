@@ -104,14 +104,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we might not be able to estimate SD.
         val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
-        val emptySummary = BigSummary()
-        val summaries = Array(numBins) { emptySummary }
         val sparseSummaries = if (zoomLevel == null || !index) {
             summarizeInternal(query, numBins)
         } else {
             summarizeFromZoom(query, zoomLevel, numBins)
         }
 
+        val emptySummary = BigSummary()
+        val summaries = Array(numBins) { emptySummary }
         for ((i, summary) in sparseSummaries) {
             summaries[i] = summary
         }

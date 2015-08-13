@@ -36,7 +36,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val coverage = query(query).aggregate()
         var edge = 0
-        return query.truncatedSlice(coverage, numBins).mapIndexed { i, bin ->
+        return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until coverage.size()) {
                 val bedEntry = coverage[j]
