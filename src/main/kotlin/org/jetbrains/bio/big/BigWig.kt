@@ -15,10 +15,10 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
-                                   numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
+                                   numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
         var edge = 0
-        return query.slice(numBins).map { bin ->
+        return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until wigItems.size()) {
                 val wigItem = wigItems[j]
@@ -37,8 +37,12 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 }
             }
 
-            bin to summary
-        }
+            if (summary.isEmpty()) {
+                null
+            } else {
+                i to summary
+            }
+        }.filterNotNull()
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,

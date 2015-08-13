@@ -17,8 +17,34 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
-                                   numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
-        return query(query).aggregate().summarise(query, numBins)
+                                   numBins: Int): Sequence<Pair<Int, BigSummary>> {
+        val coverage = query(query).aggregate()
+        var edge = 0
+        return query.slice(numBins).mapIndexed { i, bin ->
+            val summary = BigSummary()
+            for (j in edge until coverage.size()) {
+                val bedEntry = coverage[j]
+                if (bedEntry.end <= bin.startOffset) {
+                    edge = j + 1
+                    continue;
+                } else if (bedEntry.start > bin.endOffset) {
+                    break
+                }
+
+                val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
+                if (interval intersects bin) {
+                    summary.update(bedEntry.score.toDouble(),
+                                   (interval intersection bin).length(),
+                                   interval.length())
+                }
+            }
+
+            if (summary.isEmpty()) {
+                null
+            } else {
+                i to summary
+            }
+        }.filterNotNull()
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
@@ -148,32 +174,6 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
             BigFile.Post.zoom(outputPath)
             BigFile.Post.totalSummary(outputPath)
         }
-    }
-}
-
-fun List<BedEntry>.summarise(query: ChromosomeInterval,
-                             numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
-    var edge = 0
-    return query.slice(numBins).map { bin ->
-        val summary = BigSummary()
-        for (i in edge until size()) {
-            val bedEntry = this[i]
-            if (bedEntry.end <= bin.startOffset) {
-                edge = i + 1
-                continue;
-            } else if (bedEntry.start > bin.endOffset) {
-                break
-            }
-
-            val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
-            if (interval intersects bin) {
-                summary.update(bedEntry.score.toDouble(),
-                               (interval intersection bin).length(),
-                               interval.length())
-            }
-        }
-
-        bin to summary
     }
 }
 

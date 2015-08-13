@@ -8,8 +8,7 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.ArrayList
-import java.util.NoSuchElementException
+import java.util.*
 import kotlin.properties.Delegates
 
 /**
@@ -104,20 +103,27 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         // The 2-factor guarantees that we get at least two data points
         // per bin. Otherwise we might not be able to estimate SD.
         val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
-        return if (zoomLevel == null || !index) {
+        val emptySummary = BigSummary()
+        val summaries = Array(numBins) { emptySummary }
+        val sparseSummaries = if (zoomLevel == null || !index) {
             summarizeInternal(query, numBins)
         } else {
             summarizeFromZoom(query, zoomLevel, numBins)
-        }.map { it.second }.toList()
+        }
+
+        for ((i, summary) in sparseSummaries) {
+            summaries[i] = summary
+        }
+
+        return summaries.toList()
     }
 
     throws(IOException::class)
     protected abstract fun summarizeInternal(
-            query: ChromosomeInterval,
-            numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>>
+            query: ChromosomeInterval, numBins: Int): Sequence<Pair<Int, BigSummary>>
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
-                                  numBins: Int): Sequence<Pair<ChromosomeInterval, BigSummary>> {
+                                  numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
             assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
@@ -138,7 +144,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         }.toList()
 
         var edge = 0  // yay! map with a side effect.
-        return query.slice(numBins).map { bin ->
+        return query.slice(numBins).mapIndexed { i, bin ->
             var count = 0L
             var min = Double.POSITIVE_INFINITY
             var max = Double.NEGATIVE_INFINITY
@@ -165,10 +171,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 }
             }
 
-            val summary = BigSummary(count = count, minValue = min, maxValue = max,
-                                     sum = sum, sumSquares = sumSquares)
-            bin to summary
-        }
+            if (count == 0L) {
+                null
+            } else {
+                i to BigSummary(count = count, minValue = min, maxValue = max,
+                                sum = sum, sumSquares = sumSquares)
+            }
+        }.filterNotNull()
     }
 
     /**
@@ -320,13 +329,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                     val dataOffset = output.tell()
                     var itemCount = 0
                     val dataSize = output.with(bf.compressed) {
-                        for ((bin, summary) in bf.summarizeInternal(query, numBins)) {
-                            if (summary.isEmpty()) {
-                                continue  // omit all-zero summaries.
-                            }
-
-                            itemCount++
+                        for ((i, summary) in bf.summarizeInternal(query, numBins)) {
+                            val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
                             (bin to summary).toZoomData().write(this)
+                            itemCount++
                         }
                     }
 
