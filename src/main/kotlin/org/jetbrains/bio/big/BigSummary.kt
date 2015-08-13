@@ -20,6 +20,9 @@ data class BigSummary(
     /** Returns `true` if a summary contains no data. */
     fun isEmpty() = count == 0L
 
+    /** Returns `fa;se` if a summary contains no data. */
+    fun isNotEmpty() = !isEmpty()
+
     fun update(value: Double, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
         count += intersection

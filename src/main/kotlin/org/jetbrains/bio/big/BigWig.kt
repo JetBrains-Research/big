@@ -14,11 +14,27 @@ import kotlin.platform.platformStatic
 public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
+    /**
+     * Truncate empty bins from [ChromosomeInterval.slice].
+     */
+    private fun ChromosomeInterval.truncatedSlice(wigItems: List<WigInterval>,
+                                                  numBins: Int): Sequence<ChromosomeInterval> {
+        return if (wigItems.isEmpty()) {
+            slice(numBins)
+        } else {
+            val width = length().toDouble() / numBins
+            val i = Math.floor(wigItems.first().start / width).toInt()
+            val j = Math.ceil(wigItems.last().end / width).toInt()
+            Interval(chromIx, (width * i).toInt(), (width * j).toInt())
+                    .slice(j - i)
+        }
+    }
+
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
         var edge = 0
-        return query.slice(numBins).mapIndexed { i, bin ->
+        return query.truncatedSlice(wigItems, numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until wigItems.size()) {
                 val wigItem = wigItems[j]
@@ -37,11 +53,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 }
             }
 
-            if (summary.isEmpty()) {
-                null
-            } else {
-                i to summary
-            }
+            if (summary.isEmpty()) null else i to summary
         }.filterNotNull()
     }
 

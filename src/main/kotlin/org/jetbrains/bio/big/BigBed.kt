@@ -16,11 +16,27 @@ import kotlin.platform.platformStatic
 public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
+    /**
+     * Truncate empty bins from [ChromosomeInterval.slice].
+     */
+    private fun ChromosomeInterval.truncatedSlice(bedEntries: List<BedEntry>,
+                                                  numBins: Int): Sequence<ChromosomeInterval> {
+        return if (bedEntries.isEmpty()) {
+            slice(numBins)
+        } else {
+            val width = length().toDouble() / numBins
+            val i = Math.floor(bedEntries.first().start / width).toInt()
+            val j = Math.ceil(bedEntries.last().end / width).toInt()
+            Interval(chromIx, (width * i).toInt(), (width * j).toInt())
+                    .slice(j - i)
+        }
+    }
+
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
         val coverage = query(query).aggregate()
         var edge = 0
-        return query.slice(numBins).mapIndexed { i, bin ->
+        return query.truncatedSlice(coverage, numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until coverage.size()) {
                 val bedEntry = coverage[j]
@@ -39,11 +55,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 }
             }
 
-            if (summary.isEmpty()) {
-                null
-            } else {
-                i to summary
-            }
+            if (summary.isEmpty()) null else i to summary
         }.filterNotNull()
     }
 
@@ -177,6 +189,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
     }
 }
 
+
 private class AggregationEvent(val offset: Int, val type: Int,
                                val item: BedEntry) : Comparable<AggregationEvent> {
 
@@ -192,7 +205,7 @@ private val END = 0    // must be before start.
 private val START = 1
 
 /** Computes intervals of uniform coverage. */
-fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
+private fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     val events = flatMap {
         listOf(AggregationEvent(it.start, START, it),
                AggregationEvent(it.end, END, it)).asSequence()
