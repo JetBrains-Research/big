@@ -3,7 +3,6 @@ package org.jetbrains.bio.big
 import org.apache.commons.math3.util.Precision
 import org.junit.Test
 import java.nio.ByteOrder
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
@@ -19,8 +18,7 @@ public class BigWigFileTest {
     Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
 
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
-        val path = Files.createTempFile("example", ".bw")
-        try {
+        withTempFile("example", ".bw") { path ->
             val wigSections = WigParser(Examples["example.wig"].toFile().bufferedReader())
                     .map { it.second }
                     .toList()
@@ -30,8 +28,6 @@ public class BigWigFileTest {
             BigWigFile.read(path).use { bwf ->
                 assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
             }
-        } finally {
-            Files.deleteIfExists(path)
         }
     }
 
@@ -158,8 +154,7 @@ public class BigWigFileTest {
 
     private fun testSummarize(wigSections: List<WigSection>, numBins: Int) {
         val name = wigSections.map { it.chrom }.first()
-        val path = Files.createTempFile("example", ".bw")
-        try {
+        withTempFile("example", ".bw") { path ->
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"], path)
             BigWigFile.read(path).use { bbf ->
                 val summaries = bbf.summarize(name, 0, 0, numBins)
@@ -167,8 +162,6 @@ public class BigWigFileTest {
                         wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble(),
                         summaries.map { it.sum }.sum(), 0.1))
             }
-        } finally {
-            Files.deleteIfExists(path)
         }
     }
 
@@ -228,9 +221,11 @@ public class BigWigFileTest {
         }
     }
 
-    private fun assertWigSections(bwf: BigWigFile, name:String, start: Int, end: Int, expected: List<WigInterval>) {
-        assertEquals(expected,
-                     bwf.query(name, start, end).flatMap { it.query().asSequence() }.toList())
+    private fun assertWigSections(bwf: BigWigFile, name:String,
+                                  start: Int, end: Int, expected: List<WigInterval>) {
+        val actual = bwf.query(name, start, end)
+                .flatMap { it.query().asSequence() }.toList()
+        assertEquals(expected, actual)
     }
 
     private fun testQueryPartial(path: Path) {

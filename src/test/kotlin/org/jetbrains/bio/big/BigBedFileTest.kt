@@ -3,7 +3,6 @@ package org.jetbrains.bio.big
 import org.apache.commons.math3.util.Precision
 import org.junit.Test
 import java.nio.ByteOrder
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
@@ -11,8 +10,7 @@ import kotlin.test.assertTrue
 
 public class BigBedFileTest {
     Test fun testWriteReadSmall() {
-        val path = Files.createTempFile("small", ".bb")
-        try {
+        withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
 
@@ -20,8 +18,6 @@ public class BigBedFileTest {
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
             }
-        } finally {
-            Files.deleteIfExists(path)
         }
     }
 
@@ -34,8 +30,7 @@ public class BigBedFileTest {
     Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
 
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
-        val path = Files.createTempFile("example1", ".bb")
-        try {
+        withTempFile("example1", ".bb") { path ->
             val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"],
                              path, compressed = compressed, order = order)
@@ -43,8 +38,6 @@ public class BigBedFileTest {
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
             }
-        } finally {
-            Files.deleteIfExists(path)
         }
     }
 
@@ -166,8 +159,7 @@ public class BigBedFileTest {
 
     private fun testSummarize(bedEntries: List<BedEntry>, numBins: Int) {
         val name = bedEntries.map { it.chrom }.first()
-        val path = Files.createTempFile("example", ".bb")
-        try {
+        withTempFile("example", ".bb") { path ->
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
             BigBedFile.read(path).use { bbf ->
                 val aggregate = bedEntries.asSequence().aggregate()
@@ -178,8 +170,6 @@ public class BigBedFileTest {
                         aggregate.map { it.score }.sum().toDouble(),
                         summaries.map { it.sum }.sum(), 0.1))
             }
-        } finally {
-            Files.deleteIfExists(path)
         }
     }
 

@@ -53,6 +53,16 @@ fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
     }.bufferedReader()
 }
 
+inline fun withTempFile(prefix: String, suffix: String,
+                        block: (Path) -> Unit) {
+    val path = Files.createTempFile(prefix, suffix)
+    try {
+        block(path)
+    } finally {
+        Files.delete(path)
+    }
+}
+
 /** Fetches chromosome sizes from a UCSC provided TSV file. */
 fun Path.chromosomes(): List<BPlusLeaf> {
     return bufferedReader().lineSequence().mapIndexed { i, line ->

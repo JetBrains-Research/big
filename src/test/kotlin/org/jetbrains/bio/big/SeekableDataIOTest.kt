@@ -1,93 +1,128 @@
 package org.jetbrains.bio.big
 
-import com.google.common.math.IntMath
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
 import java.nio.ByteOrder
-import java.nio.file.Files
+import java.nio.file.Path
 import java.util.Random
+import kotlin.platform.platformStatic
 import kotlin.test.assertEquals
 
-public class SeekableDataOutputTest {
-    Test fun testBigEndian() {
-        for (i in 0..NUM_ATTEMPTS - 1) {
-            testWriteRead(ByteOrder.BIG_ENDIAN)
+@RunWith(Parameterized::class)
+public class SeekableDataIOTest(private val order: ByteOrder) {
+    Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
+        val b = r.nextByte()
+        val s = r.nextInt(Short.MAX_VALUE.toInt())
+        val i = r.nextInt()
+        val l = r.nextLong()
+        SeekableDataOutput.of(path, order).use {
+            it.writeByte(b.toInt())
+            it.writeByte(Math.abs(b.toInt()))
+            it.writeShort(s)
+            it.writeShort(Math.abs(s))
+            it.writeInt(i)
+            it.writeLong(l)
+        }
+        SeekableDataInput.of(path, order).use {
+            assertEquals(b, it.readByte())
+            assertEquals(Math.abs(b.toInt()), it.readUnsignedByte())
+            assertEquals(s.toShort(), it.readShort())
+            assertEquals(s, it.readUnsignedShort())
+            assertEquals(i, it.readInt())
+            assertEquals(l, it.readLong())
         }
     }
 
-    Test fun testLittleEndian() {
-        for (i in 0..NUM_ATTEMPTS - 1) {
-            testWriteRead(ByteOrder.LITTLE_ENDIAN)
+    Test fun testWriteReadFloating() = withTempFileRandomized() { path, r ->
+        val f = r.nextFloat()
+        val d = r.nextDouble()
+        SeekableDataOutput.of(path, order).use {
+            it.writeFloat(f)
+            it.writeDouble(d)
+        }
+        SeekableDataInput.of(path, order).use {
+            assertEquals(f, it.readFloat())
+            assertEquals(d, it.readDouble())
         }
     }
 
-    private fun testWriteRead(byteOrder: ByteOrder) {
-        val shortValue = RANDOM.nextInt().toShort()
-        val unsignedShortValue = RANDOM.nextInt(IntMath.pow(2, 16))
-        val intValue = RANDOM.nextInt()
-        val longValue = RANDOM.nextLong()
-        val floatValue = RANDOM.nextFloat()
-        val doubleValue = RANDOM.nextDouble()
-        val charsArrayValue = "I'm a char array"
-        val severalSingleChar = 'a'
-        val severalSingleCharCount = 3
-
-        val chromosomeName = "chrom1"
-        val keySize = 12
-
-        val path = Files.createTempFile(byteOrder.toString(), ".bb")
-        try {
-            SeekableDataOutput.of(path, byteOrder).use { output ->
-                with(output) {
-                    writeShort(shortValue.toInt())
-                    writeUnsignedShort(unsignedShortValue)
-                    writeInt(intValue)
-                    writeLong(longValue)
-                    writeFloat(floatValue)
-                    writeDouble(doubleValue)
-                    writeBytes(charsArrayValue)
-                    skipBytes(severalSingleChar.toInt(), severalSingleCharCount)
-                    writeBytes(chromosomeName, keySize)
-                }
-            }
-
-            SeekableDataInput.of(path, byteOrder).use { input ->
-                with(input) {
-                    assertEquals(shortValue, readShort())
-                    assertEquals(unsignedShortValue, readUnsignedShort())
-                    assertEquals(intValue, readInt())
-                    assertEquals(longValue, readLong())
-                    assertEquals(floatValue, readFloat())
-                    assertEquals(doubleValue, readDouble())
-                }
-
-                val charsArrayValueReader = ByteArray(charsArrayValue.length())
-                input.readFully(charsArrayValueReader)
-                assertArrayEquals(charsArrayValue.toByteArray(), charsArrayValueReader)
-
-                val charSingle = ByteArray(severalSingleCharCount)
-                input.readFully(charSingle)
-                for (b in charSingle) {
-                    assertEquals(severalSingleChar.toLong(), b.toLong())
-                }
-
-                val chromosomeNameExt = ByteArray(keySize)
-                input.readFully(chromosomeNameExt)
-                for (i in 0..keySize - 1) {
-                    if (i < chromosomeName.length()) {
-                        assertEquals(chromosomeName[i].toInt(), chromosomeNameExt[i].toInt())
-                    } else {
-                        assertEquals(0, chromosomeNameExt[i].toInt())
-                    }
-                }
-            }
-        } finally {
-            Files.deleteIfExists(path)
+    Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
+        val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.join("")
+        val c = r.nextInt(64) + 32
+        SeekableDataOutput.of(path, order).use {
+            it.writeBytes(s)
+            it.writeBytes(s, s.length() + 8)
+            it.skipBytes(c, 16)
         }
+        SeekableDataInput.of(path, order).use {
+            var b = ByteArray(s.length())
+            it.readFully(b)
+            assertArrayEquals(s.toByteArray(), b)
+            b = ByteArray(s.length() + 8)
+            it.readFully(b)
+            assertEquals(s, String(b).trimZeros())
+
+            for (i in 0 until 16) {
+                assertEquals(c.toByte(), it.readByte())
+            }
+        }
+    }
+
+    Test fun testSeekTell() = withTempFileRandomized { path, r ->
+        val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
+        SeekableDataOutput.of(path, order).use { output ->
+            b.forEach { output.writeByte(it.toInt()) }
+        }
+        SeekableDataInput.of(path, order).use {
+            for (i in 0 until b.size()) {
+                it.seek(i.toLong())
+                assertEquals(b[i], it.readByte())
+                assertEquals(i + 1L, it.tell())
+            }
+        }
+    }
+
+    Test fun testCompression() = withTempFileRandomized { path, r ->
+        val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
+        val size = SeekableDataOutput.of(path, order).use {
+            it.with(compressed = true) {
+                b.forEach { writeByte(it.toInt()) }
+            }
+        }.toLong()
+
+        SeekableDataInput.of(path, order).use {
+            it.with(0L, size, compressed = true) {
+                for (i in 0 until b.size()) {
+                    assertEquals(b[i], readByte())
+                }
+            }
+        }
+    }
+
+    private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {
+        withTempFile(order.toString(), ".bb") { path ->
+            val attempts = RANDOM.nextInt(100) + 1
+            for (i in 0 until attempts) {
+                block(path, RANDOM)
+            }
+        }
+    }
+
+    private fun Random.nextByte(): Byte {
+        val b = nextInt(Byte.MAX_VALUE - Byte.MIN_VALUE)
+        return (b + Byte.MIN_VALUE).toByte()
     }
 
     companion object {
-        private val RANDOM = Random()
-        private val NUM_ATTEMPTS = 1000
+        val RANDOM: Random = Random()  // private causes compiler crash.
+
+        @Parameters(name = "{0}")
+        platformStatic fun data(): Collection<Array<ByteOrder>> {
+            return listOf(arrayOf(ByteOrder.BIG_ENDIAN),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN))
+        }
     }
 }

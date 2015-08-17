@@ -4,7 +4,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.StringReader
 import java.io.StringWriter
-import java.util.*
+import java.util.Random
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

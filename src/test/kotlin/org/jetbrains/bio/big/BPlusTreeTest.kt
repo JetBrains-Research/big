@@ -114,8 +114,7 @@ public class BPlusTreeTest {
     }
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
-        val path = Files.createTempFile("bpt", ".bb")
-        try {
+        withTempFile("bpt", ".bb") { path ->
             SeekableDataOutput.of(path).use { output ->
                 BPlusTree.write(output, items, blockSize)
             }
@@ -130,8 +129,6 @@ public class BPlusTreeTest {
 
                 assertEquals(items.toSet(), bpt.traverse(input).toSet())
             }
-        } finally {
-            Files.delete(path)
         }
     }
 

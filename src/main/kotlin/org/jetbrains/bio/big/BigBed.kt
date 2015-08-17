@@ -189,7 +189,7 @@ private val END = 0    // must be before start.
 private val START = 1
 
 /** Computes intervals of uniform coverage. */
-private fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
+fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     val events = flatMap {
         listOf(AggregationEvent(it.start, START, it),
                AggregationEvent(it.end, END, it)).asSequence()
