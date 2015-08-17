@@ -6,7 +6,9 @@ Here you can see the full list of changes between each big release.
 Version 0.1.5
 -------------
 
-- Enabled buffering in 'SeekableDataOutput'
+- Enabled buffering in 'SeekableDataOutput'.
+- Fixed a bug in 'RTreeIndex.compute' which sometimes allowed levels
+  to be larger than 'blockSize'.
 
 
 Version 0.1.4
