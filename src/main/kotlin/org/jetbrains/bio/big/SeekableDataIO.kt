@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
@@ -197,6 +198,8 @@ public interface OrderedDataOutput {
     }
 
     public fun writeUnsignedShort(v: Int) {
+        // Remove me after we've done debugging.
+        assert(v >= 0 && v < IntMath.pow(2, java.lang.Short.SIZE))
         val b = Ints.toByteArray(v)
         if (order == ByteOrder.BIG_ENDIAN) {
             writeByte(b[2].toInt())

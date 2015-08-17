@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import org.apache.log4j.LogManager
@@ -121,12 +122,10 @@ class RTreeIndex(val header: RTreeIndex.Header) {
     companion object {
         private val LOG = LogManager.getLogger(javaClass)
 
-        throws(IOException::class)
         public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
         }
 
-        throws(IOException::class)
         public fun write(output: CountingDataOutput,
                          leaves: List<RTreeIndexLeaf>,
                          blockSize: Int = 256,
