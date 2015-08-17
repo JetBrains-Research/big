@@ -226,13 +226,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         fun write(output: SeekableDataOutput) = with(output) {
             seek(0L)  // a header is always first.
             writeInt(magic)
-            writeShort(version)
-            writeShort(zoomLevelCount)
+            writeUnsignedShort(version)
+            writeUnsignedShort(zoomLevelCount)
             writeLong(chromTreeOffset)
             writeLong(unzoomedDataOffset)
             writeLong(unzoomedIndexOffset)
-            writeShort(fieldCount)
-            writeShort(definedFieldCount)
+            writeUnsignedShort(fieldCount)
+            writeUnsignedShort(definedFieldCount)
             writeLong(asOffset)
             writeLong(totalSummaryOffset)
             writeInt(uncompressBufSize)

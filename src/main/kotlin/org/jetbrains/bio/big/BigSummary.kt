@@ -79,7 +79,7 @@ data class ZoomLevel(public val reduction: Int,
     companion object {
         val BYTES = Ints.BYTES * 2 + Longs.BYTES * 2
 
-        fun read(input: SeekableDataInput) = with(input) {
+        fun read(input: OrderedDataInput) = with(input) {
             val reduction = readInt()
             val reserved = readInt()
             check(reserved == 0)

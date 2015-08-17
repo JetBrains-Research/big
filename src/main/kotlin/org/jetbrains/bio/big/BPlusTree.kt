@@ -117,7 +117,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
         val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 
         throws(IOException::class)
-        fun write(output: SeekableDataOutput) = with(output) {
+        fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)
             writeInt(keySize)
@@ -223,7 +223,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                     with (output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
-                        writeShort(childCount)
+                        writeUnsignedShort(childCount)
                         for (j in 0 until Math.min(itemsPerNode, itemCount - i) step itemsPerSlot) {
                             BPlusNode(items[i + j].key, nextChild)
                                     .write(output, keySize)
@@ -243,7 +243,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
-                    writeShort(leafCount)
+                    writeUnsignedShort(leafCount)
                     for (j in 0 until leafCount) {
                         items[i + j].write(output, keySize)
                     }
@@ -272,7 +272,7 @@ data class BPlusLeaf(
         require(size >= 0, "size must be >=0")
     }
 
-    fun write(output: SeekableDataOutput, keySize: Int) = with (output) {
+    fun write(output: OrderedDataOutput, keySize: Int) = with (output) {
         writeBytes(key, keySize)
         writeInt(id)
         writeInt(size)
@@ -283,7 +283,7 @@ data class BPlusLeaf(
     }
 
     companion object {
-        fun read(input: SeekableDataInput, keySize: Int) = with (input) {
+        fun read(input: OrderedDataInput, keySize: Int) = with (input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val chromId = readInt()
@@ -302,13 +302,13 @@ private class BPlusNode(
         /** Offset to child node. */
         public val childOffset: Long) {
 
-    fun write(output: SeekableDataOutput, keySize: Int) = with (output) {
+    fun write(output: OrderedDataOutput, keySize: Int) = with (output) {
         writeBytes(key, keySize)
         writeLong(childOffset)
     }
 
     companion object {
-        fun read(input: SeekableDataInput, keySize: Int) = with (input) {
+        fun read(input: OrderedDataInput, keySize: Int) = with (input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val childOffset = readLong()

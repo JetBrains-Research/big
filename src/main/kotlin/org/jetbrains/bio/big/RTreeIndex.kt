@@ -76,8 +76,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                  val startChromIx: Int, val startBase: Int,
                  val endChromIx: Int, val endBase: Int,
                  val endDataOffset: Long, val itemsPerSlot: Int, val rootOffset: Long) {
-        throws(IOException::class)
-        fun write(output: SeekableDataOutput) = with(output) {
+
+        fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)
             writeLong(itemCount)
@@ -167,7 +167,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 with(output) {
                     writeBoolean(false)  // isLeaf.
                     writeByte(0)         // reserved.
-                    writeShort(nodeCount)
+                    writeUnsignedShort(nodeCount)
                     for (interval in level) {
                         RTreeIndexNode(interval, nextChild).write(output)
                         nextChild += bytesInNextLevelBlock
@@ -185,7 +185,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     val leafCount = Math.min(blockSize, leaves.size() - i)
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
-                    writeShort(leafCount)
+                    writeUnsignedShort(leafCount)
                     for (j in 0 until leafCount) {
                         leaves[i + j].write(output)
                     }
@@ -228,7 +228,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 data class RTreeIndexLeaf(public val interval: Interval,
                           public val dataOffset: Long,
                           public val dataSize: Long) {
-    fun write(output: SeekableDataOutput) = with(output) {
+    fun write(output: OrderedDataOutput) = with(output) {
         writeInt(interval.left.chromIx)
         writeInt(interval.left.offset)
         writeInt(interval.right.chromIx)
@@ -238,7 +238,7 @@ data class RTreeIndexLeaf(public val interval: Interval,
     }
 
     companion object {
-        fun read(input: SeekableDataInput) = with(input) {
+        fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()
@@ -254,7 +254,7 @@ data class RTreeIndexLeaf(public val interval: Interval,
  */
 data class RTreeIndexNode(public val interval: Interval,
                           public val dataOffset: Long) {
-    fun write(output: SeekableDataOutput) = with(output) {
+    fun write(output: OrderedDataOutput) = with(output) {
         writeInt(interval.left.chromIx)
         writeInt(interval.left.offset)
         writeInt(interval.right.chromIx)
@@ -263,7 +263,7 @@ data class RTreeIndexNode(public val interval: Interval,
     }
 
     companion object {
-        fun read(input: SeekableDataInput) = with(input) {
+        fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()

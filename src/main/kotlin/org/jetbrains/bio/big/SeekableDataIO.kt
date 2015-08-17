@@ -13,7 +13,24 @@ import java.util.zip.Inflater
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
 public interface OrderedDataInput {
-    public val order: ByteOrder
+    public var order: ByteOrder
+        private set
+
+    /** Guess byte order from a given big-endian `magic`. */
+    public fun guess(magic: Int) {
+        val b = ByteArray(4)
+        readFully(b)
+        val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
+        order = if (bigMagic != magic) {
+            val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
+            check(littleMagic == magic, "bad signature")
+            ByteOrder.LITTLE_ENDIAN
+        } else {
+            ByteOrder.BIG_ENDIAN
+        }
+    }
+
+    public fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size())
 
     public fun readBoolean(): Boolean = readUnsignedByte() != 0
 
@@ -86,20 +103,6 @@ public open class SeekableDataInput protected constructor(
 :
         OrderedDataInput, Closeable, AutoCloseable {
 
-    /** Guess byte order from a given big-endian `magic`. */
-    public fun guess(magic: Int) {
-        val b = ByteArray(4)
-        readFully(b)
-        val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
-        order = if (bigMagic != magic) {
-            val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
-            check(littleMagic == magic, "bad signature")
-            ByteOrder.LITTLE_ENDIAN
-        } else {
-            ByteOrder.BIG_ENDIAN
-        }
-    }
-
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
                        block: OrderedDataInput.() -> T): T {
@@ -111,7 +114,7 @@ public open class SeekableDataInput protected constructor(
         return with(input, block)
     }
 
-    public fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size()) {
+    override fun readFully(b: ByteArray, off: Int, len: Int) {
         file.readFully(b, off, len)
     }
 
@@ -136,12 +139,17 @@ public open class SeekableDataInput protected constructor(
 }
 
 private class ByteArrayDataInput(private val data: ByteArray,
-                                 public override val order: ByteOrder)
+                                 public override var order: ByteOrder)
 :
         OrderedDataInput {
 
     private val input: DataInput = DataInputStream(ByteArrayInputStream(data))
     private var bytesRead: Int = 0
+
+    override fun readFully(b: ByteArray, off: Int, len: Int) {
+        check(!finished, "no data")
+        input.readFully(b, off, len)
+    }
 
     override fun readUnsignedByte(): Int {
         check(!finished, "no data")
@@ -242,7 +250,7 @@ public interface OrderedDataOutput {
 }
 
 public open class SeekableDataOutput(private val file: RandomAccessFile,
-                                     public override var order: ByteOrder)
+                                     public override val order: ByteOrder)
 :
         OrderedDataOutput, Closeable, AutoCloseable {
 

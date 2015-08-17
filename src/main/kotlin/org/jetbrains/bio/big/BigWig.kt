@@ -185,7 +185,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeInt(span)
         writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
         writeByte(0) // reserved.
-        writeShort(values.size())
+        writeUnsignedShort(values.size())
         for (i in 0 until values.size()) {
             writeFloat(values[i])
         }
@@ -201,7 +201,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(span)
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
         writeByte(0)  // reserved.
-        writeShort(values.size())
+        writeUnsignedShort(values.size())
         for (i in 0 until values.size()) {
             writeInt(positions[i])
             writeFloat(values[i])
