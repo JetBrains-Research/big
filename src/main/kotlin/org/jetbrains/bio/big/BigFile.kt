@@ -86,7 +86,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param index if `true` pre-computed is index is used if possible.
      * @return a list of summaries.
      */
-    throws(IOException::class)
+    @throws(IOException::class)
     public fun summarize(name: String,
                          startOffset: Int, endOffset: Int,
                          numBins: Int, index: Boolean = true): List<BigSummary> {
@@ -119,7 +119,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         return summaries.toList()
     }
 
-    throws(IOException::class)
+    @throws(IOException::class)
     protected abstract fun summarizeInternal(
             query: ChromosomeInterval, numBins: Int): Sequence<Pair<Int, BigSummary>>
 
@@ -189,9 +189,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param endOffset 0-based end offset (exclusive), if 0 than the whole
      *                  chromosome is used.
      * @return a list of intervals completely contained within the query.
-     * @throws IOException if the underlying [SeekableDataInput] does so.
+     * @@throws IOException if the underlying [SeekableDataInput] does so.
      */
-    throws(IOException::class)
+    @throws(IOException::class)
     public fun query(name: String, startOffset: Int, endOffset: Int): Sequence<T> {
         val res = bPlusTree.find(input, name)
         return if (res == null) {
@@ -208,11 +208,11 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 .flatMap { queryInternal(it.dataOffset, it.dataSize, query) }
     }
 
-    throws(IOException::class)
+    @throws(IOException::class)
     protected abstract fun queryInternal(dataOffset: Long, dataSize: Long,
                                          query: ChromosomeInterval): Sequence<T>
 
-    throws(IOException::class)
+    @throws(IOException::class)
     override fun close() = input.close()
 
     data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,

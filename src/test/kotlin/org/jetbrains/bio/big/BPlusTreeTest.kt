@@ -11,7 +11,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 public class BPlusTreeTest {
-    Test fun testReadHeader() {
+    @Test fun testReadHeader() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
@@ -22,7 +22,7 @@ public class BPlusTreeTest {
         }
     }
     
-    Test fun testFind() {
+    @Test fun testFind() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
             var leaf = bf.bPlusTree.find(bf.input, "chr1")
             assertNull(leaf)
@@ -34,7 +34,7 @@ public class BPlusTreeTest {
         }
     }
 
-    Test fun testFindAllEqualSize() {
+    @Test fun testFindAllEqualSize() {
         val chromosomes = arrayOf("chr01", "chr02", "chr03", "chr04", "chr05",
                                   "chr06", "chr07", "chr08", "chr09", "chr10",
                                   "chr11")
@@ -43,7 +43,7 @@ public class BPlusTreeTest {
         testFindAllExample("example3.bb", chromosomes)  // blockSize = 4.
     }
 
-    Test fun testFindAllDifferentSize() {
+    @Test fun testFindAllDifferentSize() {
         val chromosomes = arrayOf("chr1", "chr10", "chr11", "chr2", "chr3",
                                   "chr4", "chr5", "chr6", "chr7", "chr8",
                                   "chr9")
@@ -63,19 +63,19 @@ public class BPlusTreeTest {
         }
     }
 
-    Test fun testCountLevels() {
+    @Test fun testCountLevels() {
         assertEquals(2, BPlusTree.countLevels(10, 100))
         assertEquals(2, BPlusTree.countLevels(10, 90))
         assertEquals(2, BPlusTree.countLevels(10, 11))
         assertEquals(1, BPlusTree.countLevels(10, 10))
     }
 
-    Test fun testWriteReadSmall() {
+    @Test fun testWriteReadSmall() {
         testWriteRead(2, getSequentialItems(16))
         testWriteRead(2, getSequentialItems(7))  // not a power of 2.
     }
 
-    Test fun testWriteReadLarge() {
+    @Test fun testWriteReadLarge() {
         testWriteRead(8, getSequentialItems(IntMath.pow(8, 3)))
     }
 
@@ -85,7 +85,7 @@ public class BPlusTreeTest {
                 .collect(Collectors.toList())
     }
 
-    Test fun testWriteReadRandom() {
+    @Test fun testWriteReadRandom() {
         for (i in 0 until 10) {
             val blockSize = RANDOM.nextInt(64) + 2
             testWriteRead(blockSize, getRandomItems(RANDOM.nextInt(512) + 1))
@@ -100,7 +100,7 @@ public class BPlusTreeTest {
         }.collect(Collectors.toList())
     }
 
-    Test fun testWriteReadRealChromosomes() {
+    @Test fun testWriteReadRealChromosomes() {
         testWriteRead(3, getExampleItems("f1.chrom.sizes"))
         testWriteRead(4, getExampleItems("f2.chrom.sizes"))
     }

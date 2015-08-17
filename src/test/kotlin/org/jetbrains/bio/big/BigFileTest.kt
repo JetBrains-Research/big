@@ -4,7 +4,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 public class BigFileTest {
-    Test fun testReadHeader() {
+    @Test fun testReadHeader() {
         BigBedFile.read(Examples["example1.bb"]).use { bbf ->
             val header = bbf.header
             assertEquals(1, header.version)

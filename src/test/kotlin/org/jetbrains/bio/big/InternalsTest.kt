@@ -8,7 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class InternalsTest {
-    Test fun testLogCeiling() {
+    @Test fun testLogCeiling() {
         assertEquals(2, 4.logCeiling(2))
         assertEquals(3, 5.logCeiling(2))
         assertEquals(3, 6.logCeiling(2))
@@ -22,7 +22,7 @@ public class InternalsTest {
         }
     }
 
-    Test fun testCompression() {
+    @Test fun testCompression() {
         for (i in 0 until 100) {
             val n = RANDOM.nextInt(4096) + 1
             val chunk = ByteArray(n)
@@ -38,7 +38,7 @@ public class InternalsTest {
 }
 
 public class IntervalTest {
-    Test fun testOverlapsSameChromosome() {
+    @Test fun testOverlapsSameChromosome() {
         val interval = Interval(1, 100, 200)
         assertOverlaps(interval, interval)
         assertOverlaps(interval, Interval(1, 50, 150))
@@ -49,7 +49,7 @@ public class IntervalTest {
         assertNotOverlaps(interval, Interval(1, 200, 300))
     }
 
-    Test fun testOverlapsDifferentChromosomes() {
+    @Test fun testOverlapsDifferentChromosomes() {
         assertNotOverlaps(Interval(1, 100, 200), Interval(2, 50, 150))
         assertNotOverlaps(Interval(1, 100, 200), Interval(2, 50, 3, 150))
 
@@ -73,7 +73,7 @@ public class IntervalTest {
                     "$interval1 must not overlap $interval1")
     }
 
-    Test fun testSlice() {
+    @Test fun testSlice() {
         assertEquals(listOf(Interval(0, 0, 5), Interval(0, 5, 10)),
                      Interval(0, 0, 10).slice(2).toList())
         assertEquals(listOf(Interval(0, 0, 5), Interval(0, 5, 9)),
@@ -106,14 +106,14 @@ public class IntervalTest {
 }
 
 public class OffsetTest {
-    Test fun testCompareToSameChromosome() {
+    @Test fun testCompareToSameChromosome() {
         val offset = Offset(1, 100)
         assertTrue(offset > Offset(1, 50))
         assertTrue(Offset(1, 50) < offset)
         assertTrue(offset == offset)
     }
 
-    Test fun testCompareToDifferentChromosomes() {
+    @Test fun testCompareToDifferentChromosomes() {
         val offset = Offset(1, 100)
         assertTrue(offset < Offset(2, 100))
         assertTrue(Offset(2, 100) > offset)

@@ -25,7 +25,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     /**
      * Recursively goes across tree, calling callback on the leaves.
      */
-    throws(IOException::class)
+    @throws(IOException::class)
     public fun traverse(input: SeekableDataInput): Sequence<BPlusLeaf> {
         return traverseRecursively(input, header.rootOffset)
     }
@@ -55,7 +55,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
      * Recursively traverses a B+ tree looking for a leaf corresponding
      * to `query`.
      */
-    throws(IOException::class)
+    @throws(IOException::class)
     public fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
         if (query.length() > header.keySize) {
             return null
@@ -116,7 +116,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                  val itemCount: Int, val rootOffset: Long) {
         val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 
-        throws(IOException::class)
+        @throws(IOException::class)
         fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)

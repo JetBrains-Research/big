@@ -9,7 +9,7 @@ import kotlin.platform.platformStatic
 /**
  * Bigger brother of the good-old WIG format.
  */
-public class BigWigFile throws(IOException::class) protected constructor(path: Path) :
+public class BigWigFile @throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
@@ -97,7 +97,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
         /** Magic number used for determining [ByteOrder]. */
         val MAGIC: Int = 0x888FFC26.toInt()
 
-        throws(IOException::class)
+        @throws(IOException::class)
         public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
 
         /**
@@ -112,9 +112,9 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
          * @param compressed compress BigWIG data sections with gzip.
          *                   Defaults to `false`.
          * @param order byte order used, see [java.nio.ByteOrder].
-         * @throws IOException if any of the read or write operations failed.
+         * @@throws IOException if any of the read or write operations failed.
          */
-        throws(IOException::class)
+        @throws(IOException::class)
         public platformStatic fun write(wigSections: Iterable<WigSection>,
                                         chromSizesPath: Path,
                                         outputPath: Path,

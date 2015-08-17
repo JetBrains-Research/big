@@ -9,13 +9,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigWigFileTest {
-    Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
+    @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
+    @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
+    @Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
 
-    Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
+    @Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
 
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         withTempFile("example", ".bw") { path ->
@@ -31,27 +31,27 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testCompressedExample2() {
+    @Test fun testCompressedExample2() {
         assertVariableStep(Examples["example2.bw"],
                            "chr21", 9411191, 50f, 48119895, 60f)
     }
 
-    Test fun testVariableStep() {
+    @Test fun testVariableStep() {
         assertVariableStep(Examples["variable_step.bw"],
                            "chr2", 300701, 12.5f, 300705, 12.5f)
     }
 
-    Test fun testVariableStepWithSpan() {
+    @Test fun testVariableStepWithSpan() {
         assertVariableStep(Examples["variable_step_with_span.bw"],
                            "chr2", 300701, 12.5f, 300705, 12.5f)
     }
 
-    Test fun testFixedStep() {
+    @Test fun testFixedStep() {
         assertFixedStep(Examples["fixed_step.bw"],
                         "chr3", 400601, 11f, 400801, 33f)
     }
 
-    Test fun testFixedStepWithSpan() {
+    @Test fun testFixedStepWithSpan() {
         assertFixedStep(Examples["fixed_step_with_span.bw"],
                         "chr3", 400601, 11f, 400805, 33f)
     }
@@ -109,7 +109,7 @@ public class BigWigFileTest {
         assertEquals(value2, lastStep.query().last().score)
     }
 
-    Test fun testSummarizeWholeFile() {
+    @Test fun testSummarizeWholeFile() {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val (expected) = bwf.summarize(name, 0, 0, numBins = 1, index = false)
@@ -123,7 +123,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testSummarizeSingleBpBins() {
+    @Test fun testSummarizeSingleBpBins() {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val summaries = bwf.summarize(name, 0, 100, numBins = 100)
@@ -138,7 +138,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testSummarizeFourBins() {
+    @Test fun testSummarizeFourBins() {
         val wigSections = (0 until 128).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
             val section = FixedStepSection("chr1", startOffset)
@@ -165,11 +165,11 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testQueryPartialVariable() = testQueryPartial(Examples["example2.bw"])
+    @Test fun testQueryPartialVariable() = testQueryPartial(Examples["example2.bw"])
 
-    Test fun testQueryPartialFixed() = testQueryPartial(Examples["fixed_step.bw"])
+    @Test fun testQueryPartialFixed() = testQueryPartial(Examples["fixed_step.bw"])
 
-    Test fun testQueryLeftEndAligned() {
+    @Test fun testQueryLeftEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
             // precondition:
             val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
@@ -182,7 +182,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testQueryRightEndAligned() {
+    @Test fun testQueryRightEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
             // precondition:
             val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
@@ -195,7 +195,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testQueryInnerRange() {
+    @Test fun testQueryInnerRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
             // precondition:
             val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
@@ -207,7 +207,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test fun testQueryOuterRange() {
+    @Test fun testQueryOuterRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
             // precondition:
             val section = bwf.query("chr3", 0, 0).first() as FixedStepSection

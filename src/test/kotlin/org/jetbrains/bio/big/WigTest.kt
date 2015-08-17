@@ -20,19 +20,19 @@ public class VariableStepSectionTest {
         section[500100] = 24.0f
     }
 
-    Test fun testSet() {
+    @Test fun testSet() {
         section[100500] = 42.0f
         assertEquals(42f + 42f , section[100500])
     }
 
-    Test fun testQueryNoBounds() {
+    @Test fun testQueryNoBounds() {
         val correct = arrayOf(WigInterval(100500, 100520, 42f),
                               WigInterval(500100, 500120, 24f))
 
         assertEquals(correct.toList(), section.query())
     }
 
-    Test fun testQuery() {
+    @Test fun testQuery() {
         // Add a few ranges from both sides.
         section[100100] = 4242.0f
         section[500500] = 2424.0f
@@ -50,7 +50,7 @@ public class VariableStepSectionTest {
         assertEquals(correct.toList(), section.query(100500, 500200))
     }
 
-    Test fun testSplice() {
+    @Test fun testSplice() {
         section = VariableStepSection("chr1", 20)
         for (i in 0 until Short.MAX_VALUE * 2 - 100) {
             section[i] = i.toFloat()
@@ -64,7 +64,7 @@ public class VariableStepSectionTest {
         assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size())
     }
 
-    Test fun testSpliceRandom() {
+    @Test fun testSpliceRandom() {
         for (i in 0 until 100) {
             section = VariableStepSection("chr1", RANDOM.nextInt(99) + 1)
             val max = RANDOM.nextInt(99) + 1
@@ -94,7 +94,7 @@ public class FixedStepSectionTest {
         section.add(33f)
     }
 
-    Test fun testGet() {
+    @Test fun testGet() {
         assertEquals(11f, section[400601])
         assertEquals(22f, section[400701])
         assertEquals(33f, section[400801])
@@ -104,7 +104,7 @@ public class FixedStepSectionTest {
         section[400901]
     }
 
-    Test fun testQueryNoBounds() {
+    @Test fun testQueryNoBounds() {
         val it = section.query().iterator()
         var interval: WigInterval
         interval = it.next()
@@ -124,7 +124,7 @@ public class FixedStepSectionTest {
         assertFalse(it.hasNext())
     }
 
-    Test fun testQuery() {
+    @Test fun testQuery() {
         // Note: the value '400600' will be rounded to the nearest
         // interval, in this case to '400601'.
         val it = section.query(400600, 400607).iterator()
@@ -132,7 +132,7 @@ public class FixedStepSectionTest {
         assertFalse(it.hasNext())
     }
 
-    Test fun testQueryWithOverlaps() {
+    @Test fun testQueryWithOverlaps() {
         val section = FixedStepSection("chr1", 400601, 10, 50)
         section.add(11f)
         section.add(22f)
@@ -157,7 +157,7 @@ public class FixedStepSectionTest {
         assertFalse(it.hasNext())
     }
 
-    Test fun testSplice() {
+    @Test fun testSplice() {
         section = FixedStepSection("chr1", 0)
         for (i in 0 until Short.MAX_VALUE * 2 - 100) {
             section.add(i.toFloat())
@@ -169,7 +169,7 @@ public class FixedStepSectionTest {
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
     }
 
-    Test fun testSpliceRandom() {
+    @Test fun testSpliceRandom() {
         for (i in 0 until 100) {
             section = FixedStepSection("chr1", RANDOM.nextInt(99) + 1)
             val max = RANDOM.nextInt(99) + 1
@@ -197,7 +197,7 @@ public class WigParserTest {
         testWigSection(input)
     }
 
-    Test fun testVariableStep() {
+    @Test fun testVariableStep() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   0.4242\n" + "10481   0.2424"
@@ -205,7 +205,7 @@ public class WigParserTest {
         testWigSection(input)
     }
 
-    Test fun testVariableStepNoSpan() {
+    @Test fun testVariableStepNoSpan() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1\n" +
                     "10471   0.4242\n" +
@@ -221,7 +221,7 @@ public class WigParserTest {
                      pair.second.query())
     }
 
-    Test fun testFixedStep() {
+    @Test fun testFixedStep() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "fixedStep chrom=chr1 start=10471 step=10 span=5\n" +
                     "0.4242\n" + "0.2424"
@@ -242,7 +242,7 @@ public class WigParserTest {
         testWigSection(input)
     }
 
-    Test fun testManyChromosomes() {
+    @Test fun testManyChromosomes() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   0.4242\n" +
@@ -267,7 +267,7 @@ public class WigParserTest {
         testWigSection(input)
     }
 
-    Test fun testNoReuseDifferentChromosomes() {
+    @Test fun testNoReuseDifferentChromosomes() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471    0.4242\n" +
@@ -280,7 +280,7 @@ public class WigParserTest {
         assertEquals("chr2", tracks[1].first)
     }
 
-    Test fun testNoReuseSameChromosome() {
+    @Test fun testNoReuseSameChromosome() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471    0.4242\n" +
@@ -293,7 +293,7 @@ public class WigParserTest {
         assertEquals("chr1", tracks[1].first)
     }
 
-    Test fun testQuotedValues() {
+    @Test fun testQuotedValues() {
         val input = "track type=wiggle_0 name=\"A sample track\" windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   0.4242\n" +
@@ -303,7 +303,7 @@ public class WigParserTest {
         testWigSection(input)
     }
 
-    Test fun testDoubleExp() {
+    @Test fun testDoubleExp() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   1.01e+03\n" +
@@ -331,7 +331,7 @@ public class WigParserTest {
 }
 
 public class WigPrinterTest {
-    Test fun testWriteFixedStep() {
+    @Test fun testWriteFixedStep() {
         val track = FixedStepSection("chr1", 1000500)
         track.add(42f)
         track.add(24f)
@@ -352,7 +352,7 @@ public class WigPrinterTest {
         assertEquals(track, pair.second)
     }
 
-    Test fun testWriteVariableStep() {
+    @Test fun testWriteVariableStep() {
         val track = VariableStepSection("chr1")
         track[100500] = 42f
         track[500100] = 24f

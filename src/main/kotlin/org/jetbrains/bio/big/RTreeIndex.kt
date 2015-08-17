@@ -38,13 +38,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * of the intervals contained in a block might *not* overlap the
      * `query`.
      */
-    throws(IOException::class)
+    @throws(IOException::class)
     fun findOverlappingBlocks(input: SeekableDataInput,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return findOverlappingBlocksRecursively(input, query, header.rootOffset)
     }
 
-    throws(IOException::class)
+    @throws(IOException::class)
     fun findOverlappingBlocksRecursively(input: SeekableDataInput,
                                          query: ChromosomeInterval,
                                          offset: Long): Sequence<RTreeIndexLeaf> {
@@ -98,7 +98,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ACE0
 
-            throws(IOException::class)
+            @throws(IOException::class)
             fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
                 seek(offset)
                 guess(MAGIC)

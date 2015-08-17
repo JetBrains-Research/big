@@ -12,7 +12,7 @@ import kotlin.platform.platformStatic
 /**
  * Just like BED only BIGGER.
  */
-public class BigBedFile throws(IOException::class) protected constructor(path: Path) :
+public class BigBedFile @throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
@@ -81,7 +81,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
         /** Magic number used for determining [ByteOrder]. */
         val MAGIC: Int = 0x8789F2EB.toInt()
 
-        throws(IOException::class)
+        @throws(IOException::class)
         public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
 
         /**
@@ -98,9 +98,9 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
          * @param compressed compress BigBED data sections with gzip.
          *                   Defaults to `false`.
          * @param order byte order used, see [java.nio.ByteOrder].
-         * @throws IOException if any of the read or write operations failed.
+         * @@throws IOException if any of the read or write operations failed.
          */
-        throws(IOException::class)
+        @throws(IOException::class)
         public platformStatic fun write(bedEntries: Iterable<BedEntry>,
                                         chromSizesPath: Path,
                                         outputPath: Path,

@@ -14,7 +14,7 @@ class BedFile(private val path: Path) : Iterable<BedEntry> {
     }.iterator()
 
     companion object {
-        throws(IOException::class)
+        @throws(IOException::class)
         public platformStatic fun read(path: Path): BedFile = BedFile(path)
     }
 }

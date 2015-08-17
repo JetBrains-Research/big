@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class BigBedFileTest {
-    Test fun testWriteReadSmall() {
+    @Test fun testWriteReadSmall() {
         withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
@@ -21,13 +21,13 @@ public class BigBedFileTest {
         }
     }
 
-    Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
+    @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
+    @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
 
-    Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
+    @Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
 
-    Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
+    @Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
 
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         withTempFile("example1", ".bb") { path ->
@@ -41,9 +41,9 @@ public class BigBedFileTest {
         }
     }
 
-    Test fun testQueryCompressed() = testQuery(Examples["example1-compressed.bb"])
+    @Test fun testQueryCompressed() = testQuery(Examples["example1-compressed.bb"])
 
-    Test fun testQueryUncompressed() = testQuery(Examples["example1.bb"])
+    @Test fun testQueryUncompressed() = testQuery(Examples["example1.bb"])
 
     private fun testQuery(path: Path) {
         val items = BedFile.read(Examples["example1.bed"]).toList()
@@ -84,7 +84,7 @@ public class BigBedFileTest {
         assertEquals(expected, actual, message = query.toString())
     }
 
-    Test fun testAggregate() {
+    @Test fun testAggregate() {
         assertEquals(emptyList<BedEntry>(), emptySequence<BedEntry>().aggregate())
         assertEquals(listOf(BedEntry("chr1", 0, 100, "", 1, '.')),
                      sequenceOf(BedEntry("chr1", 0, 100)).aggregate())
@@ -110,7 +110,7 @@ public class BigBedFileTest {
                                 BedEntry("chr1", 200, 300)).aggregate())
     }
 
-    Test fun testSummarizeWholeFile() {
+    @Test fun testSummarizeWholeFile() {
         val bbf = BigBedFile.read(Examples["example1.bb"])
         val name = bbf.chromosomes.valueCollection().first()
         val (expected) = bbf.summarize(name, 0, 0, numBins = 1, index = false)
@@ -123,7 +123,7 @@ public class BigBedFileTest {
         assertTrue(summary.sum >= expected.sum)
     }
 
-    Test fun testSummarizeNoOverlapsTwoBins() {
+    @Test fun testSummarizeNoOverlapsTwoBins() {
         var startOffset = RANDOM.nextInt(1000000)
         val bedEntries = (0..(2 pow 16)).asSequence().map {
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
@@ -135,7 +135,7 @@ public class BigBedFileTest {
         testSummarize(bedEntries, numBins = 2)
     }
 
-    Test fun testSummarizeFourBins() {
+    @Test fun testSummarizeFourBins() {
         val bedEntries = (0..(2 pow 16)).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
@@ -146,7 +146,7 @@ public class BigBedFileTest {
         testSummarize(bedEntries, numBins = 4)
     }
 
-    Test fun testSummarizeManyBins() {
+    @Test fun testSummarizeManyBins() {
         val bedEntries = (0..(2 pow 16)).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1

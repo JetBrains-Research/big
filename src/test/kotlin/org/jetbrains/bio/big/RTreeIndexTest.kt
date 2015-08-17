@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 public class RTreeIndexTest {
-    Test fun testReadHeader() {
+    @Test fun testReadHeader() {
         exampleFile.use { bbf ->
             val rti = bbf.rTree
             assertEquals(1024, rti.header.blockSize)
@@ -24,7 +24,7 @@ public class RTreeIndexTest {
         }
     }
 
-    Test fun testFindOverlappingBlocks() {
+    @Test fun testFindOverlappingBlocks() {
         exampleFile.use { bbf ->
             val rti = bbf.rTree
             val items = exampleItems

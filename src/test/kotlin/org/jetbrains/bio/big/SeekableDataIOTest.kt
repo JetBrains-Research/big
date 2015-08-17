@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
 public class SeekableDataIOTest(private val order: ByteOrder) {
-    Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
+    @Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
         val b = r.nextByte()
         val s = r.nextInt(Short.MAX_VALUE.toInt())
         val i = r.nextInt()
@@ -36,7 +36,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
-    Test fun testWriteReadFloating() = withTempFileRandomized() { path, r ->
+    @Test fun testWriteReadFloating() = withTempFileRandomized() { path, r ->
         val f = r.nextFloat()
         val d = r.nextDouble()
         CountingDataOutput.of(path, order).use {
@@ -49,7 +49,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
-    Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
+    @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.join("")
         val c = r.nextInt(64) + 32
         CountingDataOutput.of(path, order).use {
@@ -71,7 +71,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
-    Test fun testSeekTell() = withTempFileRandomized { path, r ->
+    @Test fun testSeekTell() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
         CountingDataOutput.of(path, order).use { output ->
             b.forEach { output.writeByte(it.toInt()) }
@@ -85,7 +85,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
-    Test fun testCompression() = withTempFileRandomized { path, r ->
+    @Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
         val size = CountingDataOutput.of(path, order).use {
             it.with(compressed = true) {
