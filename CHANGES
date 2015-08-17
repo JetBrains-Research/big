@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.1.4
 -------------
 
-Bugfix release
+Bugfix release, released on August 17th 2015
 
 - Added total summary block which is required for version>=4
 - Changed 'Big*.write' to skip empty chromosomes when pre-computing
