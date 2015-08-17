@@ -127,7 +127,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         }
 
         throws(IOException::class)
-        public fun write(output: SeekableDataOutput,
+        public fun write(output: CountingDataOutput,
                          leaves: List<RTreeIndexLeaf>,
                          blockSize: Int = 256,
                          itemsPerSlot: Int = 512): Unit {

@@ -123,7 +123,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
-            SeekableDataOutput.of(outputPath, order).use { output ->
+            val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
@@ -159,7 +159,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
 
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = 1)
-                val header = BigFile.Header(
+                BigFile.Header(
                         output.order, MAGIC, zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
@@ -167,9 +167,9 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                         fieldCount = 0, definedFieldCount = 0,
                         totalSummaryOffset = totalSummaryOffset,
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
-                header.write(output)
             }
 
+            CountingDataOutput.of(outputPath, order).use { header.write(it) }
             BigFile.Post.zoom(outputPath)
             BigFile.Post.totalSummary(outputPath)
         }

@@ -115,7 +115,7 @@ public class BPlusTreeTest {
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
         withTempFile("bpt", ".bb") { path ->
-            SeekableDataOutput.of(path).use { output ->
+            CountingDataOutput.of(path).use { output ->
                 BPlusTree.write(output, items, blockSize)
             }
 

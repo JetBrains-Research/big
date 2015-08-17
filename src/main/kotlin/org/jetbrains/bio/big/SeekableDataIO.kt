@@ -5,6 +5,7 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.*
 import java.nio.ByteOrder
+import java.nio.channels.Channels
 import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.Inflater
@@ -221,7 +222,7 @@ public interface OrderedDataOutput {
         }
     }
 
-    fun writeLong(v: Long): Unit {
+    fun writeLong(v: Long) {
         val b = Longs.toByteArray(v)
         if (order == ByteOrder.BIG_ENDIAN) {
             writeByte(b[0].toInt())
@@ -246,43 +247,62 @@ public interface OrderedDataOutput {
 
     fun writeFloat(v: Float) = writeInt(java.lang.Float.floatToIntBits(v))
 
-    fun writeDouble(v: Double): Unit = writeLong(java.lang.Double.doubleToLongBits(v))
+    fun writeDouble(v: Double) = writeLong(java.lang.Double.doubleToLongBits(v))
 }
 
-public open class SeekableDataOutput(private val file: RandomAccessFile,
+public open class CountingDataOutput(private val output: OutputStream,
+                                     private var offset: Long,
                                      public override val order: ByteOrder)
 :
         OrderedDataOutput, Closeable, AutoCloseable {
 
-    /** Executes a `block` on a fixed-size possibly compressed input. */
-    public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
-        val offset = tell()
-        val output = ByteArrayOutputStream()
-        with(ByteArrayDataOutput(output, order), block)
-        val data = output.toByteArray()
-        file.write(if (compressed) data.compress() else data)
-        return (tell() - offset).toInt()
+    private fun ack(size: Int) {
+        offset += size
     }
 
-    override fun writeBytes(s: String) = file.writeBytes(s)
+    /** Executes a `block` on a fixed-size possibly compressed input. */
+    public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
+        val memory = ByteArrayOutputStream()
+        with(ByteArrayDataOutput(memory, order), block)
 
-    override fun writeByte(v: Int) = file.writeByte(v)
+        val data = memory.toByteArray()
+                .let { if (compressed) it.compress() else it }
+        output.write(data)
+        ack(data.size())
+        return data.size()
+    }
 
-    public fun seek(pos: Long): Unit = file.seek(pos)
+    override fun writeBytes(s: String) {
+        for (ch in s) {
+            output.write(ch.toInt())
+        }
 
-    public fun tell(): Long = file.getFilePointer()
+        ack(s.length())
+    }
 
-    override fun close() = file.close()
+    override fun writeByte(v: Int) {
+        output.write(v)
+        ack(1)
+    }
+
+    public fun tell(): Long = offset
+
+    override fun close() = output.close()
 
     companion object {
         public fun of(path: Path,
-                      order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataOutput {
-            return SeekableDataOutput(RandomAccessFile(path.toFile(), "rw"), order)
+                      order: ByteOrder = ByteOrder.nativeOrder(),
+                      offset: Long = 0): CountingDataOutput {
+            val file = RandomAccessFile(path.toFile(), "rw")
+            file.seek(offset)
+            val channel = file.getChannel()
+            val output = BufferedOutputStream(Channels.newOutputStream(channel))
+            return CountingDataOutput(output, offset, order)
         }
     }
 }
 
-private class ByteArrayDataOutput(private val data: ByteArrayOutputStream,
+private class ByteArrayDataOutput(data: ByteArrayOutputStream,
                                   public override val order: ByteOrder)
 :
         OrderedDataOutput {

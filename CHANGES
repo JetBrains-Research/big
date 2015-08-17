@@ -3,6 +3,12 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.1.5
+-------------
+
+- Enabled buffering in 'SeekableDataOutput'
+
+
 Version 0.1.4
 -------------
 

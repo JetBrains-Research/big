@@ -18,7 +18,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         val s = r.nextInt(Short.MAX_VALUE.toInt())
         val i = r.nextInt()
         val l = r.nextLong()
-        SeekableDataOutput.of(path, order).use {
+        CountingDataOutput.of(path, order).use {
             it.writeByte(b.toInt())
             it.writeByte(Math.abs(b.toInt()))
             it.writeShort(s)
@@ -39,7 +39,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
     Test fun testWriteReadFloating() = withTempFileRandomized() { path, r ->
         val f = r.nextFloat()
         val d = r.nextDouble()
-        SeekableDataOutput.of(path, order).use {
+        CountingDataOutput.of(path, order).use {
             it.writeFloat(f)
             it.writeDouble(d)
         }
@@ -52,7 +52,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
     Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.join("")
         val c = r.nextInt(64) + 32
-        SeekableDataOutput.of(path, order).use {
+        CountingDataOutput.of(path, order).use {
             it.writeBytes(s)
             it.writeBytes(s, s.length() + 8)
             it.skipBytes(c, 16)
@@ -73,7 +73,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
 
     Test fun testSeekTell() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
-        SeekableDataOutput.of(path, order).use { output ->
+        CountingDataOutput.of(path, order).use { output ->
             b.forEach { output.writeByte(it.toInt()) }
         }
         SeekableDataInput.of(path, order).use {
@@ -87,7 +87,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
 
     Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
-        val size = SeekableDataOutput.of(path, order).use {
+        val size = CountingDataOutput.of(path, order).use {
             it.with(compressed = true) {
                 b.forEach { writeByte(it.toInt()) }
             }

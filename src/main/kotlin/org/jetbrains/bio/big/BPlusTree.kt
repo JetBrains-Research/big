@@ -132,7 +132,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x78CA8C91
 
-            throws(IOException::class)
             fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
                 seek(offset)
                 guess(MAGIC)
@@ -154,8 +153,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
     companion object {
         private val LOG = LogManager.getLogger(javaClass)
 
-        throws(IOException::class)
-        public platformStatic fun read(input: SeekableDataInput, offset: Long): BPlusTree {
+        fun read(input: SeekableDataInput, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
         }
 
@@ -181,8 +179,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
          */
         fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
 
-        throws(IOException::class)
-        fun write(output: SeekableDataOutput, unsortedItems: List<BPlusLeaf>,
+        fun write(output: CountingDataOutput, unsortedItems: List<BPlusLeaf>,
                   blockSize: Int = 256) {
             require(unsortedItems.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
