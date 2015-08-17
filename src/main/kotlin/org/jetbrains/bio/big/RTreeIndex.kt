@@ -1,11 +1,12 @@
 package org.jetbrains.bio.big
 
-import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
+import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
+import java.util.ArrayList
 import java.util.Collections
 
 /**
@@ -148,7 +149,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             header.write(output)
 
             // HEAVY COMPUTER SCIENCE CALCULATION!
-            val bytesInNodeHeader = 1 + 1 + com.google.common.primitives.Shorts.BYTES
+            val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
             val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
             val bytesInIndexBlock = bytesInNodeHeader + blockSize * bytesInIndexSlot
             val bytesInLeafSlot = Ints.BYTES * 4 + Longs.BYTES * 2
@@ -202,12 +203,15 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             var intervals: List<Interval> = leaves.map { it.interval }
             val levels = arrayListOf(intervals)
             while (intervals.size() > 1) {
-                val level = java.util.ArrayList<Interval>(intervals.size() / blockSize)
-                for (i in 0 until intervals.size() step blockSize) {
+                // Pick the step size s.t. the total number of nodes on
+                // each level is at most 'blockSize'.
+                val by = intervals.size() divCeiling blockSize
+                val level = ArrayList<Interval>(blockSize)
+                for (i in 0 until intervals.size() step by) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
-                    val links = intervals.subList(i, Math.min(intervals.size(), i + blockSize))
+                    val links = intervals.subList(i, Math.min(intervals.size(), i + by))
                     level.add(links.reduce(Interval::union))
                 }
 
