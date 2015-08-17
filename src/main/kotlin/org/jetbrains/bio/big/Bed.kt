@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.collect.ComparisonChain
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -35,12 +36,17 @@ public data class BedEntry(
         /** + or – or . for unknown. */
         public val strand: Char,
         /** Comma-separated string of additional BED values. */
-        public val rest: String = "") {
+        public val rest: String = "") : Comparable<BedEntry> {
 
     init {
         require(score >= 0 && score <= 1000)
         require(strand == '+' || strand == '-' || strand == '.')
     }
+
+    override fun compareTo(other: BedEntry): Int = ComparisonChain.start()
+            .compare(chrom, other.chrom)
+            .compare(start, other.start)
+            .result()
 
     companion object {
         public fun invoke(chrom: String, start: Int, end: Int,

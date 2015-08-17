@@ -170,6 +170,7 @@ public interface OrderedDataOutput {
     public val order: ByteOrder
 
     fun skipBytes(v: Int, count: Int) {
+        assert(count >= 0, "count must be >=0")
         for (i in 0 until count) {
             writeByte(v)
         }
@@ -198,8 +199,6 @@ public interface OrderedDataOutput {
     }
 
     public fun writeUnsignedShort(v: Int) {
-        // Remove me after we've done debugging.
-        assert(v >= 0 && v < IntMath.pow(2, java.lang.Short.SIZE))
         val b = Ints.toByteArray(v)
         if (order == ByteOrder.BIG_ENDIAN) {
             writeByte(b[2].toInt())

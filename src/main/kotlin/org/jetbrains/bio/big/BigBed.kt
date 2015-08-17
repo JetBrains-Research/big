@@ -109,6 +109,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
+            val groupedEntries = bedEntries.sort().groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
@@ -123,10 +124,7 @@ public class BigBedFile throws(IOException::class) protected constructor(path: P
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                bedEntries.groupBy { it.chrom }.forEach { entry ->
-                    val (name, items) = entry
-                    Collections.sort(items) { e1, e2 -> Ints.compare(e1.start, e2.start) }
-
+                for ((name, items) in groupedEntries) {
                     val chromIx = resolver[name]!!
                     for (i in 0 until items.size() step itemsPerSlot) {
                         val dataOffset = output.tell()

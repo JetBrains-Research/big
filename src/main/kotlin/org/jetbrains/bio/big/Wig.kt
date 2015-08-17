@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.base.MoreObjects
+import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Iterators
 import com.google.common.collect.PeekingIterator
 import com.google.common.collect.UnmodifiableIterator
@@ -187,7 +188,7 @@ public class WigPrinter jvmOverloads constructor(
 }
 
 
-public interface WigSection {
+public interface WigSection : Comparable<WigSection> {
     val chrom: String
 
     /**
@@ -221,6 +222,11 @@ public interface WigSection {
     fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
     public fun size(): Int
+
+    override fun compareTo(other: WigSection): Int = ComparisonChain.start()
+            .compare(chrom, other.chrom)
+            .compare(start, other.start)
+            .result()
 
     public enum class Type() {
         BED_GRAPH,

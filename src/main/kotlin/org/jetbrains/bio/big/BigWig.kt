@@ -123,6 +123,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
+            val groupedSections = wigSections.sort().groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
@@ -137,10 +138,7 @@ public class BigWigFile throws(IOException::class) protected constructor(path: P
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = Lists.newArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                wigSections.groupBy { it.chrom }.forEach { entry ->
-                    val (name, sections) = entry
-                    Collections.sort(sections) { e1, e2 -> Ints.compare(e1.start, e2.start) }
-
+                for ((name, sections) in groupedSections) {
                     val chromId = resolver[name]!!
                     for (section in sections.asSequence().flatMap { it.splice() }) {
                         val dataOffset = output.tell()

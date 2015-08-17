@@ -287,7 +287,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     /** Ad hoc post-processing for [BigFile]. */
-    object Post {
+    protected object Post {
         private inline fun modify(path: Path, offset: Long = 0L,
                                   block: (BigFile<*>, CountingDataOutput) -> Unit) {
             val bf = read(path)
