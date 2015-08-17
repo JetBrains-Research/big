@@ -202,7 +202,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                             blockSize: Int): List<List<Interval>> {
             var intervals: List<Interval> = leaves.map { it.interval }
             val levels = arrayListOf(intervals)
-            while (intervals.size() > 1) {
+            while (intervals.size() > blockSize) {
                 // Pick the step size s.t. the total number of nodes on
                 // each level is at most 'blockSize'.
                 val by = intervals.size() divCeiling blockSize

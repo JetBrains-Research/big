@@ -1,11 +1,9 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.Lists
-import com.google.common.primitives.Ints
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.Collections
 import kotlin.platform.platformStatic
 
 /**

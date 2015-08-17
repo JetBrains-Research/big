@@ -1,6 +1,5 @@
 package org.jetbrains.bio.big
 
-import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
