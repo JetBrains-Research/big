@@ -309,49 +309,25 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * bytes right after the header.
          *
          * @param path to [BigFile].
+         * @param itemsPerSlot number of summaries to aggregate prior to
+         *                     building an R+ tree. See [RTreeIndex] for
+         *                     details.
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `step^2`, next `step^3` etc.
          */
-        fun zoom(path: Path, step: Int = 8) {
+        fun zoom(path: Path, itemsPerSlot: Int, step: Int = 8) {
             val zoomLevels = ArrayList<ZoomLevel>()
             modify(path, offset = Files.size(path)) { bf, output ->
-                val zoomLevelCount = bf.zoomLevels.size()
-                val chromosomes = bf.bPlusTree.traverse(bf.input).toList()
-
                 var reduction = step * step
-                for (level in 0 until zoomLevelCount) {
-                    val leaves = ArrayList<RTreeIndexLeaf>()
-                    val zoomedDataOffset = output.tell()
-                    var nonEmpty = true
-                    for ((name, chromIx, size) in chromosomes) {
-                        val numBins = size divCeiling reduction
-                        val query = Interval(chromIx, 0, size)
-                        val dataOffset = output.tell()
-                        var itemCount = 0
-                        val dataSize = output.with(bf.compressed) {
-                            for ((i, summary) in bf.summarizeInternal(query, numBins)) {
-                                val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
-                                (bin to summary).toZoomData().write(this)
-                                itemCount++
-                            }
-                        }
-
-                        // Currently we do a single R+ tree leaf per chromosome,
-                        // which is far from optimal.
-                        nonEmpty = nonEmpty && itemCount > 0
-                        if (itemCount > 0) {
-                            leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
-                        }
-                    }
-
-                    if (nonEmpty) {
-                        val zoomedIndexOffset = output.tell()
-                        RTreeIndex.write(output, leaves)
-                        zoomLevels.add(ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset))
-                        reduction *= step
+                for (level in 0 until bf.zoomLevels.size()) {
+                    val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
+                    if (zoomLevel == null) {
+                        break
                     } else {
-                        break  // no need for trivial zoom levels.
+                        zoomLevels.add(zoomLevel)
                     }
+
+                    reduction *= step
                 }
             }
 
@@ -361,6 +337,36 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                     zoomLevel.write(output)
                     assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
                 }
+            }
+        }
+
+        private fun Int.zoomAt(bf: BigFile<*>, output: CountingDataOutput,
+                               itemsPerSlot: Int): ZoomLevel? {
+            val reduction = this
+            val zoomedDataOffset = output.tell()
+            val leaves = ArrayList<RTreeIndexLeaf>()
+            for ((name, chromIx, size) in bf.bPlusTree.traverse(bf.input)) {
+                val query = Interval(chromIx, 0, size)
+                val summaries = bf.summarizeInternal(query, numBins = size divCeiling reduction)
+                for (slot in summaries.partition(itemsPerSlot)) {
+                    val dataOffset = output.tell()
+                    val dataSize = output.with(bf.compressed) {
+                        for ((i, summary) in slot) {
+                            val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
+                            (bin to summary).toZoomData().write(this)
+                        }
+                    }
+
+                    leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
+                }
+            }
+
+            return if (leaves.size() > 1) {
+                val zoomedIndexOffset = output.tell()
+                RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
+                ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset)
+            } else {
+                null  // no need for trivial zoom levels.
             }
         }
 

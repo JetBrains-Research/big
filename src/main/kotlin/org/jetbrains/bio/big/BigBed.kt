@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
+import com.google.common.collect.Iterators
 import com.google.common.collect.Lists
 import java.io.IOException
 import java.nio.ByteOrder
@@ -130,8 +131,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                         val start = items[i].start
                         var end = 0
                         val current = output.with(compressed) {
-                            val slotSize = Math.min(items.size() - i, itemsPerSlot)
-                            for (j in 0 until slotSize) {
+                            for (j in 0 until Math.min(items.size() - i, itemsPerSlot)) {
                                 val item = items[i + j]
                                 writeInt(chromIx)
                                 writeInt(item.start)
@@ -164,7 +164,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
             }
 
             CountingDataOutput.of(outputPath, order).use { header.write(it) }
-            BigFile.Post.zoom(outputPath)
+            BigFile.Post.zoom(outputPath, itemsPerSlot)
             BigFile.Post.totalSummary(outputPath)
         }
     }

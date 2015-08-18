@@ -169,7 +169,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
             }
 
             CountingDataOutput.of(outputPath, order).use { header.write(it) }
-            BigFile.Post.zoom(outputPath)
+            BigFile.Post.zoom(outputPath, itemsPerSlot = 512)
             BigFile.Post.totalSummary(outputPath)
         }
     }

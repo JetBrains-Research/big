@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
+import com.google.common.collect.Iterators
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
 import java.io.BufferedReader
@@ -69,6 +70,16 @@ fun Path.chromosomes(): List<BPlusLeaf> {
         val chunks = line.split('\t', limit = 3)
         BPlusLeaf(chunks[0], i, chunks[1].toInt())
     }.toList()
+}
+
+fun Sequence<T>.partition<T>(n: Int): Sequence<Iterable<T>> {
+    require(n > 0, "n must be >0")
+    val that = this
+    return object : Sequence<Iterable<T>> {
+        override fun iterator(): Iterator<Iterable<T>> {
+            return Iterators.partition(that.iterator(), n)
+        }
+    }
 }
 
 /**
