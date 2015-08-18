@@ -130,9 +130,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             require(leaves.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
 
-            LOG.debug("Creating R+ tree for ${leaves.size()} items " +
-                      "($blockSize slots/node, $itemsPerSlot items/slot)")
-
             val leftmost = leaves.first().interval.left
             var rightmost = leaves.last().interval.right
 
@@ -143,6 +140,9 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                                 output.tell(), itemsPerSlot,
                                 output.tell() + Header.BYTES)
             header.write(output)
+
+            LOG.debug("Creating R+ tree for ${leaves.size()} items " +
+                      "($blockSize slots/node, $itemsPerSlot items/slot)")
 
             // HEAVY COMPUTER SCIENCE CALCULATION!
             val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
@@ -174,7 +174,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     }
                 }
 
-                LOG.debug("Wrote ${level.size()} items at level $d (offset: $levelOffset)")
+                LOG.debug("Wrote ${level.size()} nodes at level $d (offset: $levelOffset)")
             }
 
             val levelOffset = output.tell()
@@ -193,7 +193,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 }
             }
 
-            LOG.debug("Wrote ${leaves.size()} items at level ${levels.size()} " +
+            LOG.debug("Wrote ${leaves.size()} leaves at level ${levels.size()} " +
                       "(offset: $levelOffset)")
             LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }

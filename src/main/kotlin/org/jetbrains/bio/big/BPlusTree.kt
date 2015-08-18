@@ -183,9 +183,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
             require(unsortedItems.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
 
-            LOG.debug("Creating a B+ tree for ${unsortedItems.size()} items " +
-                      "($blockSize slots)")
-
             val items = unsortedItems.sortBy { it.key }
             val itemCount = items.size()
             val keySize = items.map { it.key.length() }.max()!!
@@ -193,7 +190,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
             val header = Header(output.order, blockSize, keySize, itemCount,
                                 output.tell() + Header.BYTES)
             header.write(output)
-            var indexOffset = header.rootOffset
+
+            LOG.debug("Creating a B+ tree for $itemCount items ($blockSize slots/node)")
 
             // HEAVY COMPUTER SCIENCE CALCULATION!
             val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
@@ -204,16 +202,16 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
             // Write B+ tree levels top to bottom.
             val levels = countLevels(blockSize, items.size())
-            for (level in levels - 1 downTo 1) {
-                val itemsPerSlot = blockSize pow level
+            for (d in levels - 1 downTo 1) {
+                val levelOffset = output.tell()
+                val itemsPerSlot = blockSize pow d
                 val itemsPerNode = itemsPerSlot * blockSize
                 val nodeCount = itemCount divCeiling itemsPerNode
 
                 val bytesInCurrentLevel = nodeCount * bytesInIndexBlock
                 val bytesInNextLevelBlock =
-                        if (level == 1) bytesInLeafBlock else bytesInIndexBlock
-                indexOffset += bytesInCurrentLevel
-                var nextChild = indexOffset
+                        if (d == 1) bytesInLeafBlock else bytesInIndexBlock
+                var childOffset = levelOffset + bytesInCurrentLevel
                 for (i in 0 until itemCount step itemsPerNode) {
                     val childCount = Math.min((itemCount - i) divCeiling itemsPerSlot, blockSize)
                     with (output) {
@@ -221,19 +219,20 @@ public class BPlusTree(val header: BPlusTree.Header) {
                         writeByte(0)         // reserved.
                         writeUnsignedShort(childCount)
                         for (j in 0 until Math.min(itemsPerNode, itemCount - i) step itemsPerSlot) {
-                            BPlusNode(items[i + j].key, nextChild)
+                            BPlusNode(items[i + j].key, childOffset)
                                     .write(output, keySize)
-                            nextChild += bytesInNextLevelBlock
+                            childOffset += bytesInNextLevelBlock
                         }
 
                         skipBytes(0, bytesInIndexSlot * (blockSize - childCount))
                     }
                 }
 
-                LOG.debug("Wrote $itemsPerSlot items at level $level")
+                LOG.debug("Wrote $nodeCount nodes at level $d (offset: $levelOffset)")
             }
 
             // Now just write the leaves.
+            val levelOffset = output.tell()
             for (i in 0 until itemCount step blockSize) {
                 val leafCount = Math.min(itemCount - i, blockSize)
                 with(output) {
@@ -248,6 +247,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 }
             }
 
+            LOG.debug("Wrote ${items.size()} leaves at level $levels " +
+                      "(offset: $levelOffset)")
             LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
         }
     }
