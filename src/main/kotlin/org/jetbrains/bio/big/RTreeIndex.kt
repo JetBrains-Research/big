@@ -156,8 +156,8 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                         if (d == levels.size() - 1) bytesInLeafBlock else bytesInCurrentBlock
 
                 val levelOffset = output.tell()
-                var childOffset = levelOffset +
-                                  bytesInCurrentBlock * (level.size() divCeiling blockSize)
+                val nodeCount = level.size() divCeiling blockSize
+                var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
                 for (i in 0 until level.size() step blockSize) {
                     val childCount = Math.min(blockSize, level.size() - i)
                     with(output) {
@@ -174,7 +174,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     }
                 }
 
-                LOG.debug("Wrote ${level.size()} nodes at level $d (offset: $levelOffset)")
+                LOG.trace("Wrote ${level.size()} slots at level $d (offset: $levelOffset)")
             }
 
             val levelOffset = output.tell()
@@ -193,7 +193,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 }
             }
 
-            LOG.debug("Wrote ${leaves.size()} leaves at level ${levels.size()} " +
+            LOG.trace("Wrote ${leaves.size()} slots at level ${levels.size()} " +
                       "(offset: $levelOffset)")
             LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }

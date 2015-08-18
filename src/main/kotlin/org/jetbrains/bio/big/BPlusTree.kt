@@ -9,7 +9,6 @@ import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
-import kotlin.platform.platformStatic
 
 /**
  * A B+ tree mapping chromosome names to (id, size) pairs.
@@ -228,7 +227,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                     }
                 }
 
-                LOG.debug("Wrote $nodeCount nodes at level $d (offset: $levelOffset)")
+                LOG.trace("Wrote $nodeCount nodes at level $d (offset: $levelOffset)")
             }
 
             // Now just write the leaves.
@@ -247,7 +246,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 }
             }
 
-            LOG.debug("Wrote ${items.size()} leaves at level $levels " +
+            LOG.trace("Wrote ${items.size()} leaves at level $levels " +
                       "(offset: $levelOffset)")
             LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
         }

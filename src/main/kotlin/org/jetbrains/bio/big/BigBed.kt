@@ -1,7 +1,6 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
-import com.google.common.collect.Iterators
 import com.google.common.collect.Lists
 import java.io.IOException
 import java.nio.ByteOrder

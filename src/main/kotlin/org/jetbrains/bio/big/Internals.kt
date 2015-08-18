@@ -1,9 +1,11 @@
 package org.jetbrains.bio.big
 
+import com.google.common.base.Stopwatch
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Iterators
 import com.google.common.collect.Ordering
 import com.google.common.math.IntMath
+import org.apache.log4j.Logger
 import java.io.BufferedReader
 import java.math.RoundingMode
 import java.nio.file.Files
@@ -80,6 +82,14 @@ fun Sequence<T>.partition<T>(n: Int): Sequence<Iterable<T>> {
             return Iterators.partition(that.iterator(), n)
         }
     }
+}
+
+inline fun Logger.time(message: String, block: () -> Unit) {
+    debug(message)
+    val stopwatch = Stopwatch.createStarted()
+    block()
+    stopwatch.stop()
+    debug("Done in $stopwatch")
 }
 
 /**

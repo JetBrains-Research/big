@@ -3,6 +3,7 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import gnu.trove.map.TIntObjectMap
+import org.apache.log4j.LogManager
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -288,6 +289,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     /** Ad hoc post-processing for [BigFile]. */
     protected object Post {
+        private val LOG = LogManager.getLogger(javaClass)
+
         private inline fun modify(path: Path, offset: Long = 0L,
                                   block: (BigFile<*>, CountingDataOutput) -> Unit) {
             val bf = read(path)
@@ -316,26 +319,30 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          *             will be `step^2`, next `step^3` etc.
          */
         fun zoom(path: Path, itemsPerSlot: Int, step: Int = 8) {
-            val zoomLevels = ArrayList<ZoomLevel>()
-            modify(path, offset = Files.size(path)) { bf, output ->
-                var reduction = step * step
-                for (level in 0 until bf.zoomLevels.size()) {
-                    val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
-                    if (zoomLevel == null) {
-                        break
-                    } else {
-                        zoomLevels.add(zoomLevel)
+            LOG.time("Computing zoom levels with step $step for $path") {
+                val zoomLevels = ArrayList<ZoomLevel>()
+                modify(path, offset = Files.size(path)) { bf, output ->
+                    var reduction = step * step
+                    for (level in 0 until bf.zoomLevels.size()) {
+                        val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
+                        if (zoomLevel == null) {
+                            LOG.trace("${reduction}x reduction rejected")
+                            break
+                        } else {
+                            LOG.trace("${reduction}x reduction accepted")
+                            zoomLevels.add(zoomLevel)
+                        }
+
+                        reduction *= step
                     }
-
-                    reduction *= step
                 }
-            }
 
-            modify(path, offset = Header.BYTES.toLong()) { bf, output ->
-                for (zoomLevel in zoomLevels) {
-                    val zoomHeaderOffset = output.tell()
-                    zoomLevel.write(output)
-                    assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
+                modify(path, offset = Header.BYTES.toLong()) { bf, output ->
+                    for (zoomLevel in zoomLevels) {
+                        val zoomHeaderOffset = output.tell()
+                        zoomLevel.write(output)
+                        assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
+                    }
                 }
             }
         }
@@ -381,12 +388,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 it.header.totalSummaryOffset
             }
 
-            modify(path, offset = totalSummaryOffset) { bf, output ->
-                bf.chromosomes.valueCollection()
-                        .flatMap { bf.summarize(it, 0, 0, numBins = 1) }
-                        .reduceRight { a, b -> a + b }
-                        .write(output)
-                assert((output.tell() - totalSummaryOffset).toInt() == BigSummary.BYTES)
+            LOG.time("Computing total summary block for $path") {
+                modify(path, offset = totalSummaryOffset) { bf, output ->
+                    bf.chromosomes.valueCollection()
+                            .flatMap { bf.summarize(it, 0, 0, numBins = 1) }
+                            .reduceRight { a, b -> a + b }
+                            .write(output)
+                    assert((output.tell() - totalSummaryOffset).toInt() == BigSummary.BYTES)
+                }
             }
         }
     }
