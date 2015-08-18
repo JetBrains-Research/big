@@ -120,9 +120,8 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         val RANDOM: Random = Random()  // private causes compiler crash.
 
         @Parameters(name = "{0}")
-        platformStatic fun data(): Collection<Array<ByteOrder>> {
-            return listOf(arrayOf(ByteOrder.BIG_ENDIAN),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN))
+        platformStatic fun data(): Iterable<ByteOrder> {
+            return listOf(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
         }
     }
 }

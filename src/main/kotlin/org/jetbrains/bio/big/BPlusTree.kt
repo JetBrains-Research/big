@@ -116,7 +116,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
                  val itemCount: Int, val rootOffset: Long) {
         val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 
-        @throws(IOException::class)
         fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)

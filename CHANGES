@@ -7,8 +7,8 @@ Version 0.1.5
 -------------
 
 - Enabled buffering in 'SeekableDataOutput'.
-- Fixed a bug in 'RTreeIndex.compute' which sometimes allowed levels
-  to be larger than 'blockSize'.
+- Fixed a bug in 'RTreeIndex.write' which sometimes produced invalid
+  offsets for internal R+ tree nodes.
 
 
 Version 0.1.4

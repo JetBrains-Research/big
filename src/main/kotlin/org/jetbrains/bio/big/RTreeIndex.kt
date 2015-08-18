@@ -25,8 +25,8 @@ import java.util.Collections
  *
  * The Big format applies a simple trick to optimize tree height.
  * Prior to building the tree the intervals are combined into
- * super-intervals of size `itemsPerSlot`. The R+ tree is then built
- * over these super-intervals.
+ * super-intervals (aka slots) of size `itemsPerSlot`. The R+ tree
+ * is then built over these slots.
  *
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
@@ -38,13 +38,11 @@ class RTreeIndex(val header: RTreeIndex.Header) {
      * of the intervals contained in a block might *not* overlap the
      * `query`.
      */
-    @throws(IOException::class)
     fun findOverlappingBlocks(input: SeekableDataInput,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return findOverlappingBlocksRecursively(input, query, header.rootOffset)
     }
 
-    @throws(IOException::class)
     fun findOverlappingBlocksRecursively(input: SeekableDataInput,
                                          query: ChromosomeInterval,
                                          offset: Long): Sequence<RTreeIndexLeaf> {
@@ -98,7 +96,6 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ACE0
 
-            @throws(IOException::class)
             fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
                 seek(offset)
                 guess(MAGIC)
@@ -135,7 +132,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             require(blockSize > 1, "blockSize must be >1")
 
             LOG.debug("Creating R+ tree for ${leaves.size()} items " +
-                      "($blockSize slots with $itemsPerSlot items/slot)")
+                      "($blockSize slots/node, $itemsPerSlot items/slot)")
 
             val leftmost = leaves.first().interval.left
             var rightmost = leaves.last().interval.right
@@ -150,51 +147,55 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 
             // HEAVY COMPUTER SCIENCE CALCULATION!
             val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
-            val bytesInIndexSlot = Ints.BYTES * 4 + Longs.BYTES
-            val bytesInIndexBlock = bytesInNodeHeader + blockSize * bytesInIndexSlot
-            val bytesInLeafSlot = Ints.BYTES * 4 + Longs.BYTES * 2
-            val bytesInLeafBlock = bytesInNodeHeader + blockSize * bytesInLeafSlot
+            val bytesInIndexBlock = bytesInNodeHeader + blockSize * RTreeIndexNode.BYTES
+            val bytesInLeafBlock = bytesInNodeHeader + blockSize * RTreeIndexLeaf.BYTES
 
-            // Omit root because it's trivial and leaves --- we'll deal
-            // with them later.
             val levels = compute(leaves, blockSize)
-            levels.subList(1, Math.max(1, levels.size() - 1)).forEachIndexed { i, level ->
+            for ((d, level) in levels.withIndex()) {
                 val bytesInCurrentBlock = bytesInIndexBlock
                 val bytesInNextLevelBlock =
-                        if (i == levels.size() - 3) bytesInLeafBlock else bytesInCurrentBlock
-                var nextChild = output.tell() + bytesInCurrentBlock
-                val nodeCount = level.size()
-                with(output) {
-                    writeBoolean(false)  // isLeaf.
-                    writeByte(0)         // reserved.
-                    writeUnsignedShort(nodeCount)
-                    for (interval in level) {
-                        RTreeIndexNode(interval, nextChild).write(output)
-                        nextChild += bytesInNextLevelBlock
-                    }
+                        if (d == levels.size() - 1) bytesInLeafBlock else bytesInCurrentBlock
 
-                    // Write out zeroes for empty slots in node.
-                    skipBytes(0, bytesInIndexSlot * (blockSize - nodeCount))
+                val levelOffset = output.tell()
+                var childOffset = levelOffset +
+                                  bytesInCurrentBlock * (level.size() divCeiling blockSize)
+                for (i in 0 until level.size() step blockSize) {
+                    val childCount = Math.min(blockSize, level.size() - i)
+                    with(output) {
+                        writeBoolean(false)  // isLeaf.
+                        writeByte(0)         // reserved.
+                        writeUnsignedShort(childCount)
+                        for (j in 0 until childCount) {
+                            RTreeIndexNode(level[i + j], childOffset).write(this)
+                            childOffset += bytesInNextLevelBlock
+                        }
+
+                        // Write out zeroes for empty slots in node.
+                        skipBytes(0, RTreeIndexNode.BYTES * (blockSize - childCount))
+                    }
                 }
 
-                LOG.debug("Wrote ${level.size()} items at level ${i + 1}")
+                LOG.debug("Wrote ${level.size()} items at level $d (offset: $levelOffset)")
             }
 
-            with(output) {
-                for (i in 0 until leaves.size() step blockSize) {
-                    val leafCount = Math.min(blockSize, leaves.size() - i)
+            val levelOffset = output.tell()
+            for (i in 0 until leaves.size() step blockSize) {
+                val leafCount = Math.min(blockSize, leaves.size() - i)
+                with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
                     writeUnsignedShort(leafCount)
                     for (j in 0 until leafCount) {
-                        leaves[i + j].write(output)
+                        leaves[i + j].write(this)
                     }
 
                     // Write out zeroes for empty slots in node.
-                    skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
+                    skipBytes(0, RTreeIndexLeaf.BYTES * (blockSize - leafCount))
                 }
             }
 
+            LOG.debug("Wrote ${leaves.size()} items at level ${levels.size()} " +
+                      "(offset: $levelOffset)")
             LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }
 
@@ -202,16 +203,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                             blockSize: Int): List<List<Interval>> {
             var intervals: List<Interval> = leaves.map { it.interval }
             val levels = arrayListOf(intervals)
-            while (intervals.size() > blockSize) {
-                // Pick the step size s.t. the total number of nodes on
-                // each level is at most 'blockSize'.
-                val by = intervals.size() divCeiling blockSize
-                val level = ArrayList<Interval>(blockSize)
-                for (i in 0 until intervals.size() step by) {
+            while (intervals.size() > 1) {
+                val level = ArrayList<Interval>(intervals.size() divCeiling blockSize)
+                for (i in 0 until intervals.size() step blockSize) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
-                    val links = intervals.subList(i, Math.min(intervals.size(), i + by))
+                    val links = intervals.subList(i, Math.min(intervals.size(), i + blockSize))
                     level.add(links.reduce(Interval::union))
                 }
 
@@ -220,7 +218,10 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             Collections.reverse(levels)
-            return levels
+            LOG.debug("Computed ${levels.size()} levels: ${levels.map { it.size() }}")
+
+            // Omit the leaves --- we'll deal with them later.
+            return levels.subList(1, Math.max(1, levels.size() - 1))
         }
     }
 }
@@ -241,6 +242,8 @@ data class RTreeIndexLeaf(public val interval: Interval,
     }
 
     companion object {
+        val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
+
         fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
@@ -266,6 +269,8 @@ data class RTreeIndexNode(public val interval: Interval,
     }
 
     companion object {
+        val BYTES = Ints.BYTES * 4 + Longs.BYTES
+
         fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
