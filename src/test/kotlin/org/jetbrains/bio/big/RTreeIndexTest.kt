@@ -1,7 +1,6 @@
 package org.jetbrains.bio.big
 
 import org.junit.Test
-import java.nio.file.Paths
 import java.util.Random
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals

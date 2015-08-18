@@ -39,6 +39,10 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
         }.filterNotNull()
     }
 
+    private fun ChromosomeInterval.contains(pos: Int, span: Int): Boolean {
+        return Interval(chromIx, pos, pos + span) in this
+    }
+
     override fun queryInternal(dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
@@ -63,7 +67,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     for (i in 0 until count) {
                         val pos = readInt()
                         val value = readFloat()
-                        if (pos in query) {
+                        if (query.contains(pos, span)) {
                             section[pos] = value
                         }
                     }
@@ -75,14 +79,13 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     // This ensures that all WIG intervals have proper offsets
                     // and are contained in query.
                     val shift = query.startOffset % step
-                    val realignedStart
-                            = Math.max(start,
-                                       query.startOffset + if (shift == 0) 0 else (step - shift))
+                    val realignedStart = Math.max(
+                            start,
+                            query.startOffset + if (shift == 0) 0 else (step - shift))
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0 until count) {
-                        val pos = start + i * step
                         val value = readFloat()
-                        if (Interval(query.chromIx, pos, pos + span) in query) {
+                        if (query.contains(start + i * step, span)) {
                             section.add(value)
                         }
                     }

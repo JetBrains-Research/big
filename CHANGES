@@ -9,6 +9,8 @@ Version 0.1.5
 - Enabled buffering in 'SeekableDataOutput'.
 - Fixed a bug in 'RTreeIndex.write' which sometimes produced invalid
   offsets for internal R+ tree nodes.
+- 'BigWig#query' now correctly filters variable step sections in the
+  case when a section overlaps the query interval.
 
 
 Version 0.1.4
