@@ -233,13 +233,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         fun write(output: CountingDataOutput) = with(output) {
             check(output.tell() == 0L)  // a header is always first.
             writeInt(magic)
-            writeUnsignedShort(version)
-            writeUnsignedShort(zoomLevelCount)
+            writeShort(version)
+            writeShort(zoomLevelCount)
             writeLong(chromTreeOffset)
             writeLong(unzoomedDataOffset)
             writeLong(unzoomedIndexOffset)
-            writeUnsignedShort(fieldCount)
-            writeUnsignedShort(definedFieldCount)
+            writeShort(fieldCount)
+            writeShort(definedFieldCount)
             writeLong(asOffset)
             writeLong(totalSummaryOffset)
             writeInt(uncompressBufSize)

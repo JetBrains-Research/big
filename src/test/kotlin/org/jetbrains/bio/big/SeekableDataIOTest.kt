@@ -23,7 +23,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeByte(b.toInt())
             it.writeByte(Math.abs(b.toInt()))
             it.writeShort(s)
-            it.writeShort(Math.abs(s))
+            it.writeShort(Math.abs(i) and 0xffff)
             it.writeInt(i)
             it.writeLong(l)
         }
@@ -31,7 +31,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
             assertEquals(b, it.readByte())
             assertEquals(Math.abs(b.toInt()), it.readUnsignedByte())
             assertEquals(s.toShort(), it.readShort())
-            assertEquals(s, it.readUnsignedShort())
+            assertEquals(Math.abs(i) and 0xffff, it.readUnsignedShort())
             assertEquals(i, it.readInt())
             assertEquals(l, it.readLong())
         }

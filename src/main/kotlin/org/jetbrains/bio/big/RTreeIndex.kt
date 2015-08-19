@@ -163,7 +163,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
-                        writeUnsignedShort(childCount)
+                        writeShort(childCount)
                         for (j in 0 until childCount) {
                             RTreeIndexNode(level[i + j], childOffset).write(this)
                             childOffset += bytesInNextLevelBlock
@@ -183,7 +183,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
-                    writeUnsignedShort(leafCount)
+                    writeShort(leafCount)
                     for (j in 0 until leafCount) {
                         leaves[i + j].write(this)
                     }

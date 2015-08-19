@@ -188,62 +188,48 @@ public interface OrderedDataOutput {
     fun writeByte(v: Int)
 
     fun writeShort(v: Int) {
-        val b = Shorts.toByteArray(v.toShort())
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte(b[0].toInt())
-            writeByte(b[1].toInt())
+            writeByte((v ushr 8) and 0xff)
+            writeByte((v ushr 0) and 0xff)
         } else {
-            writeByte(b[1].toInt())
-            writeByte(b[0].toInt())
-        }
-    }
-
-    public fun writeUnsignedShort(v: Int) {
-        val b = Ints.toByteArray(v)
-        if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte(b[2].toInt())
-            writeByte(b[3].toInt())
-        } else {
-            writeByte(b[3].toInt())
-            writeByte(b[2].toInt())
+            writeByte((v ushr 0) and 0xff)
+            writeByte((v ushr 8) and 0xff)
         }
     }
 
     fun writeInt(v: Int) {
-        val b = Ints.toByteArray(v)
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte(b[0].toInt())
-            writeByte(b[1].toInt())
-            writeByte(b[2].toInt())
-            writeByte(b[3].toInt())
+            writeByte((v ushr 24) and 0xff)
+            writeByte((v ushr 16) and 0xff)
+            writeByte((v ushr  8) and 0xff)
+            writeByte((v ushr  0) and 0xff)
         } else {
-            writeByte(b[3].toInt())
-            writeByte(b[2].toInt())
-            writeByte(b[1].toInt())
-            writeByte(b[0].toInt())
+            writeByte((v ushr  0) and 0xff)
+            writeByte((v ushr  8) and 0xff)
+            writeByte((v ushr 16) and 0xff)
+            writeByte((v ushr 24) and 0xff)
         }
     }
 
     fun writeLong(v: Long) {
-        val b = Longs.toByteArray(v)
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte(b[0].toInt())
-            writeByte(b[1].toInt())
-            writeByte(b[2].toInt())
-            writeByte(b[3].toInt())
-            writeByte(b[4].toInt())
-            writeByte(b[5].toInt())
-            writeByte(b[6].toInt())
-            writeByte(b[7].toInt())
+            writeByte((v ushr 56).toInt() and 0xff)
+            writeByte((v ushr 48).toInt() and 0xff)
+            writeByte((v ushr 40).toInt() and 0xff)
+            writeByte((v ushr 32).toInt() and 0xff)
+            writeByte((v ushr 24).toInt() and 0xff)
+            writeByte((v ushr 16).toInt() and 0xff)
+            writeByte((v ushr  8).toInt() and 0xff)
+            writeByte((v ushr  0).toInt() and 0xff)
         } else {
-            writeByte(b[7].toInt())
-            writeByte(b[6].toInt())
-            writeByte(b[5].toInt())
-            writeByte(b[4].toInt())
-            writeByte(b[3].toInt())
-            writeByte(b[2].toInt())
-            writeByte(b[1].toInt())
-            writeByte(b[0].toInt())
+            writeByte((v ushr  0).toInt() and 0xff)
+            writeByte((v ushr  8).toInt() and 0xff)
+            writeByte((v ushr 16).toInt() and 0xff)
+            writeByte((v ushr 24).toInt() and 0xff)
+            writeByte((v ushr 32).toInt() and 0xff)
+            writeByte((v ushr 40).toInt() and 0xff)
+            writeByte((v ushr 48).toInt() and 0xff)
+            writeByte((v ushr 56).toInt() and 0xff)
         }
     }
 
@@ -266,7 +252,7 @@ public open class CountingDataOutput(private val output: OutputStream,
     }
 
     /**
-     * Executes a `block` on a fixed-size possibly compressed input.
+     * Executes a `block` on a fixed-size possibly compressed input
      * and returns the total number of *uncompressed* bytes written.
      */
     public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {

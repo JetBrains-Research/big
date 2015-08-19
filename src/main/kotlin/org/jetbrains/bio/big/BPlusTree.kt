@@ -216,7 +216,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                     with (output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
-                        writeUnsignedShort(childCount)
+                        writeShort(childCount)
                         for (j in 0 until Math.min(itemsPerNode, itemCount - i) by itemsPerSlot) {
                             BPlusNode(items[i + j].key, childOffset)
                                     .write(output, keySize)
@@ -237,7 +237,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
-                    writeUnsignedShort(leafCount)
+                    writeShort(leafCount)
                     for (j in 0 until leafCount) {
                         items[i + j].write(output, keySize)
                     }
