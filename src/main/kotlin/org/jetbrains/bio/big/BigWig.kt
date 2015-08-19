@@ -14,7 +14,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
-        val wigItems = query(query, overlaps = true).flatMap { it.query().asSequence() }.toList()
+        val wigItems = query(query, overlaps = true).flatMap { it.query() }.toList()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()

@@ -158,7 +158,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 val levelOffset = output.tell()
                 val nodeCount = level.size() divCeiling blockSize
                 var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
-                for (i in 0 until level.size() step blockSize) {
+                for (i in 0 until level.size() by blockSize) {
                     val childCount = Math.min(blockSize, level.size() - i)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
@@ -178,7 +178,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             val levelOffset = output.tell()
-            for (i in 0 until leaves.size() step blockSize) {
+            for (i in 0 until leaves.size() by blockSize) {
                 val leafCount = Math.min(blockSize, leaves.size() - i)
                 with(output) {
                     writeBoolean(true)  // isLeaf.
@@ -204,7 +204,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             val levels = arrayListOf(intervals)
             while (intervals.size() > 1) {
                 val level = ArrayList<Interval>(intervals.size() divCeiling blockSize)
-                for (i in 0 until intervals.size() step blockSize) {
+                for (i in 0 until intervals.size() by blockSize) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links

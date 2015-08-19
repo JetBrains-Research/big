@@ -206,15 +206,15 @@ public interface WigSection : Comparable<WigSection> {
     /**
      * Returns a list with all intervals in the section.
      */
-    public fun query(): List<WigInterval> = query(start, end)
+    public fun query(): Sequence<WigInterval> = query(start, end)
 
     /**
-     * Returns a list of intervals contained within a given semi-interval.
+     * Returns a intervals contained within a given semi-interval.
      *
      * @param from inclusive
      * @param to exclusive
      */
-    public fun query(from: Int, to: Int): List<WigInterval>
+    public fun query(from: Int, to: Int): Sequence<WigInterval>
 
     /**
      * Splices a section into sub-section of size at most [Short.MAX_SIZE].
@@ -282,19 +282,19 @@ public data class VariableStepSection(
         return values[i]
     }
 
-    override fun query(from: Int, to: Int): List<WigInterval> {
-        var acc = ArrayList<WigInterval>()
+    override fun query(from: Int, to: Int): Sequence<WigInterval> {
         var i = positions.binarySearch(from)
         if (i < 0) {
             i = i.inv()
         }
 
-        while (i < positions.size() && positions[i] <= to - span) {
-            acc.add(WigInterval(positions[i], positions[i] + span, values[i]))
-            i++
+        var j = positions.binarySearch(to - span + 1)
+        if (j < 0) {
+            j = j.inv() - 1
         }
 
-        return acc
+        return (i..j).asSequence()
+                .map { WigInterval(positions[it], positions[it] + span, values[it]) }
     }
 
     override fun splice(max: Int): Sequence<VariableStepSection> {
@@ -354,15 +354,11 @@ public data class FixedStepSection(
         return values[(pos - start) / step]
     }
 
-    override fun query(from: Int, to: Int): List<WigInterval> {
-        val ranges = ArrayList<WigInterval>()
+    override fun query(from: Int, to: Int): Sequence<WigInterval> {
         var i = Math.max(start, from - from % span)
-        while (i < Math.min(start + step * size(), to - to % span)) {
-            ranges.add(WigInterval(i, i + span, get(i)))
-            i += step
-        }
-
-        return ranges
+        val j = Math.min(start + step * size(), to - to % span)
+        return (i until j by step).asSequence()
+                .map { WigInterval(it, it + span, get(it)) }
     }
 
     override fun splice(max: Int): Sequence<FixedStepSection> {

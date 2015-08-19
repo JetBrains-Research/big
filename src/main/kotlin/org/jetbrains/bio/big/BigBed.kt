@@ -132,7 +132,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                 var uncompressBufSize = 0
                 for ((name, items) in groupedEntries) {
                     val chromIx = resolver[name]!!
-                    for (i in 0 until items.size() step itemsPerSlot) {
+                    for (i in 0 until items.size() by itemsPerSlot) {
                         val dataOffset = output.tell()
                         val start = items[i].start
                         var end = 0

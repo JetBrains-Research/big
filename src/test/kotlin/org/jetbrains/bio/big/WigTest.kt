@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 public class VariableStepSectionTest {
     private var section: VariableStepSection by Delegates.notNull()
 
-    Before fun setUp() {
+    @Before fun setUp() {
         section = VariableStepSection("chr1", 20)
         section[100500] = 42.0f
         section[500100] = 24.0f
@@ -29,7 +29,7 @@ public class VariableStepSectionTest {
         val correct = arrayOf(WigInterval(100500, 100520, 42f),
                               WigInterval(500100, 500120, 24f))
 
-        assertEquals(correct.toList(), section.query())
+        assertEquals(correct.toList(), section.query().toList())
     }
 
     @Test fun testQuery() {
@@ -47,7 +47,7 @@ public class VariableStepSectionTest {
         // |----|----|----|----|----|
         //           +----+
         //       rightmost range
-        assertEquals(correct.toList(), section.query(100500, 500200))
+        assertEquals(correct.toList(), section.query(100500, 500200).toList())
     }
 
     @Test fun testSplice() {
@@ -74,8 +74,8 @@ public class VariableStepSectionTest {
 
             val subsections = section.splice().toList()
             assertEquals(section.size(), subsections.map { it.size() }.sum())
-            assertEquals(section.query(),
-                         subsections.map { it.query() }.reduce { a, b -> a + b })
+            assertEquals(section.query().toList(),
+                         subsections.map { it.query().toList() }.reduce { a, b -> a + b })
         }
     }
 
@@ -87,7 +87,7 @@ public class VariableStepSectionTest {
 public class FixedStepSectionTest {
     private var section: FixedStepSection by Delegates.notNull()
 
-    Before fun setUp() {
+    @Before fun setUp() {
         section = FixedStepSection("chr1", 400601, 100, 5)
         section.add(11f)
         section.add(22f)
@@ -179,8 +179,8 @@ public class FixedStepSectionTest {
 
             val subsections = section.splice().toList()
             assertEquals(section.size(), subsections.map { it.size() }.sum())
-            assertEquals(section.query(),
-                         subsections.map { it.query() }.reduce { a, b -> a + b })
+            assertEquals(section.query().toList(),
+                         subsections.map { it.query().toList() }.reduce { a, b -> a + b })
         }
     }
 
@@ -190,7 +190,7 @@ public class FixedStepSectionTest {
 }
 
 public class WigParserTest {
-    Test(expected = IllegalStateException::class) fun testInvalidType() {
+    @Test(expected = IllegalStateException::class) fun testInvalidType() {
         val input = "track type=wiggle_1 windowingFunction=mean\n"
 
         // Any type other than 'wiggle_0' should raise an IllegalStateException
@@ -216,9 +216,9 @@ public class WigParserTest {
 
         assertNotNull(pair)
         assertEquals("chr1", pair.first)
-        assertEquals(arrayListOf(WigInterval(10470, 10471, 0.4242f),
-                                 WigInterval(10480, 10481, 0.2424f)),
-                     pair.second.query())
+        assertEquals(listOf(WigInterval(10470, 10471, 0.4242f),
+                            WigInterval(10480, 10481, 0.2424f)),
+                     pair.second.query().toList())
     }
 
     @Test fun testFixedStep() {
@@ -230,7 +230,7 @@ public class WigParserTest {
     }
 
     // Not implemented yet.
-    Test(expected = AssertionError::class) fun testFixedStepReuse() {
+    @Test(expected = AssertionError::class) fun testFixedStepReuse() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "fixedStep chrom=chr1 start=10471 step=10 span=5\n" +
                     "0.4242\n" +
@@ -311,8 +311,7 @@ public class WigParserTest {
 
         val it = WigParser(StringReader(input)).iterator()
         assertTrue(it.hasNext())
-        assertEquals(2, it.next().second.query().size())
-
+        assertEquals(2, it.next().second.query().count())
     }
 
     private fun testWigSection(input: String) {
@@ -324,9 +323,9 @@ public class WigParserTest {
         assertNotNull(pair)
         assertEquals("chr1", pair.first)
 
-        assertEquals(arrayListOf(WigInterval(10470, 10475, 0.4242f),
-                                 WigInterval(10480, 10485, 0.2424f)),
-                     pair.second.query())
+        assertEquals(listOf(WigInterval(10470, 10475, 0.4242f),
+                            WigInterval(10480, 10485, 0.2424f)),
+                     pair.second.query().toList())
     }
 }
 

@@ -45,6 +45,9 @@ fun Int.logCeiling(base: Int): Int {
 // Remove once KT-4665 is done.
 fun Int.until(other: Int) = this..other - 1
 
+// Remove once KT-8872 is done.
+fun IntRange.by(step: Int) = step(step)
+
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
 fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {

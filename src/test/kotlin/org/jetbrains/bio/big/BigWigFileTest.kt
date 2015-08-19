@@ -239,11 +239,11 @@ public class BigWigFileTest {
             val (start, end, _score) = expected.query().first()
             assertEquals(expected.size() - 1,
                          bwf.query(name, end, expected.end).first().size())
-            assertEquals(expected.query().subList(1, expected.size()),
-                         bwf.query(name, end, expected.end).first().query())
-            assertEquals(expected.query().subList(1, expected.size()),
+            assertEquals(expected.query().toList().subList(1, expected.size()),
+                         bwf.query(name, end, expected.end).first().query().toList())
+            assertEquals(expected.query().toList().subList(1, expected.size()),
                          bwf.query(name, end - (end - start) / 2,
-                                   expected.end).first().query())
+                                   expected.end).first().query().toList())
         }
     }
 
