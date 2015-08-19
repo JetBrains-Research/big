@@ -1,9 +1,9 @@
 package org.jetbrains.bio.big
 
-import com.google.common.collect.Lists
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
+import java.util.ArrayList
 import kotlin.platform.platformStatic
 
 /**
@@ -141,12 +141,13 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                 output.skipBytes(0, BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
+                        .filter { it.key in groupedSections }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
-                val leaves = Lists.newArrayList<RTreeIndexLeaf>()
+                val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
                 for ((name, sections) in groupedSections) {
                     val chromId = resolver[name]!!

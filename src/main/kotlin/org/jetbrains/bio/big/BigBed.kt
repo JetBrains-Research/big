@@ -123,6 +123,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                 output.skipBytes(0, BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
+                        .filter { it.key in groupedEntries }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
