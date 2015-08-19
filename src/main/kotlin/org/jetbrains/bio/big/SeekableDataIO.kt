@@ -8,6 +8,7 @@ import java.nio.ByteOrder
 import java.nio.channels.Channels
 import java.nio.file.Path
 import java.util.zip.Deflater
+import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
 /**
@@ -252,25 +253,38 @@ public interface OrderedDataOutput {
 }
 
 public open class CountingDataOutput(private val output: OutputStream,
-                                     private var offset: Long,
+                                     private val offset: Long,
                                      public override val order: ByteOrder)
 :
         OrderedDataOutput, Closeable, AutoCloseable {
 
+    /** Total number of bytes written. */
+    private var written = 0L
+
     private fun ack(size: Int) {
-        offset += size
+        written += size
     }
 
-    /** Executes a `block` on a fixed-size possibly compressed input. */
+    /**
+     * Executes a `block` on a fixed-size possibly compressed input.
+     * and returns the total number of *uncompressed* bytes written.
+     */
     public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
-        val memory = ByteArrayOutputStream()
-        with(ByteArrayDataOutput(memory, order), block)
-
-        val data = memory.toByteArray()
-                .let { if (compressed) it.compress() else it }
-        output.write(data)
-        ack(data.size())
-        return data.size()
+        return if (compressed) {
+            // This is slightly involved. We stack deflater on top of
+            // our input stream and report the number of uncompressed
+            // bytes fed into the deflater.
+            val def = Deflater()
+            val inner = DeflaterOutputStream(output, def)
+            with(CountingDataOutput(inner, offset, order), block)
+            inner.finish()
+            ack(def.getBytesWritten().toInt())
+            def.getBytesRead()
+        } else {
+            val snapshot = written
+            with(this, block)
+            written - snapshot
+        }.toInt()
     }
 
     override fun writeBytes(s: String) {
@@ -286,7 +300,7 @@ public open class CountingDataOutput(private val output: OutputStream,
         ack(1)
     }
 
-    public fun tell(): Long = offset
+    public fun tell(): Long = offset + written
 
     override fun close() = output.close()
 
@@ -303,18 +317,6 @@ public open class CountingDataOutput(private val output: OutputStream,
     }
 }
 
-private class ByteArrayDataOutput(data: ByteArrayOutputStream,
-                                  public override val order: ByteOrder)
-:
-        OrderedDataOutput {
-
-    private val output: DataOutput = DataOutputStream(data)
-
-    override fun writeBytes(s: String) = output.writeBytes(s)
-
-    override fun writeByte(v: Int) = output.writeByte(v)
-}
-
 private fun ByteArray.decompress(): ByteArray {
     val inf = Inflater()
     inf.setInput(this)
@@ -322,21 +324,6 @@ private fun ByteArray.decompress(): ByteArray {
         val buf = ByteArray(1024)
         while (!inf.finished()) {
             val count = inf.inflate(buf)
-            out.write(buf, 0, count)
-        }
-
-        out.toByteArray()
-    }
-}
-
-private fun ByteArray.compress(): ByteArray {
-    val def = Deflater()
-    def.setInput(this)
-    def.finish()
-    return ByteArrayOutputStream(size()).use { out ->
-        val buf = ByteArray(1024)
-        while (!def.finished()) {
-            val count = def.deflate(buf)
             out.write(buf, 0, count)
         }
 

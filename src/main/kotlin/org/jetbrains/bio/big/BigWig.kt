@@ -4,6 +4,7 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.ArrayList
+import java.util.Collections
 import kotlin.platform.platformStatic
 
 /**
@@ -133,13 +134,13 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
-            val groupedSections = wigSections.sort().groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(0, BigSummary.BYTES)
 
+                val groupedSections = wigSections.groupBy { it.chrom }
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                         .filter { it.key in groupedSections }
                 val chromTreeOffset = output.tell()
@@ -150,6 +151,8 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
                 for ((name, sections) in groupedSections) {
+                    Collections.sort(sections)
+
                     val chromId = resolver[name]!!
                     for (section in sections.asSequence().flatMap { it.splice() }) {
                         val dataOffset = output.tell()

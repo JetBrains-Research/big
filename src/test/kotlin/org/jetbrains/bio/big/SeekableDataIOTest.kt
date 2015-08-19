@@ -6,6 +6,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 import java.nio.ByteOrder
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 import kotlin.platform.platformStatic
@@ -87,14 +88,14 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
 
     @Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
-        val size = CountingDataOutput.of(path, order).use {
+        CountingDataOutput.of(path, order).use {
             it.with(compressed = true) {
                 b.forEach { writeByte(it.toInt()) }
             }
-        }.toLong()
+        }
 
         SeekableDataInput.of(path, order).use {
-            it.with(0L, size, compressed = true) {
+            it.with(0L, Files.size(path), compressed = true) {
                 for (i in 0 until b.size()) {
                     assertEquals(b[i], readByte())
                 }

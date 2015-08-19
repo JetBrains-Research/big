@@ -22,16 +22,6 @@ public class InternalsTest {
         }
     }
 
-    @Test fun testCompression() {
-        for (i in 0 until 100) {
-            val n = RANDOM.nextInt(4096) + 1
-            val chunk = ByteArray(n)
-            RANDOM.nextBytes(chunk)
-
-            Assert.assertArrayEquals(chunk, chunk.compress().decompress())
-        }
-    }
-
     companion object {
         private val RANDOM = Random()
     }

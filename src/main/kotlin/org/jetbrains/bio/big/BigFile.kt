@@ -363,14 +363,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val summaries = bf.summarizeInternal(query, numBins = size divCeiling reduction)
                 for (slot in summaries.partition(itemsPerSlot)) {
                     val dataOffset = output.tell()
-                    val dataSize = output.with(bf.compressed) {
+                    output.with(bf.compressed) {
                         for ((i, summary) in slot) {
                             val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
                             (bin to summary).toZoomData().write(this)
                         }
                     }
 
-                    leaves.add(RTreeIndexLeaf(query, dataOffset, dataSize.toLong()))
+                    leaves.add(RTreeIndexLeaf(query, dataOffset, output.tell() - dataOffset))
                 }
             }
 
