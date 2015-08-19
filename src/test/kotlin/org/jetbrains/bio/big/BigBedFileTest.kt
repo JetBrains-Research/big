@@ -84,6 +84,31 @@ public class BigBedFileTest {
         assertEquals(expected, actual, message = query.toString())
     }
 
+    @Test fun testQueryConsistencyNoOverlaps() = testQueryConsistency(false)
+
+    @Test fun testQueryConsistencyWithOverlaps() = testQueryConsistency(true)
+
+    private fun testQueryConsistency(overlaps: Boolean) {
+        BigBedFile.read(Examples["example1.bb"]).use { bbf ->
+            val (name, chromIx, _size) = bbf.bPlusTree.traverse(bbf.input).first()
+            val bedEntries = bbf.query(name).toList()
+            val i = RANDOM.nextInt(bedEntries.size())
+            val j = RANDOM.nextInt(bedEntries.size())
+            val query = Interval(chromIx,
+                                 bedEntries[Math.min(i, j)].start,
+                                 bedEntries[Math.max(i, j)].end)
+            for (bedEntry in bbf.query(name, query.startOffset, query.endOffset)) {
+                val interval = Interval(chromIx, bedEntry.start, bedEntry.end)
+                if (overlaps) {
+                    assertTrue(interval intersects query)
+                } else {
+                    assertTrue(interval in query)
+                }
+
+            }
+        }
+    }
+
     @Test fun testAggregate() {
         assertEquals(emptyList<BedEntry>(), emptySequence<BedEntry>().aggregate())
         assertEquals(listOf(BedEntry("chr1", 0, 100, "", 1, '.')),

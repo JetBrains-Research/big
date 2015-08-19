@@ -189,29 +189,35 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param startOffset 0-based start offset (inclusive).
      * @param endOffset 0-based end offset (exclusive), if 0 than the whole
      *                  chromosome is used.
-     * @return a list of intervals completely contained within the query.
-     * @@throws IOException if the underlying [SeekableDataInput] does so.
+     * @param overlaps if `false` the resulting list contains only the
+     *                 items completely contained within the query,
+     *                 otherwise it also includes the items overlapping
+     *                 the query.
+     * @return a list of items.
+     * @throws IOException if the underlying [SeekableDataInput] does so.
      */
     @throws(IOException::class)
-    public fun query(name: String, startOffset: Int, endOffset: Int): Sequence<T> {
+    public fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
+                     overlaps: Boolean = false): Sequence<T> {
         val res = bPlusTree.find(input, name)
         return if (res == null) {
             emptySequence()
         } else {
             val (_key, chromIx, size) = res
             val properEndOffset = if (endOffset == 0) size else endOffset
-            query(Interval(chromIx, startOffset, properEndOffset))
+            query(Interval(chromIx, startOffset, properEndOffset), overlaps)
         }
     }
 
-    protected fun query(query: ChromosomeInterval): Sequence<T> {
+    protected fun query(query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
         return rTree.findOverlappingBlocks(input, query)
-                .flatMap { queryInternal(it.dataOffset, it.dataSize, query) }
+                .flatMap { queryInternal(it.dataOffset, it.dataSize, query, overlaps) }
     }
 
     @throws(IOException::class)
     protected abstract fun queryInternal(dataOffset: Long, dataSize: Long,
-                                         query: ChromosomeInterval): Sequence<T>
+                                         query: ChromosomeInterval,
+                                         overlaps: Boolean): Sequence<T>
 
     @throws(IOException::class)
     override fun close() = input.close()

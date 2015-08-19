@@ -14,7 +14,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
-        val wigItems = query(query).flatMap { it.query().asSequence() }.toList()
+        val wigItems = query(query, overlaps = true).flatMap { it.query().asSequence() }.toList()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -39,12 +39,21 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
         }.filterNotNull()
     }
 
-    private fun ChromosomeInterval.contains(pos: Int, span: Int): Boolean {
-        return Interval(chromIx, pos, pos + span) in this
+    /**
+     * Returns `true` if a given item is consistent with the query.
+     * That is
+     *   it either intersects the query (and overlaps is `true`)
+     *   or it is completely contained in the query.
+     */
+    private fun ChromosomeInterval.contains(pos: Int, span: Int,
+                                            overlaps: Boolean): Boolean {
+        val interval = Interval(chromIx, pos, pos + span)
+        return (overlaps && interval intersects this) || interval in this
     }
 
     override fun queryInternal(dataOffset: Long, dataSize: Long,
-                               query: ChromosomeInterval): Sequence<WigSection> {
+                               query: ChromosomeInterval,
+                               overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
         return sequenceOf(input.with(dataOffset, dataSize, compressed) {
             val chromIx = readInt()
@@ -67,7 +76,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     for (i in 0 until count) {
                         val pos = readInt()
                         val value = readFloat()
-                        if (query.contains(pos, span)) {
+                        if (query.contains(pos, span, overlaps)) {
                             section[pos] = value
                         }
                     }
@@ -85,7 +94,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0 until count) {
                         val value = readFloat()
-                        if (query.contains(start + i * step, span)) {
+                        if (query.contains(start + i * step, span, overlaps)) {
                             section.add(value)
                         }
                     }

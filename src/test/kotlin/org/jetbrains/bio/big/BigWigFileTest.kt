@@ -247,6 +247,32 @@ public class BigWigFileTest {
         }
     }
 
+    @Test fun testQueryConsistencyNoOverlaps() = testQueryConsistency(false)
+
+    @Test fun testQueryConsistencyWithOverlaps() = testQueryConsistency(true)
+
+    private fun testQueryConsistency(overlaps: Boolean) {
+        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+            val (name, chromIx, _size) = bwf.bPlusTree.traverse(bwf.input).first()
+            val wigItems = bwf.query(name).flatMap { it.query().asSequence() }.toList()
+            val i = RANDOM.nextInt(wigItems.size())
+            val j = RANDOM.nextInt(wigItems.size())
+            val query = Interval(chromIx,
+                                 wigItems[Math.min(i, j)].start,
+                                 wigItems[Math.max(i, j)].end)
+            for (section in bwf.query(name, query.startOffset, query.endOffset)) {
+                for (wigItem in section.query()) {
+                    val interval = Interval(chromIx, wigItem.start, wigItem.end)
+                    if (overlaps) {
+                        assertTrue(interval intersects query)
+                    } else {
+                        assertTrue(interval in query)
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         private val RANDOM = Random()
     }

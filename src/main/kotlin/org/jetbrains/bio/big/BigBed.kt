@@ -17,7 +17,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<Pair<Int, BigSummary>> {
-        val coverage = query(query).aggregate()
+        val coverage = query(query, overlaps = true).aggregate()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -42,8 +42,21 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
         }.filterNotNull()
     }
 
+    /**
+     * Returns `true` if a given entry is consistent with the query.
+     * That is
+     *   it either intersects the query (and overlaps is `true`)
+     *   or it is completely contained in the query.
+     */
+    private fun ChromosomeInterval.contains(startOffset: Int, endOffset: Int,
+                                            overlaps: Boolean): Boolean {
+        val interval = Interval(chromIx, startOffset, endOffset)
+        return (overlaps && interval intersects this) || interval in this
+    }
+
     override fun queryInternal(dataOffset: Long, dataSize: Long,
-                               query: ChromosomeInterval): Sequence<BedEntry> {
+                               query: ChromosomeInterval,
+                               overlaps: Boolean): Sequence<BedEntry> {
         val chrom = chromosomes[query.chromIx]
         return input.with(dataOffset, dataSize, compressed) {
             val chunk = ArrayList<BedEntry>()
@@ -62,15 +75,9 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                     sb.append(ch.toChar())
                 }
 
-                // This was somewhat tricky to get right, please make sure
-                // you understand the code before modifying it.
-                if (startOffset < query.startOffset || endOffset > query.endOffset) {
-                    continue
-                } else if (startOffset > query.endOffset) {
-                    break
+                if (query.contains(startOffset, endOffset, overlaps)) {
+                    chunk.add(BedEntry(chrom, startOffset, endOffset, sb.toString()))
                 }
-
-                chunk.add(BedEntry(chrom, startOffset, endOffset, sb.toString()))
             } while (!finished)
 
             chunk.asSequence()
