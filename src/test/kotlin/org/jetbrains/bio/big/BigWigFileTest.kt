@@ -19,9 +19,7 @@ public class BigWigFileTest {
 
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         withTempFile("example", ".bw") { path ->
-            val wigSections = WigParser(Examples["example.wig"].toFile().bufferedReader())
-                    .map { it.second }
-                    .toList()
+            val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"],
                              path, compressed = compressed, order = order)
 

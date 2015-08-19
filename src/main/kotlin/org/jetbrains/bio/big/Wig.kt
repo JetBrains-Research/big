@@ -27,10 +27,9 @@ import java.util.Objects
  * See http://genome.ucsc.edu/goldenPath/help/wiggle.html
  */
 public class WigParser(private val reader: Reader) :
-        Iterable<Pair<String, WigSection>>, AutoCloseable, Closeable {
-    override fun iterator(): UnmodifiableIterator<Pair<String, WigSection>> {
-        return WigIterator(reader.buffered())
-    }
+        Iterable<WigSection>, AutoCloseable, Closeable {
+
+    override fun iterator(): Iterator<WigSection> = WigIterator(reader.buffered())
 
     override fun close() = reader.close()
 }
@@ -45,11 +44,11 @@ private fun Sequence<Pair<K, V>>.toMap<K, V>(): Map<K, V> {
 }
 
 private class WigIterator(private val reader: BufferedReader) :
-        UnmodifiableIterator<Pair<String, WigSection>>() {
+        UnmodifiableIterator<WigSection>() {
 
     private var lines: PeekingIterator<String> =
             Iterators.peekingIterator(reader.lines().iterator())
-    private var cached: Pair<String, WigSection>? = null
+    private var cached: WigSection? = null
 
     override fun hasNext(): Boolean {
         if (cached == null) {
@@ -59,15 +58,14 @@ private class WigIterator(private val reader: BufferedReader) :
         return cached != null
     }
 
-    override fun next(): Pair<String, WigSection>? {
+    override fun next(): WigSection? {
         check(hasNext())
         val next = cached
         cached = null
         return next
     }
 
-    private fun cache(): Pair<String, WigSection>? {
-        var chromosome: String? = null
+    private fun cache(): WigSection? {
         var track: WigSection? = null
         var state = State.WAITING
         loop@ while (lines.hasNext()) {
@@ -98,7 +96,6 @@ private class WigIterator(private val reader: BufferedReader) :
                     }
 
                     if (state != State.WAITING) {
-                        chromosome = params["chrom"]
                         track = state.create(params)
                     }
                 }
@@ -111,11 +108,7 @@ private class WigIterator(private val reader: BufferedReader) :
             lines.next()  // Discard the processed line.
         }
 
-        return if (chromosome != null && track != null) {
-            chromosome to track
-        } else {
-            null
-        }
+        return track
     }
 
     companion object {

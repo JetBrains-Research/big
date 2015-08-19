@@ -212,13 +212,13 @@ public class WigParserTest {
                     "10481   0.2424"
 
         val it = WigParser(StringReader(input)).iterator()
-        val pair = it.next()
+        val track = it.next()
 
-        assertNotNull(pair)
-        assertEquals("chr1", pair.first)
+        assertNotNull(track)
+        assertEquals("chr1", track.chrom)
         assertEquals(listOf(WigInterval(10470, 10471, 0.4242f),
                             WigInterval(10480, 10481, 0.2424f)),
-                     pair.second.query().toList())
+                     track.query().toList())
     }
 
     @Test fun testFixedStep() {
@@ -276,8 +276,8 @@ public class WigParserTest {
 
         val tracks = WigParser(StringReader(input)).toList()
         assertEquals(2, tracks.size())
-        assertEquals("chr1", tracks[0].first)
-        assertEquals("chr2", tracks[1].first)
+        assertEquals("chr1", tracks[0].chrom)
+        assertEquals("chr2", tracks[1].chrom)
     }
 
     @Test fun testNoReuseSameChromosome() {
@@ -289,8 +289,8 @@ public class WigParserTest {
 
         val tracks = WigParser(StringReader(input)).toList()
         assertEquals(2, tracks.size())
-        assertEquals("chr1", tracks[0].first)
-        assertEquals("chr1", tracks[1].first)
+        assertEquals("chr1", tracks[0].chrom)
+        assertEquals("chr1", tracks[1].chrom)
     }
 
     @Test fun testQuotedValues() {
@@ -311,21 +311,19 @@ public class WigParserTest {
 
         val it = WigParser(StringReader(input)).iterator()
         assertTrue(it.hasNext())
-        assertEquals(2, it.next().second.query().count())
+        assertEquals(2, it.next().query().count())
     }
 
     private fun testWigSection(input: String) {
         val it = WigParser(StringReader(input)).iterator()
-        val pair = it.next()
+        val track = it.next()
 
         assertFalse(it.hasNext())
-
-        assertNotNull(pair)
-        assertEquals("chr1", pair.first)
-
+        assertNotNull(track)
+        assertEquals("chr1", track.chrom)
         assertEquals(listOf(WigInterval(10470, 10475, 0.4242f),
                             WigInterval(10480, 10485, 0.2424f)),
-                     pair.second.query().toList())
+                     track.query().toList())
     }
 }
 
@@ -342,13 +340,13 @@ public class WigPrinterTest {
 
         val input = output.getBuffer().toString()
         val it = WigParser(StringReader(input)).iterator()
-        val pair = it.next()
+        val parsed = it.next()
 
-        assertNotNull(pair)
+        assertNotNull(parsed)
         assertFalse(it.hasNext())
-        assertEquals("chr1", pair.first)
-        assertTrue(pair.second is FixedStepSection)
-        assertEquals(track, pair.second)
+        assertEquals("chr1", parsed.chrom)
+        assertTrue(parsed is FixedStepSection)
+        assertEquals(track, parsed)
     }
 
     @Test fun testWriteVariableStep() {
@@ -363,12 +361,12 @@ public class WigPrinterTest {
 
         val input = output.getBuffer().toString()
         val it = WigParser(StringReader(input)).iterator()
-        val pair = it.next()
+        val parsed = it.next()
 
-        assertNotNull(pair)
+        assertNotNull(parsed)
         assertFalse(it.hasNext())
-        assertEquals("chr1", pair.first)
-        assertTrue(pair.second is VariableStepSection)
-        assertEquals(track, pair.second)
+        assertEquals("chr1", parsed.chrom)
+        assertTrue(parsed is VariableStepSection)
+        assertEquals(track, parsed)
     }
 }
