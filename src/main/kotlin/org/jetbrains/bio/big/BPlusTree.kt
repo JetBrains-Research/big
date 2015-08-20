@@ -199,7 +199,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 var childOffset = levelOffset + bytesInCurrentLevel
                 for (i in 0 until itemCount by itemsPerNode) {
                     val childCount = Math.min((itemCount - i) divCeiling itemsPerSlot, blockSize)
-                    with (output) {
+                    with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
                         writeShort(childCount)
@@ -254,7 +254,7 @@ public data class BPlusLeaf(
         require(size >= 0, "size must be >=0")
     }
 
-    fun write(output: OrderedDataOutput, keySize: Int) = with (output) {
+    fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
         writeBytes(key, keySize)
         writeInt(id)
         writeInt(size)
@@ -263,7 +263,7 @@ public data class BPlusLeaf(
     override fun toString(): String = "$key => ($id; $size)"
 
     companion object {
-        fun read(input: OrderedDataInput, keySize: Int) = with (input) {
+        fun read(input: OrderedDataInput, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val chromId = readInt()
@@ -282,13 +282,13 @@ private class BPlusNode(
         /** Offset to child node. */
         public val childOffset: Long) {
 
-    fun write(output: OrderedDataOutput, keySize: Int) = with (output) {
+    fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
         writeBytes(key, keySize)
         writeLong(childOffset)
     }
 
     companion object {
-        fun read(input: OrderedDataInput, keySize: Int) = with (input) {
+        fun read(input: OrderedDataInput, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val childOffset = readLong()

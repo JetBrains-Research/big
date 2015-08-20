@@ -52,7 +52,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * Because sometimes (always) you don't need a B+ tree for that.
      */
     public val chromosomes: TIntObjectMap<String> by Delegates.lazy {
-        with (bPlusTree) {
+        with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
             for (leaf in traverse(input)) {
                 res.put(leaf.id, leaf.key)
@@ -116,10 +116,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     @throws(IOException::class)
     protected abstract fun summarizeInternal(
-            query: ChromosomeInterval, numBins: Int): Sequence<Pair<Int, BigSummary>>
+            query: ChromosomeInterval, numBins: Int): Sequence<IndexedValue<BigSummary>>
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
-                                  numBins: Int): Sequence<Pair<Int, BigSummary>> {
+                                  numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
             assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
@@ -170,8 +170,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             if (count == 0L) {
                 null
             } else {
-                i to BigSummary(count = count, minValue = min, maxValue = max,
-                                sum = sum, sumSquares = sumSquares)
+                val summary = BigSummary(count = count, minValue = min, maxValue = max,
+                                         sum = sum, sumSquares = sumSquares)
+                IndexedValue(i, summary)
             }
         }.filterNotNull()
     }

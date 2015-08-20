@@ -16,7 +16,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
-                                   numBins: Int): Sequence<Pair<Int, BigSummary>> {
+                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val coverage = query(query, overlaps = true).aggregate()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
@@ -38,7 +38,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                 }
             }
 
-            if (summary.isEmpty()) null else i to summary
+            if (summary.isEmpty()) null else IndexedValue(i, summary)
         }.filterNotNull()
     }
 
