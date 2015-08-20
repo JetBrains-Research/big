@@ -10,6 +10,7 @@ import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
+import kotlin.properties.Delegates
 
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
@@ -105,14 +106,25 @@ public open class SeekableDataInput protected constructor(
 :
         OrderedDataInput, Closeable, AutoCloseable {
 
+
+    // This is important to keep lazy, otherwise the GC will be trashed
+    // by a zillion of pending finalizers.
+    private val inf by Delegates.lazy { Inflater() }
+
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
                        block: OrderedDataInput.() -> T): T {
         seek(offset)
-        val data = ByteArray(size.toInt())
-        readFully(data)
-        val input = ByteArrayDataInput(
-                if (compressed) data.decompress() else data, order)
+        val input = if (compressed) {
+            val data = ByteArray(size.toInt())
+            readFully(data)
+            val inflated = data.decompress(inf)
+            CountingDataInput(ByteArrayInputStream(inflated),
+                              inflated.size().toLong(), order)
+        } else {
+            CountingDataInput(Channels.newInputStream(file.getChannel()).buffered(),
+                              size, order)
+        }
         return with(input, block)
     }
 
@@ -140,27 +152,29 @@ public open class SeekableDataInput protected constructor(
     }
 }
 
-private class ByteArrayDataInput(private val data: ByteArray,
-                                 public override var order: ByteOrder)
+private class CountingDataInput(input: InputStream,
+                                private val size: Long,
+                                public override var order: ByteOrder)
 :
         OrderedDataInput {
 
-    private val input: DataInput = DataInputStream(ByteArrayInputStream(data))
-    private var bytesRead: Int = 0
+    private val input = DataInputStream(input)
+    private var read = 0L
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         check(!finished, "no data")
         input.readFully(b, off, len)
+        read += len
     }
 
     override fun readUnsignedByte(): Int {
         check(!finished, "no data")
         val b = input.readUnsignedByte()
-        bytesRead++
+        read++
         return b
     }
 
-    override val finished: Boolean get() = bytesRead >= data.size()
+    override val finished: Boolean get() = read >= size
 }
 
 /**
@@ -247,6 +261,10 @@ public open class CountingDataOutput(private val output: OutputStream,
     /** Total number of bytes written. */
     private var written = 0L
 
+    // This is important to keep lazy, otherwise the GC will be trashed
+    // by a zillion of pending finalizers.
+    private val def by Delegates.lazy { Deflater() }
+
     private fun ack(size: Int) {
         written += size
     }
@@ -260,7 +278,7 @@ public open class CountingDataOutput(private val output: OutputStream,
             // This is slightly involved. We stack deflater on top of
             // our input stream and report the number of uncompressed
             // bytes fed into the deflater.
-            val def = Deflater()
+            def.reset()
             val inner = DeflaterOutputStream(output, def)
             with(CountingDataOutput(inner, offset, order), block)
             inner.finish()
@@ -297,14 +315,14 @@ public open class CountingDataOutput(private val output: OutputStream,
             val file = RandomAccessFile(path.toFile(), "rw")
             file.seek(offset)
             val channel = file.getChannel()
-            val output = BufferedOutputStream(Channels.newOutputStream(channel))
+            val output = Channels.newOutputStream(channel).buffered()
             return CountingDataOutput(output, offset, order)
         }
     }
 }
 
-private fun ByteArray.decompress(): ByteArray {
-    val inf = Inflater()
+private fun ByteArray.decompress(inf: Inflater): ByteArray {
+    inf.reset()
     inf.setInput(this)
     return ByteArrayOutputStream(size()).use { out ->
         val buf = ByteArray(1024)
