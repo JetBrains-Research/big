@@ -21,7 +21,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge until coverage.size()) {
+            for (j in edge..coverage.size() - 1) {
                 val bedEntry = coverage[j]
                 if (bedEntry.end <= bin.startOffset) {
                     edge = j + 1
@@ -135,12 +135,12 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                     Collections.sort(items)
 
                     val chromIx = resolver[name]!!
-                    for (i in 0 until items.size() by itemsPerSlot) {
+                    for (i in 0..items.size() - 1 step itemsPerSlot) {
                         val dataOffset = output.tell()
                         val start = items[i].start
                         var end = 0
                         val current = output.with(compressed) {
-                            for (j in 0 until Math.min(items.size() - i, itemsPerSlot)) {
+                            for (j in 0..Math.min(items.size() - i, itemsPerSlot) - 1) {
                                 val item = items[i + j]
                                 writeInt(chromIx)
                                 writeInt(item.start)

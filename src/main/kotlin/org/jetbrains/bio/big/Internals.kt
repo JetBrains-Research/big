@@ -42,17 +42,14 @@ fun Int.logCeiling(base: Int): Int {
     return acc
 }
 
-// Remove once KT-4665 is done.
+// XXX use sparingly, because the optimizer fails to translate
+// this into a pure-Java forloop. See KT-8901.
 fun Int.until(other: Int) = this..other - 1
 
-// Remove once KT-8872 is done.
-fun IntRange.by(step: Int) = step(step)
-
-private class TransformingIntIterator<R>(range: IntRange,
+// XXX calling the 'Iterable<T>#map' leads to boxing.
+private class TransformingIntIterator<R>(private val it: IntIterator,
                                          private val transform: (Int) -> R) :
         Iterator<R> {
-
-    private val it = range.iterator()
 
     override fun next(): R = transform(it.nextInt())
 
@@ -60,8 +57,11 @@ private class TransformingIntIterator<R>(range: IntRange,
 }
 
 fun IntRange.mapUnboxed<R>(transform: (Int) -> R): Sequence<R> {
-    // XXX calling the 'Iterable<T>#map' leads to boxing.
-    return TransformingIntIterator(this, transform).asSequence()
+    return TransformingIntIterator(iterator(), transform).asSequence()
+}
+
+fun IntProgression.mapUnboxed<R>(transform: (Int) -> R): Sequence<R> {
+    return TransformingIntIterator(iterator(), transform).asSequence()
 }
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
@@ -135,6 +135,8 @@ interface Interval {
         return Interval(unionLeft.chromIx, unionLeft.offset,
                         unionRight.chromIx, unionRight.offset)
     }
+
+    fun write(output: OrderedDataOutput): Unit
 
     override fun toString(): String = "[$left; $right)"
 
@@ -212,7 +214,7 @@ data open class ChromosomeInterval(public val chromIx: Int,
             sequenceOf(this)
         } else {
             val width = length().toDouble() / n
-            (0 until n).mapUnboxed { i ->
+            (0..n - 1).mapUnboxed { i ->
                 val start = Math.round(startOffset + i * width).toInt()
                 val end = Math.round(startOffset + (i + 1) * width).toInt()
                 Interval(chromIx, start, Math.min(end, endOffset))
@@ -222,12 +224,26 @@ data open class ChromosomeInterval(public val chromIx: Int,
 
     public fun length(): Int = endOffset - startOffset
 
+    override fun write(output: OrderedDataOutput) = with(output) {
+        writeInt(chromIx)
+        writeInt(startOffset)
+        writeInt(chromIx)
+        writeInt(endOffset)
+    }
+
     override fun toString(): String = "$chromIx:[$startOffset; $endOffset)"
 }
 
 /** An interval spanning multiple chromosomes. */
 data class MultiInterval(public override val left: Offset,
-                         public override val right: Offset) : Interval
+                         public override val right: Offset) : Interval {
+    override fun write(output: OrderedDataOutput) = with(output) {
+        writeInt(left.chromIx)
+        writeInt(left.offset)
+        writeInt(right.chromIx)
+        writeInt(right.offset)
+    }
+}
 
 /**
  * A (chromosome, offset) pair.

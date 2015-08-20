@@ -91,21 +91,25 @@ public class SeekableDataInput protected constructor(
     // by a zillion of pending finalizers.
     private val inf by Delegates.lazy { Inflater() }
 
+    // XXX this effectively makes the class non-thread safe.
+    private var buf = ByteArray(4096)
+
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
                        block: CountingOrderedDataInput.() -> T): T {
-        // XXX in theory we could cache the array between calls.
-        val data = ByteArray(size.toInt())
+        if (buf.size() < size) {
+            buf = buf.copyOf((size + size shr 1).toInt())
+        }
 
         seek(offset)
-        readFully(data, 0, size.toInt())
+        readFully(buf, 0, size.toInt())
         val input = if (compressed) {
             inf.reset()
-            val inflated = data.decompress(0, size.toInt(), inf)
+            val inflated = buf.decompress(0, size.toInt(), inf)
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
         } else {
-            CountingDataInput(ByteArrayInputStream(data, 0, size.toInt()),
+            CountingDataInput(ByteArrayInputStream(buf, 0, size.toInt()),
                               size, order)
         }
         return with(input, block)
@@ -203,7 +207,7 @@ public interface OrderedDataOutput {
 
     fun skipBytes(v: Int, count: Int) {
         assert(count >= 0, "count must be >=0")
-        for (i in 0 until count) {
+        for (i in 0..count - 1) {
             writeByte(v)
         }
     }

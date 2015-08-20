@@ -57,12 +57,12 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
         // XXX we have to eagerly read the blocks because 'input' is
         // shared between calls.
         return if (isLeaf) {
-            (0 until childCount)
+            (0..childCount - 1)
                     .mapUnboxed { RTreeIndexLeaf.read(input) }
                     .filter { it.interval intersects query }
                     .toList().asSequence()
         } else {
-            (0 until childCount)
+            (0..childCount - 1)
                     .mapUnboxed { RTreeIndexNode.read(input) }
                     .filter { it.interval intersects query }
                     .toList().asSequence()
@@ -158,13 +158,13 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
                 val levelOffset = output.tell()
                 val nodeCount = level.size() divCeiling blockSize
                 var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
-                for (i in 0 until level.size() by blockSize) {
+                for (i in 0..level.size() - 1 step blockSize) {
                     val childCount = Math.min(blockSize, level.size() - i)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
                         writeShort(childCount)
-                        for (j in 0 until childCount) {
+                        for (j in 0..childCount - 1) {
                             RTreeIndexNode(level[i + j], childOffset).write(this)
                             childOffset += bytesInNextLevelBlock
                         }
@@ -178,13 +178,13 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             val levelOffset = output.tell()
-            for (i in 0 until leaves.size() by blockSize) {
+            for (i in 0..leaves.size() - 1 step blockSize) {
                 val leafCount = Math.min(blockSize, leaves.size() - i)
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
                     writeShort(leafCount)
-                    for (j in 0 until leafCount) {
+                    for (j in 0..leafCount - 1) {
                         leaves[i + j].write(this)
                     }
 
@@ -204,7 +204,7 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
             val levels = arrayListOf(intervals)
             while (intervals.size() > 1) {
                 val level = ArrayList<Interval>(intervals.size() divCeiling blockSize)
-                for (i in 0 until intervals.size() by blockSize) {
+                for (i in 0..intervals.size() - 1 step blockSize) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
@@ -232,10 +232,7 @@ public data class RTreeIndexLeaf(public val interval: Interval,
                                  public val dataOffset: Long,
                                  public val dataSize: Long) {
     fun write(output: OrderedDataOutput) = with(output) {
-        writeInt(interval.left.chromIx)
-        writeInt(interval.left.offset)
-        writeInt(interval.right.chromIx)
-        writeInt(interval.right.offset)
+        interval.write(this)
         writeLong(dataOffset)
         writeLong(dataSize)
     }
@@ -260,10 +257,7 @@ public data class RTreeIndexLeaf(public val interval: Interval,
 private data class RTreeIndexNode(public val interval: Interval,
                                   public val dataOffset: Long) {
     fun write(output: OrderedDataOutput) = with(output) {
-        writeInt(interval.left.chromIx)
-        writeInt(interval.left.offset)
-        writeInt(interval.right.chromIx)
-        writeInt(interval.right.offset)
+        interval.write(this)
         writeLong(dataOffset)
     }
 

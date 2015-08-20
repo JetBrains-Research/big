@@ -21,7 +21,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     val input: SeekableDataInput = SeekableDataInput.of(path)
     val header: Header = Header.read(input, magic)
-    val zoomLevels: List<ZoomLevel> = (0 until header.zoomLevelCount.toInt()).asSequence()
+    val zoomLevels: List<ZoomLevel> = (0..header.zoomLevelCount - 1).asSequence()
             .map { ZoomLevel.read(input) }.toList()
     val bPlusTree: BPlusTree
     val rTree: RTreeIndex
@@ -146,7 +146,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             var max = Double.NEGATIVE_INFINITY
             var sum = 0.0
             var sumSquares = 0.0
-            for (j in edge until zoomData.size()) {
+            for (j in edge..zoomData.size() - 1) {
                 val interval = zoomData[j].interval
                 if (interval.endOffset <= bin.startOffset) {
                     edge = j + 1
@@ -326,7 +326,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = step * step
-                    for (level in 0 until bf.zoomLevels.size()) {
+                    for (level in 0..bf.zoomLevels.size() - 1) {
                         val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
                         if (zoomLevel == null) {
                             LOG.trace("${reduction}x reduction rejected")

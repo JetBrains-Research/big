@@ -13,7 +13,6 @@ import java.io.BufferedReader
 import java.io.Closeable
 import java.io.Reader
 import java.io.Writer
-import java.util.ArrayList
 import java.util.HashMap
 import java.util.NoSuchElementException
 import java.util.Objects
@@ -295,7 +294,7 @@ public data class VariableStepSection(
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
-            (0 until chunks).asSequence().map { i ->
+            (0..chunks - 1).mapUnboxed { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, size())
                 copy(positions = positions.subList(from, to),
@@ -350,8 +349,8 @@ public data class FixedStepSection(
     override fun query(from: Int, to: Int): Sequence<WigInterval> {
         var i = Math.max(start, from - from % span)
         val j = Math.min(start + step * size(), to - to % span)
-        return (i until j by step).asSequence()
-                .map { WigInterval(it, it + span, get(it)) }
+        return (i..j - 1 step step)
+                .mapUnboxed { WigInterval(it, it + span, get(it)) }
     }
 
     override fun splice(max: Int): Sequence<FixedStepSection> {
@@ -359,7 +358,7 @@ public data class FixedStepSection(
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
-            (0 until chunks).asSequence().map { i ->
+            (0..chunks - 1).mapUnboxed { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, values.size())
                 copy(start = start + step * from, values = values.subList(from, to))

@@ -19,7 +19,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge until wigItems.size()) {
+            for (j in edge..wigItems.size() - 1) {
                 val wigItem = wigItems[j]
                 if (wigItem.end <= bin.startOffset) {
                     edge = j + 1
@@ -74,7 +74,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     throw IllegalStateException("bedGraph sections aren't supported")
                 WigSection.Type.VARIABLE_STEP -> {
                     val section = VariableStepSection(chrom, span)
-                    for (i in 0 until count) {
+                    for (i in 0..count - 1) {
                         val pos = readInt()
                         val value = readFloat()
                         if (query.contains(pos, span, overlaps)) {
@@ -93,7 +93,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                             start,
                             query.startOffset + if (shift == 0) 0 else step - shift)
                     val section = FixedStepSection(chrom, realignedStart, step, span)
-                    for (i in 0 until count) {
+                    for (i in 0..count - 1) {
                         val value = readFloat()
                         if (query.contains(start + i * step, span, overlaps)) {
                             section.add(value)
@@ -198,7 +198,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
         writeByte(0) // reserved.
         writeShort(values.size())
-        for (i in 0 until values.size()) {
+        for (i in 0..size() - 1) {
             writeFloat(values[i])
         }
     }
@@ -214,7 +214,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
         writeByte(0)  // reserved.
         writeShort(values.size())
-        for (i in 0 until values.size()) {
+        for (i in 0..size() - 1) {
             writeInt(positions[i])
             writeFloat(values[i])
         }
