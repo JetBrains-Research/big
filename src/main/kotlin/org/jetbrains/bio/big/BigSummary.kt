@@ -9,9 +9,9 @@ public data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
         public var count: Long = 0L,
         /** Minimum item value. */
-        public var minValue: Double = Double.POSITIVE_INFINITY,
+        public var minValue: Double = java.lang.Double.POSITIVE_INFINITY,
         /** Maximum item value. */
-        public var maxValue: Double = Double.NEGATIVE_INFINITY,
+        public var maxValue: Double = java.lang.Double.NEGATIVE_INFINITY,
         /** Sum of values for each base. */
         public var sum: Double = 0.0,
         /** Sum of squares for each base. */
