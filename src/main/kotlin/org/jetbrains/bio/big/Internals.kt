@@ -77,11 +77,11 @@ fun Path.chromosomes(): List<BPlusLeaf> {
     }.toList()
 }
 
-fun Sequence<T>.partition<T>(n: Int): Sequence<Iterable<T>> {
+fun Sequence<T>.partition<T>(n: Int): Sequence<List<T>> {
     require(n > 0, "n must be >0")
     val that = this
-    return object : Sequence<Iterable<T>> {
-        override fun iterator(): Iterator<Iterable<T>> {
+    return object : Sequence<List<T>> {
+        override fun iterator(): Iterator<List<T>> {
             return Iterators.partition(that.iterator(), n)
         }
     }
