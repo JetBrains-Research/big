@@ -48,6 +48,17 @@ fun Int.until(other: Int) = this..other - 1
 // Remove once KT-8872 is done.
 fun IntRange.by(step: Int) = step(step)
 
+private class TransformingIntIterator<R>(range: IntRange,
+                                         private val transform: (Int) -> R) :
+        Iterator<R> {
+
+    private val it = range.iterator()
+
+    override fun next(): R = transform(it.nextInt())
+
+    override fun hasNext(): Boolean = it.hasNext()
+}
+
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
 fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
@@ -148,6 +159,7 @@ interface Interval {
 data open class ChromosomeInterval(public val chromIx: Int,
                                    public val startOffset: Int,
                                    public val endOffset: Int) : Interval {
+
     override val left: Offset get() = Offset(chromIx, startOffset)
     override val right: Offset get() = Offset(chromIx, endOffset)
 
@@ -168,6 +180,11 @@ data open class ChromosomeInterval(public val chromIx: Int,
                         Math.min(endOffset, other.endOffset))
     }
 
+    private fun IntRange.map<R>(transform: (Int) -> R): Sequence<R> {
+        // XXX calling the 'Iterable<T>#map' leads to boxing.
+        return TransformingIntIterator(this, transform).asSequence()
+    }
+
     /**
      * Produces a sequence of `n` sub-intervals.
      *
@@ -182,7 +199,7 @@ data open class ChromosomeInterval(public val chromIx: Int,
             sequenceOf(this)
         } else {
             val width = length().toDouble() / n
-            (0 until n).asSequence().map { i ->
+            (0 until n).map { i ->
                 val start = Math.round(startOffset + i * width).toInt()
                 val end = Math.round(startOffset + (i + 1) * width).toInt()
                 Interval(chromIx, start, Math.min(end, endOffset))
