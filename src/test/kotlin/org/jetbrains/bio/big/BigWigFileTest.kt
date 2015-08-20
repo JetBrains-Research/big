@@ -6,6 +6,7 @@ import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class BigWigFileTest {
@@ -25,6 +26,7 @@ public class BigWigFileTest {
 
             BigWigFile.read(path).use { bwf ->
                 assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
+                assertFalse(bwf.totalSummary.isEmpty())
             }
         }
     }

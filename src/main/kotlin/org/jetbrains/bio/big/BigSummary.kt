@@ -5,7 +5,7 @@ import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 
-data class BigSummary(
+public data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
         public var count: Long = 0L,
         /** Minimum item value. */

@@ -29,7 +29,7 @@ public class VariableStepSectionTest {
         val correct = arrayOf(WigInterval(100500, 100520, 42f),
                               WigInterval(500100, 500120, 24f))
 
-        assertEquals(correct.toList(), section.query().toList())
+        assertEquals(correct.asList(), section.query().toList())
     }
 
     @Test fun testQuery() {
@@ -47,7 +47,7 @@ public class VariableStepSectionTest {
         // |----|----|----|----|----|
         //           +----+
         //       rightmost range
-        assertEquals(correct.toList(), section.query(100500, 500200).toList())
+        assertEquals(correct.asList(), section.query(100500, 500200).toList())
     }
 
     @Test fun testSplice() {

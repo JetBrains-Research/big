@@ -3,9 +3,6 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
-import gnu.trove.TCollections
-import gnu.trove.map.TIntObjectMap
-import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
@@ -98,17 +95,6 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
             return findRecursively(input, node.childOffset, query)
         }
-    }
-
-    fun toMap(input: SeekableDataInput): TIntObjectMap<String> {
-        // XXX I wonder if sequential numbering is always the case for
-        // Big files?
-        val res = TIntObjectHashMap<String>(header.itemCount)
-        for (leaf in traverse(input)) {
-            res.put(leaf.id, leaf.key)
-        }
-
-        return TCollections.unmodifiableMap(res)
     }
 
     class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
@@ -256,7 +242,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
 /**
  * A leaf in a B+ tree.
  */
-data class BPlusLeaf(
+public data class BPlusLeaf(
         /** Chromosome name, e.g. "chr19" or "chrY". */
         public val key: String,
         /** Unique chromosome identifier.  */
@@ -274,9 +260,7 @@ data class BPlusLeaf(
         writeInt(size)
     }
 
-    override fun toString(): String {
-        return "$key => ($id; $size)"
-    }
+    override fun toString(): String = "$key => ($id; $size)"
 
     companion object {
         fun read(input: OrderedDataInput, keySize: Int) = with (input) {

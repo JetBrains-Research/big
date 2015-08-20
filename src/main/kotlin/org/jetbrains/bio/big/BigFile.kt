@@ -1,8 +1,8 @@
 package org.jetbrains.bio.big
 
-import com.google.common.primitives.Longs
-import com.google.common.primitives.Shorts
+import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
+import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.log4j.LogManager
 import java.io.Closeable
 import java.io.IOException
@@ -27,35 +27,12 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     val rTree: RTreeIndex
 
     init {
-        // Skip AutoSQL string if any. Note, that even though the format
-        // requires offsets for the following sections, their location
-        // is fixed.
-        while (header.asOffset > 0 && input.readByte() != 0.toByte()) {}
-
-        // Skip total summary block.
-        if (header.totalSummaryOffset > 0) {
-            BigSummary.read(input)
+        if (header.asOffset > 0) {
+            LOG.warn("AutoSQL queries are unsupported")
         }
 
-        // Skip extended header. Ideally, we should issue a warning
-        // if extensions are present.
         if (header.extendedHeaderOffset > 0) {
-            with(input) {
-                skipBytes(Shorts.BYTES)  // extensionSize.
-                val extraIndexCount = readUnsignedShort()
-                skipBytes(Longs.BYTES)   // extraIndexListOffset.
-                skipBytes(48)            // reserved.
-
-                for (i in 0 until extraIndexCount) {
-                    val type = readUnsignedShort()
-                    assert(type == 0)
-                    val extraFieldCount = readUnsignedShort()
-                    skipBytes(Longs.BYTES)     // indexOffset.
-                    skipBytes(extraFieldCount *
-                              (Shorts.BYTES +  // fieldId,
-                               Shorts.BYTES))  // reserved.
-                }
-            }
+            LOG.warn("Header extensions are unsupported")
         }
 
         bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
@@ -64,8 +41,25 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         check(rTree.header.order == header.order)
     }
 
+    /** Whole-file summary. */
+    public val totalSummary: BigSummary by Delegates.lazy {
+        BigSummary.read(input)
+    }
+
+    /**
+     * An in-memory mapping of chromosome IDs to chromosome names.
+     *
+     * Because sometimes (always) you don't need a B+ tree for that.
+     */
     public val chromosomes: TIntObjectMap<String> by Delegates.lazy {
-        bPlusTree.toMap(input)
+        with (bPlusTree) {
+            val res = TIntObjectHashMap<String>(header.itemCount)
+            for (leaf in traverse(input)) {
+                res.put(leaf.id, leaf.key)
+            }
+
+            TCollections.unmodifiableMap(res)
+        }
     }
 
     public val compressed: Boolean get() {
@@ -117,7 +111,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             summaries[i] = summary
         }
 
-        return summaries.toList()
+        return summaries.asList()
     }
 
     @throws(IOException::class)
@@ -274,6 +268,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     companion object {
+        private val LOG = LogManager.getLogger(javaClass)
+
         /** Checks if a given `path` starts with a valid `magic`. */
         fun check(path: Path, magic: Int): Boolean {
             return SeekableDataInput.of(path).use { input ->

@@ -4,6 +4,7 @@ import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
+import java.io.IOException
 import java.nio.ByteOrder
 import java.util.ArrayList
 import java.util.Collections
@@ -30,15 +31,16 @@ import java.util.Collections
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
  */
-class RTreeIndex(val header: RTreeIndex.Header) {
+public class RTreeIndex(val header: RTreeIndex.Header) {
     /**
      * Recursively traverses an R+ tree calling `consumer` on each
      * block (aka leaf) overlapping a given `query`. Note that some
      * of the intervals contained in a block might *not* overlap the
      * `query`.
      */
-    fun findOverlappingBlocks(input: SeekableDataInput,
-                              query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
+    @throws(IOException::class)
+    public fun findOverlappingBlocks(input: SeekableDataInput,
+                                     query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return findOverlappingBlocksRecursively(input, query, header.rootOffset)
     }
 
@@ -119,14 +121,12 @@ class RTreeIndex(val header: RTreeIndex.Header) {
     companion object {
         private val LOG = LogManager.getLogger(javaClass)
 
-        public fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
+        fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
         }
 
-        public fun write(output: CountingDataOutput,
-                         leaves: List<RTreeIndexLeaf>,
-                         blockSize: Int = 256,
-                         itemsPerSlot: Int = 512): Unit {
+        fun write(output: CountingDataOutput, leaves: List<RTreeIndexLeaf>,
+                  blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
             require(leaves.isNotEmpty(), "no data")
             require(blockSize > 1, "blockSize must be >1")
 
@@ -228,9 +228,9 @@ class RTreeIndex(val header: RTreeIndex.Header) {
 /**
  * External node aka *leaf* of the chromosome R-tree.
  */
-data class RTreeIndexLeaf(public val interval: Interval,
-                          public val dataOffset: Long,
-                          public val dataSize: Long) {
+public data class RTreeIndexLeaf(public val interval: Interval,
+                                 public val dataOffset: Long,
+                                 public val dataSize: Long) {
     fun write(output: OrderedDataOutput) = with(output) {
         writeInt(interval.left.chromIx)
         writeInt(interval.left.offset)
@@ -257,8 +257,8 @@ data class RTreeIndexLeaf(public val interval: Interval,
 /**
  * Internal node of the chromosome R-tree.
  */
-data class RTreeIndexNode(public val interval: Interval,
-                          public val dataOffset: Long) {
+private data class RTreeIndexNode(public val interval: Interval,
+                                  public val dataOffset: Long) {
     fun write(output: OrderedDataOutput) = with(output) {
         writeInt(interval.left.chromIx)
         writeInt(interval.left.offset)

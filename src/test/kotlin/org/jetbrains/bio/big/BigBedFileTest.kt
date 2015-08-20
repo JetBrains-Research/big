@@ -6,6 +6,7 @@ import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.Random
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 public class BigBedFileTest {
@@ -37,6 +38,7 @@ public class BigBedFileTest {
 
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
             }
         }
     }
