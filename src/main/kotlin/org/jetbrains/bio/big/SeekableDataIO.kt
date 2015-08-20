@@ -115,15 +115,14 @@ public open class SeekableDataInput protected constructor(
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
                        block: OrderedDataInput.() -> T): T {
         seek(offset)
+        val data = ByteArray(size.toInt())
+        readFully(data)
         val input = if (compressed) {
-            val data = ByteArray(size.toInt())
-            readFully(data)
             val inflated = data.decompress(inf)
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
         } else {
-            CountingDataInput(Channels.newInputStream(file.getChannel()).buffered(),
-                              size, order)
+            CountingDataInput(ByteArrayInputStream(data), size, order)
         }
         return with(input, block)
     }
