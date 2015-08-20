@@ -59,6 +59,11 @@ private class TransformingIntIterator<R>(range: IntRange,
     override fun hasNext(): Boolean = it.hasNext()
 }
 
+fun IntRange.mapUnboxed<R>(transform: (Int) -> R): Sequence<R> {
+    // XXX calling the 'Iterable<T>#map' leads to boxing.
+    return TransformingIntIterator(this, transform).asSequence()
+}
+
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
 fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
@@ -193,11 +198,6 @@ data open class ChromosomeInterval(public val chromIx: Int,
                         Math.min(endOffset, other.endOffset))
     }
 
-    private fun IntRange.map<R>(transform: (Int) -> R): Sequence<R> {
-        // XXX calling the 'Iterable<T>#map' leads to boxing.
-        return TransformingIntIterator(this, transform).asSequence()
-    }
-
     /**
      * Produces a sequence of `n` sub-intervals.
      *
@@ -212,7 +212,7 @@ data open class ChromosomeInterval(public val chromIx: Int,
             sequenceOf(this)
         } else {
             val width = length().toDouble() / n
-            (0 until n).map { i ->
+            (0 until n).mapUnboxed { i ->
                 val start = Math.round(startOffset + i * width).toInt()
                 val end = Math.round(startOffset + (i + 1) * width).toInt()
                 Interval(chromIx, start, Math.min(end, endOffset))

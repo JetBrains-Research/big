@@ -58,14 +58,14 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
         // shared between calls.
         return if (isLeaf) {
             (0 until childCount)
-                    .map { RTreeIndexLeaf.read(input) }
+                    .mapUnboxed { RTreeIndexLeaf.read(input) }
                     .filter { it.interval intersects query }
-                    .asSequence()
+                    .toList().asSequence()
         } else {
             (0 until childCount)
-                    .map { RTreeIndexNode.read(input) }
+                    .mapUnboxed { RTreeIndexNode.read(input) }
                     .filter { it.interval intersects query }
-                    .asSequence()
+                    .toList().asSequence()
                     .flatMap { node ->
                         findOverlappingBlocksRecursively(input, query,
                                                          node.dataOffset)
