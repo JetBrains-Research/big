@@ -94,8 +94,9 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                             query.startOffset + if (shift == 0) 0 else step - shift)
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0..count - 1) {
+                        val pos = start + i * step
                         val value = readFloat()
-                        if (query.contains(start + i * step, span, overlaps)) {
+                        if (query.contains(pos, span, overlaps)) {
                             section.add(value)
                         }
                     }
@@ -197,7 +198,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeInt(span)
         writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
         writeByte(0) // reserved.
-        writeShort(values.size())
+        writeShort(size())
         for (i in 0..size() - 1) {
             writeFloat(values[i])
         }
@@ -213,7 +214,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(span)
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
         writeByte(0)  // reserved.
-        writeShort(values.size())
+        writeShort(size())
         for (i in 0..size() - 1) {
             writeInt(positions[i])
             writeFloat(values[i])
