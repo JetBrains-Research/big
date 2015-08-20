@@ -6,6 +6,7 @@ import com.google.common.primitives.Shorts
 import java.io.*
 import java.nio.ByteOrder
 import java.nio.channels.Channels
+import java.nio.channels.FileChannel.MapMode
 import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
@@ -18,20 +19,6 @@ import kotlin.properties.Delegates
 public interface OrderedDataInput {
     public var order: ByteOrder
         private set
-
-    /** Guess byte order from a given big-endian `magic`. */
-    public fun guess(magic: Int) {
-        val b = ByteArray(4)
-        readFully(b)
-        val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
-        order = if (bigMagic != magic) {
-            val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
-            check(littleMagic == magic, "bad signature")
-            ByteOrder.LITTLE_ENDIAN
-        } else {
-            ByteOrder.BIG_ENDIAN
-        }
-    }
 
     public fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size())
 
@@ -92,15 +79,9 @@ public interface OrderedDataInput {
     public fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
 
     public fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
-
-    /**
-     * Returns `true` if the input doesn't contain any more data and
-     * `false` otherwise.
-     * */
-    public val finished: Boolean
 }
 
-public open class SeekableDataInput protected constructor(
+public class SeekableDataInput protected constructor(
         private val file: RandomAccessFile,
         public override var order: ByteOrder)
 :
@@ -112,7 +93,7 @@ public open class SeekableDataInput protected constructor(
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
-                       block: OrderedDataInput.() -> T): T {
+                       block: CountingOrderedDataInput.() -> T): T {
         seek(offset)
         val data = ByteArray(size.toInt())
         readFully(data)
@@ -121,11 +102,23 @@ public open class SeekableDataInput protected constructor(
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
         } else {
-            // We can't simply return 'this' here, because we
-            // won't have a stopping criterion.
             CountingDataInput(ByteArrayInputStream(data), size, order)
         }
         return with(input, block)
+    }
+
+    /** Guess byte order from a given big-endian `magic`. */
+    public fun guess(magic: Int) {
+        val b = ByteArray(4)
+        readFully(b)
+        val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
+        order = if (bigMagic != magic) {
+            val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
+            check(littleMagic == magic, "bad signature")
+            ByteOrder.LITTLE_ENDIAN
+        } else {
+            ByteOrder.BIG_ENDIAN
+        }
     }
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
@@ -134,15 +127,11 @@ public open class SeekableDataInput protected constructor(
 
     override fun readUnsignedByte(): Int = file.readUnsignedByte()
 
-    public fun skipBytes(n: Int): Int = file.skipBytes(n)
-
     public open fun seek(pos: Long): Unit = file.seek(pos)
 
     public open fun tell(): Long = file.getFilePointer()
 
     override fun close() = file.close()
-
-    override val finished: Boolean get() = tell() >= file.length()
 
     companion object {
         public fun of(path: Path,
@@ -152,11 +141,19 @@ public open class SeekableDataInput protected constructor(
     }
 }
 
+public interface CountingOrderedDataInput : OrderedDataInput {
+    /**
+     * Returns `true` if the input doesn't contain any more data and
+     * `false` otherwise.
+     * */
+    public val finished: Boolean
+}
+
 private class CountingDataInput(input: InputStream,
                                 private val size: Long,
                                 public override var order: ByteOrder)
 :
-        OrderedDataInput {
+        CountingOrderedDataInput {
 
     private val input = DataInputStream(input)
     private var read = 0L
