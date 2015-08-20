@@ -106,7 +106,6 @@ public open class SeekableDataInput protected constructor(
 :
         OrderedDataInput, Closeable, AutoCloseable {
 
-
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
     private val inf by Delegates.lazy { Inflater() }
@@ -122,6 +121,8 @@ public open class SeekableDataInput protected constructor(
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
         } else {
+            // We can't simply return 'this' here, because we
+            // won't have a stopping criterion.
             CountingDataInput(ByteArrayInputStream(data), size, order)
         }
         return with(input, block)
@@ -269,8 +270,8 @@ public open class CountingDataOutput(private val output: OutputStream,
     }
 
     /**
-     * Executes a `block` on a fixed-size possibly compressed input
-     * and returns the total number of *uncompressed* bytes written.
+     * Executes a `block` (compressing the output) and returns the
+     * total number of *uncompressed* bytes written.
      */
     public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
         return if (compressed) {

@@ -91,7 +91,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     val shift = query.startOffset % step
                     val realignedStart = Math.max(
                             start,
-                            query.startOffset + if (shift == 0) 0 else (step - shift))
+                            query.startOffset + if (shift == 0) 0 else step - shift)
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0 until count) {
                         val value = readFloat()
