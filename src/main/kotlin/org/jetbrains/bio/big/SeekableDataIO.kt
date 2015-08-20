@@ -1,12 +1,12 @@
 package org.jetbrains.bio.big
 
+import com.google.common.io.ByteStreams
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import java.io.*
 import java.nio.ByteOrder
 import java.nio.channels.Channels
-import java.nio.channels.FileChannel.MapMode
 import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
@@ -94,15 +94,19 @@ public class SeekableDataInput protected constructor(
     /** Executes a `block` on a fixed-size possibly compressed input. */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean,
                        block: CountingOrderedDataInput.() -> T): T {
-        seek(offset)
+        // XXX in theory we could cache the array between calls.
         val data = ByteArray(size.toInt())
-        readFully(data)
+
+        seek(offset)
+        readFully(data, 0, size.toInt())
         val input = if (compressed) {
-            val inflated = data.decompress(inf)
+            inf.reset()
+            val inflated = data.decompress(0, size.toInt(), inf)
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
         } else {
-            CountingDataInput(ByteArrayInputStream(data), size, order)
+            CountingDataInput(ByteArrayInputStream(data, 0, size.toInt()),
+                              size, order)
         }
         return with(input, block)
     }
@@ -127,13 +131,26 @@ public class SeekableDataInput protected constructor(
 
     override fun readUnsignedByte(): Int = file.readUnsignedByte()
 
-    public open fun seek(pos: Long): Unit = file.seek(pos)
+    public fun seek(pos: Long): Unit = file.seek(pos)
 
-    public open fun tell(): Long = file.getFilePointer()
+    public fun tell(): Long = file.getFilePointer()
 
     override fun close() = file.close()
 
     companion object {
+        private fun ByteArray.decompress(off: Int, len: Int, inf: Inflater): ByteArray {
+            inf.setInput(this, off, len)
+            return ByteArrayOutputStream(len - off).use { out ->
+                val buf = ByteArray(512)
+                while (!inf.finished()) {
+                    val count = inf.inflate(buf)
+                    out.write(buf, 0, count)
+                }
+
+                out.toByteArray()
+            }
+        }
+
         public fun of(path: Path,
                       order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
             return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
@@ -149,24 +166,28 @@ public interface CountingOrderedDataInput : OrderedDataInput {
     public val finished: Boolean
 }
 
-private class CountingDataInput(input: InputStream,
+private class CountingDataInput(private val input: InputStream,
                                 private val size: Long,
                                 public override var order: ByteOrder)
 :
         CountingOrderedDataInput {
 
-    private val input = DataInputStream(input)
     private var read = 0L
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         check(!finished, "no data")
-        input.readFully(b, off, len)
-        read += len
+        val available = Math.min(len, (size - read).toInt())
+        ByteStreams.readFully(input, b, off, available)
+        read += available
     }
 
     override fun readUnsignedByte(): Int {
         check(!finished, "no data")
-        val b = input.readUnsignedByte()
+        val b = input.read()
+        if (b < 0) {
+            throw EOFException()
+        }
+
         read++
         return b
     }
@@ -315,19 +336,5 @@ public open class CountingDataOutput(private val output: OutputStream,
             val output = Channels.newOutputStream(channel).buffered()
             return CountingDataOutput(output, offset, order)
         }
-    }
-}
-
-private fun ByteArray.decompress(inf: Inflater): ByteArray {
-    inf.reset()
-    inf.setInput(this)
-    return ByteArrayOutputStream(size()).use { out ->
-        val buf = ByteArray(1024)
-        while (!inf.finished()) {
-            val count = inf.inflate(buf)
-            out.write(buf, 0, count)
-        }
-
-        out.toByteArray()
     }
 }
