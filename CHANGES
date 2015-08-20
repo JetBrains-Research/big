@@ -6,6 +6,8 @@ Here you can see the full list of changes between each big release.
 Version 0.1.5
 -------------
 
+Released on August 20th 2015
+
 - Enabled buffering in 'SeekableDataOutput'.
 - Fixed a bug in 'RTreeIndex.write' which sometimes produced invalid
   offsets for internal R+ tree nodes.
