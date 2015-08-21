@@ -171,61 +171,80 @@ public class BigWigFileTest {
 
     @Test fun testQueryLeftEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            // precondition:
-            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
-            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+                         bwf.query("chr3").first().toString())
 
-            assertWigSections(bwf, "chr3", 400700, 410000, listOf(
+            val expected = listOf(
                     WigInterval(400700, 400701, 22.0f),
                     WigInterval(400800, 400801, 33.0f)
-            ))
+            )
+            assertEquals(expected, bwf.query("chr3", 400700, 410000)
+                    .flatMap { it.query() }.toList())
         }
     }
 
     @Test fun testQueryRightEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            // precondition:
-            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
-            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+                         bwf.query("chr3").first().toString())
 
-            assertWigSections(bwf, "chr3", 400620, 400801, listOf(
+            val expected = listOf(
                     WigInterval(400700, 400701, 22.0f),
                     WigInterval(400800, 400801, 33.0f)
-            ))
+            )
+            assertEquals(expected, bwf.query("chr3", 400620, 400801)
+                    .flatMap { it.query() }.toList())
         }
     }
 
     @Test fun testQueryInnerRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            // precondition:
-            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
-            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+                         bwf.query("chr3").first().toString())
 
-            assertWigSections(bwf, "chr3", 400620, 400800, listOf(
-                    WigInterval(400700, 400701, 22.0f)
-            ))
+            val expected = listOf(WigInterval(400700, 400701, 22.0f))
+            assertEquals(expected, bwf.query("chr3", 400620, 400800)
+                    .flatMap { it.query() }.toList())
         }
     }
 
     @Test fun testQueryOuterRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            // precondition:
-            val section = bwf.query("chr3", 0, 0).first() as FixedStepSection
-            require("FixedStepSection{start=400600, end=400801, step=100, span=1}" == section.toString())
+            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+                         bwf.query("chr3").first().toString())
 
-            assertWigSections(bwf, "chr3", 400000, 410000, listOf(
+            val expected = listOf(
                     WigInterval(400600, 400601, 11.0f),
                     WigInterval(400700, 400701, 22.0f),
                     WigInterval(400800, 400801, 33.0f)
-            ))
+            )
+            assertEquals(expected, bwf.query("chr3", 400000, 410000)
+                    .flatMap { it.query() }.toList())
         }
     }
 
-    private fun assertWigSections(bwf: BigWigFile, name:String,
-                                  start: Int, end: Int, expected: List<WigInterval>) {
-        val actual = bwf.query(name, start, end)
-                .flatMap { it.query().asSequence() }.toList()
-        assertEquals(expected, actual)
+    @Test fun testQueryWithOverlaps() = withTempFile("fixed_step", ".bw") { path ->
+        val section = FixedStepSection("chr3", 400600, step = 100, span = 50)
+        section.add(11.0f)
+        section.add(22.0f)
+        section.add(33.0f)
+
+        BigWigFile.write(listOf(section), Examples["hg19.chrom.sizes.gz"], path)
+        BigWigFile.read(path).use { bwf ->
+            assertEquals("FixedStepSection{start=400600, end=400850, step=100, span=50}",
+                         bwf.query("chr3").first().toString())
+
+            val expected = listOf(
+                    WigInterval(400600, 400650, 11.0f),
+                    WigInterval(400700, 400750, 22.0f),
+                    WigInterval(400800, 400850, 33.0f)
+            )
+
+            assertEquals(expected, bwf.query("chr3", 400600, 410000, overlaps = false)
+                    .flatMap { it.query() }.toList())
+            assertEquals(expected, bwf.query("chr3", 400625, 410000, overlaps = true)
+                    .flatMap { it.query() }.toList())
+        }
     }
 
     private fun testQueryPartial(path: Path) {

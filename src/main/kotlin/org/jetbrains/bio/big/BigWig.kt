@@ -85,13 +85,14 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     section
                 }
                 WigSection.Type.FIXED_STEP -> {
-                    // Realign query start to the nearest (rightmost) interval.
-                    // This ensures that all WIG intervals have proper offsets
-                    // and are contained in query.
+                    // Realign section start to the first interval consistent
+                    // with the query. See '#contains' above for the definition
+                    // of "consistency".
                     val shift = query.startOffset % step
+                    val direction = if (overlaps) -1 else +1
                     val realignedStart = Math.max(
                             start,
-                            query.startOffset + if (shift == 0) 0 else step - shift)
+                            query.startOffset + direction * (if (shift == 0) 0 else step - shift))
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0..count - 1) {
                         val pos = start + i * step

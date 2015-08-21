@@ -11,8 +11,9 @@ public class IntervalTest {
         val interval = Interval(1, 100, 200)
         assertOverlaps(interval, interval)
         assertOverlaps(interval, Interval(1, 50, 150))
-        assertOverlaps(interval, Interval(1, 50, 250))
         assertOverlaps(interval, Interval(1, 150, 250))
+        assertOverlaps(interval, Interval(1, 50, 250))
+        assertOverlaps(interval, Interval(1, 150, 160))
         assertNotOverlaps(interval, Interval(1, 250, 300))
         // This is OK because right end is exclusive.
         assertNotOverlaps(interval, Interval(1, 200, 300))
@@ -31,14 +32,14 @@ public class IntervalTest {
     }
 
     private fun assertOverlaps(interval1: Interval, interval2: Interval) {
-        assertTrue(interval1.intersects(interval2), "$interval1 must overlap $interval2")
-        assertTrue(interval2.intersects(interval1), "$interval2 must overlap $interval1")
+        assertTrue(interval1 intersects interval2, "$interval1 must overlap $interval2")
+        assertTrue(interval2 intersects interval1, "$interval2 must overlap $interval1")
     }
 
     private fun assertNotOverlaps(interval1: Interval, interval2: Interval) {
-        assertFalse(interval1.intersects(interval2),
+        assertFalse(interval1 intersects interval2,
                     "$interval1 must not overlap $interval2")
-        assertFalse(interval2.intersects(interval1),
+        assertFalse(interval2 intersects interval1,
                     "$interval1 must not overlap $interval1")
     }
 
