@@ -219,14 +219,15 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
             Collections.reverse(levels)
             LOG.debug("Computed ${levels.size()} levels: ${levels.map { it.size() }}")
 
-            // Omit the leaves --- we'll deal with them later.
+            // Omit the root since it's trivial and leaves --- we'll deal
+            // with them later.
             return levels.subList(1, Math.max(1, levels.size() - 1))
         }
     }
 }
 
 /**
- * External node aka *leaf* of the chromosome R-tree.
+ * External node aka *leaf* of the chromosome R+ tree.
  */
 public data class RTreeIndexLeaf(public val interval: Interval,
                                  public val dataOffset: Long,
@@ -252,7 +253,7 @@ public data class RTreeIndexLeaf(public val interval: Interval,
 }
 
 /**
- * Internal node of the chromosome R-tree.
+ * Internal node of the chromosome R+ tree.
  */
 private data class RTreeIndexNode(public val interval: Interval,
                                   public val dataOffset: Long) {
