@@ -100,8 +100,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         // per bin. Otherwise we might not be able to estimate SD.
         val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
         val sparseSummaries = if (zoomLevel == null || !index) {
+            LOG.trace("Summarizing $query from raw data")
             summarizeInternal(query, numBins)
         } else {
+            LOG.trace("Summarizing $query from ${zoomLevel.reduction}x zoom")
             summarizeFromZoom(query, zoomLevel, numBins)
         }
 
