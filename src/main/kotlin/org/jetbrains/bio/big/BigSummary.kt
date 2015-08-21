@@ -124,9 +124,6 @@ data class ZoomData(
 
     val interval: ChromosomeInterval get() = Interval(chromIx, startOffset, endOffset)
 
-    /** Returns `true` if zoom contains no data. */
-    fun isEmpty() = count == 0
-
     fun write(output: OrderedDataOutput) = with(output) {
         writeInt(chromIx)
         writeInt(startOffset)
