@@ -58,7 +58,7 @@ public class RTreeIndexTest {
                 for (leaf in leaves) {
                     val overlaps = rti.findOverlappingBlocks(
                             input, leaf.interval as ChromosomeInterval).toList()
-                    assertTrue(overlaps.isNotEmpty(), leaf.toString())
+                    assertTrue(overlaps.isNotEmpty())
                     assertEquals(leaf, overlaps.first())
                 }
             }

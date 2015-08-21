@@ -143,11 +143,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         var edge = 0  // yay! map with a side effect.
         return query.slice(numBins).mapIndexed { i, bin ->
-            var count = 0L
-            var min = java.lang.Double.POSITIVE_INFINITY
-            var max = java.lang.Double.NEGATIVE_INFINITY
-            var sum = 0.0
-            var sumSquares = 0.0
+            val summary = BigSummary()
             for (j in edge..zoomData.size() - 1) {
                 val interval = zoomData[j].interval
                 if (interval.endOffset <= bin.startOffset) {
@@ -158,24 +154,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 }
 
                 if (interval intersects bin) {
-                    val intersection = interval intersection  bin
-                    assert(intersection.length() > 0)
-                    val weight = intersection.length().toDouble() / interval.length()
-                    count += Math.round(zoomData[j].count * weight)
-                    sum += zoomData[j].sum * weight;
-                    sumSquares += zoomData[j].sumSquares * weight
-                    min = Math.min(min, zoomData[j].minValue.toDouble());
-                    max = Math.max(max, zoomData[j].maxValue.toDouble());
+                    summary.update(zoomData[j],
+                                   (interval intersection bin).length(),
+                                   interval.length())
                 }
             }
 
-            if (count == 0L) {
-                null
-            } else {
-                val summary = BigSummary(count = count, minValue = min, maxValue = max,
-                                         sum = sum, sumSquares = sumSquares)
-                IndexedValue(i, summary)
-            }
+            if (summary.isEmpty()) null else IndexedValue(i, summary)
         }.filterNotNull()
     }
 

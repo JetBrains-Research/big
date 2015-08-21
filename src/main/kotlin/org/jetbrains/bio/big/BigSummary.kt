@@ -29,6 +29,15 @@ public data class BigSummary(
         maxValue = Math.max(maxValue, value);
     }
 
+    fun update(other: ZoomData, intersection: Int, total: Int) {
+        val weight = intersection.toDouble() / total
+        count += Math.round(other.count * weight)
+        sum += other.sum * weight;
+        sumSquares += other.sumSquares * weight
+        minValue = Math.min(minValue, other.minValue.toDouble());
+        maxValue = Math.max(maxValue, other.maxValue.toDouble());
+    }
+
     /** Because monoids rock. */
     fun plus(other: BigSummary): BigSummary = when {
         isEmpty()       -> other
