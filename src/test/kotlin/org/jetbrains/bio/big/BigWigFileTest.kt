@@ -240,10 +240,15 @@ public class BigWigFileTest {
                     WigInterval(400800, 400850, 33.0f)
             )
 
-            assertEquals(expected, bwf.query("chr3", 400600, 410000, overlaps = false)
-                    .flatMap { it.query() }.toList())
-            assertEquals(expected, bwf.query("chr3", 400625, 410000, overlaps = true)
-                    .flatMap { it.query() }.toList())
+            assertEquals(expected,
+                         bwf.query("chr3", 400600, 410000, overlaps = false)
+                                 .flatMap { it.query() }.toList())
+            assertEquals(expected,
+                         bwf.query("chr3", 400615, 410000, overlaps = true)
+                                 .flatMap { it.query() }.toList())
+            assertEquals(expected.subList(1, expected.size()),
+                         bwf.query("chr3", 400715, 410000, overlaps = true)
+                                 .flatMap { it.query() }.toList())
         }
     }
 

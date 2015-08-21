@@ -88,11 +88,20 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     // Realign section start to the first interval consistent
                     // with the query. See '#contains' above for the definition
                     // of "consistency".
-                    val shift = query.startOffset % step
-                    val direction = if (overlaps) -1 else +1
-                    val realignedStart = Math.max(
-                            start,
-                            query.startOffset + direction * (if (shift == 0) 0 else step - shift))
+
+                    // Example:
+                    //     |------------------|  query
+                    //   |...|...|...|           section
+                    //     ^^
+                    //   margin = 2
+                    val margin = query.startOffset % step
+                    val shift = when {
+                        margin == 0 -> 0             // perfectly aligned.
+                        overlaps   -> -margin        // align to the left.
+                        else       -> step - margin  // align to the right.
+                    }
+
+                    val realignedStart = Math.max(start, query.startOffset + shift)
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0..count - 1) {
                         val pos = start + i * step
