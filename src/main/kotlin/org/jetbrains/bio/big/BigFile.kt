@@ -303,13 +303,16 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          *
          * @param path to [BigFile].
          * @param itemsPerSlot number of summaries to aggregate prior to
-         *                     building an R+ tree. See [RTreeIndex] for
-         *                     details.
+         *                     building an R+ tree. Lower values allow
+         *                     for better granularity when loading zoom
+         *                     levels, but may degrade the performance
+         *                     of [BigFile.summarizeFromZoom]. See
+         *                     [RTreeIndex] for details
          * @param initial initial reduction.
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `initial`, next `initial * step` etc.
          */
-        fun zoom(path: Path, itemsPerSlot: Int = 1, initial: Int = 8, step: Int = 4) {
+        fun zoom(path: Path, itemsPerSlot: Int = 512, initial: Int = 8, step: Int = 4) {
             LOG.time("Computing zoom levels with step $step for $path") {
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
