@@ -161,8 +161,8 @@ public class WigPrinter jvmOverloads constructor(
     public fun print(track: VariableStepSection) {
         writer.write("variableStep chrom=${track.chrom} span=${track.span}\n")
 
-        for (range in track.query()) {
-            writer.write("${range.start + 1} ${range.score}\n")
+        for (interval in track.query()) {
+            writer.write("${interval.start + 1} ${interval.score}\n")
         }
     }
 
@@ -171,8 +171,8 @@ public class WigPrinter jvmOverloads constructor(
                      "start=${track.start + 1} " +
                      "step=${track.step} span=${track.span}\n")
 
-        for (range in track.query()) {
-            writer.write("${range.score}\n")
+        for (interval in track.query()) {
+            writer.write("${interval.score}\n")
         }
     }
 
@@ -228,17 +228,17 @@ public interface WigSection : Comparable<WigSection> {
 }
 
 /**
- * A section with gaps; _variable_ step mean i+1-th range is on
- * arbitrary distance from i-th range. Note, however, that range
+ * A section with gaps; _variable_ step mean i+1-th interval is on
+ * arbitrary distance from i-th interval. Note, however, that interval
  * width remains _fixed_ throughout the track.
  */
 public data class VariableStepSection(
         public override val chrom: String,
-        /** Range width. */
+        /** Interval width. */
         public val span: Int = 1,
-        /** Per-range position. */
+        /** Per-interval positions. */
         val positions: TIntList = TIntArrayList(),
-        /** Per-range values. */
+        /** Per-interval values. */
         val values: TFloatList = TFloatArrayList()) : WigSection {
 
     init {
@@ -321,18 +321,19 @@ public data class VariableStepSection(
 }
 
 /**
- * A section with contiguous ranges. Both the distance between consecutive
- * ranges and range width is fixed throughout the track.
+ * A section with contiguous interval. Both the distance between
+ * consecutive intervals and interval width is fixed throughout the
+ * section.
  */
 public data class FixedStepSection(
         public override val chrom: String,
-        /** Start offset of the first range on the track. */
+        /** Start offset of the first interval on the track. */
         public override val start: Int,
-        /** Distance between consecutive ranges. */
+        /** Distance between consecutive intervals. */
         public val step: Int = 1,
-        /** Range width. */
+        /** Interval width. */
         public val span: Int = 1,
-        /** Per-range values. */
+        /** Per-interval values. */
         val values: TFloatList = TFloatArrayList()) : WigSection {
 
     override val end: Int get() = start + step * (values.size() - 1) + span
