@@ -150,7 +150,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             var sumSquares = 0.0
             for (j in edge..zoomData.size() - 1) {
                 val interval = zoomData[j].interval
-                if (interval.endOffset <= bin.startOffset) {
+                if (interval.endOffset <= bin.startOffset ||
+                    zoomData[j].isEmpty()) {
                     edge = j + 1
                     continue
                 } else if (interval.startOffset > bin.endOffset) {
