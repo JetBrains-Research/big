@@ -95,7 +95,7 @@ public class SeekableDataInput protected constructor(
     private var buf = ByteArray(4096)
 
     /** Executes a `block` on a fixed-size possibly compressed input. */
-    public fun with<T>(offset: Long, size: Long, compressed: Boolean,
+    public fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
                        block: CountingOrderedDataInput.() -> T): T {
         if (buf.size() < size) {
             buf = buf.copyOf((size + size shr 1).toInt())

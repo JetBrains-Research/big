@@ -57,19 +57,31 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
         // XXX we have to eagerly read the blocks because 'input' is
         // shared between calls.
         return if (isLeaf) {
-            (0..childCount - 1)
-                    .mapUnboxed { RTreeIndexLeaf.read(input) }
-                    .filter { it.interval intersects query }
-                    .toList().asSequence()
-        } else {
-            (0..childCount - 1)
-                    .mapUnboxed { RTreeIndexNode.read(input) }
-                    .filter { it.interval intersects query }
-                    .toList().asSequence()
-                    .flatMap { node ->
-                        findOverlappingBlocksRecursively(input, query,
-                                                         node.dataOffset)
+            val acc = ArrayList<RTreeIndexLeaf>(childCount)
+            input.with(input.tell(), (childCount * RTreeIndexLeaf.BYTES).toLong()) {
+                for (i in 0..childCount - 1) {
+                    val leaf = RTreeIndexLeaf.read(this)
+                    if (leaf.interval intersects query) {
+                        acc.add(leaf)
                     }
+                }
+            }
+
+            acc.asSequence()
+        } else {
+            val acc = ArrayList<RTreeIndexNode>(childCount)
+            input.with(input.tell(), (childCount * RTreeIndexNode.BYTES).toLong()) {
+                for (i in 0..childCount - 1) {
+                    val node = RTreeIndexNode.read(this)
+                    if (node.interval intersects query) {
+                        acc.add(node)
+                    }
+                }
+            }
+
+            acc.asSequence().flatMap { node ->
+                findOverlappingBlocksRecursively(input, query, node.dataOffset)
+            }
         }
     }
 
