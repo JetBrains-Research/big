@@ -145,13 +145,13 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
+            val groupedSections = wigSections.groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(0, BigFile.Header.BYTES)
                 output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(0, BigSummary.BYTES)
 
-                val groupedSections = wigSections.groupBy { it.chrom }
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                         .filter { it.key in groupedSections }
                 val chromTreeOffset = output.tell()
@@ -194,7 +194,17 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
 
             CountingDataOutput.of(outputPath, order).use { header.write(it) }
 
-            BigFile.Post.zoom(outputPath, itemsPerSlot = 512)
+            var count = 0
+            var sum = 0L
+            for (section in groupedSections.values().flatten()) {
+                sum += section.span
+                count++
+            }
+
+            // XXX this can be precomputed with a single pass along with the
+            // chromosomes used in the source WIG.
+            val initial = Math.max((sum.toDouble() / count).toInt(), 1) * 8
+            BigFile.Post.zoom(outputPath, initial = initial)
             BigFile.Post.totalSummary(outputPath)
         }
     }

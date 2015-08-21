@@ -183,6 +183,9 @@ public class WigPrinter jvmOverloads constructor(
 public interface WigSection : Comparable<WigSection> {
     val chrom: String
 
+    /** Interval width. */
+    val span: Int
+
     /**
      * Start offset of the leftmost interval in the section.
      */
@@ -235,7 +238,7 @@ public interface WigSection : Comparable<WigSection> {
 public data class VariableStepSection(
         public override val chrom: String,
         /** Interval width. */
-        public val span: Int = 1,
+        public override val span: Int = 1,
         /** Per-interval positions. */
         val positions: TIntList = TIntArrayList(),
         /** Per-interval values. */
@@ -332,7 +335,7 @@ public data class FixedStepSection(
         /** Distance between consecutive intervals. */
         public val step: Int = 1,
         /** Interval width. */
-        public val span: Int = 1,
+        public override val span: Int = 1,
         /** Per-interval values. */
         val values: TFloatList = TFloatArrayList()) : WigSection {
 

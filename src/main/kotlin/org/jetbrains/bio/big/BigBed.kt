@@ -173,7 +173,18 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
             }
 
             CountingDataOutput.of(outputPath, order).use { header.write(it) }
-            BigFile.Post.zoom(outputPath, itemsPerSlot)
+
+            var sum = 0L
+            var count = 0
+            for (section in groupedEntries.values().flatten()) {
+                sum += section.end - section.start
+                count++
+            }
+
+            // XXX this can be precomputed with a single pass along with the
+            // chromosomes used in the source BED.
+            val initial = Math.max((sum.toDouble() / count).toInt(), 1) * 8
+            BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
             BigFile.Post.totalSummary(outputPath)
         }
     }

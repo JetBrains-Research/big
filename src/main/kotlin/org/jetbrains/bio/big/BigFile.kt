@@ -127,7 +127,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val res = ArrayList<ZoomData>()
                 do {
                     val zoomData = ZoomData.read(this)
-                    if (query intersects zoomData.interval) {
+                    if (zoomData.interval intersects query) {
                         res.add(zoomData)
                     }
                 } while (!finished)
@@ -322,7 +322,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `initial`, next `initial * step` etc.
          */
-        fun zoom(path: Path, itemsPerSlot: Int, initial: Int = 8, step: Int = 4) {
+        fun zoom(path: Path, itemsPerSlot: Int = 1, initial: Int = 8, step: Int = 4) {
             LOG.time("Computing zoom levels with step $step for $path") {
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->

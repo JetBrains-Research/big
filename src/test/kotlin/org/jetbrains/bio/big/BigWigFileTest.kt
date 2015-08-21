@@ -149,18 +149,20 @@ public class BigWigFileTest {
             section
         }.toList().sortBy { it.start }
 
-        testSummarize(wigSections, numBins = 4)
+        testSummarize(wigSections, numBins = 4, index = false)
+        testSummarize(wigSections, numBins = 4, index = true)
     }
 
-    private fun testSummarize(wigSections: List<WigSection>, numBins: Int) {
+    private fun testSummarize(wigSections: List<WigSection>, numBins: Int, index: Boolean) {
         val name = wigSections.map { it.chrom }.first()
         withTempFile("example", ".bw") { path ->
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"], path)
             BigWigFile.read(path).use { bbf ->
-                val summaries = bbf.summarize(name, 0, 0, numBins)
-                assertTrue(Precision.equals(
-                        wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble(),
-                        summaries.map { it.sum }.sum(), 0.1))
+                val summaries = bbf.summarize(name, 0, 0, numBins, index = index)
+                val expected = wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble()
+                val actual = summaries.map { it.sum }.sum()
+                assertTrue(Precision.equalsWithRelativeTolerance(expected, actual, 0.01),
+                           "$expected /= $actual")
             }
         }
     }
