@@ -144,8 +144,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         var edge = 0  // yay! map with a side effect.
         return query.slice(numBins).mapIndexed { i, bin ->
             var count = 0L
-            var min = Double.POSITIVE_INFINITY
-            var max = Double.NEGATIVE_INFINITY
+            var min = java.lang.Double.POSITIVE_INFINITY
+            var max = java.lang.Double.NEGATIVE_INFINITY
             var sum = 0.0
             var sumSquares = 0.0
             for (j in edge..zoomData.size() - 1) {
