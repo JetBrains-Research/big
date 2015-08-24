@@ -91,8 +91,11 @@ public class SeekableDataInput protected constructor(
     // by a zillion of pending finalizers.
     private val inf by Delegates.lazy { Inflater() }
 
-    // XXX this effectively makes the class non-thread safe.
-    private var buf = ByteArray(4096)
+    // For performance reasons we use fixed-size buffers for both
+    // compressed and uncompressed inputs. Unfortunately this makes
+    // the class non-thread safe.
+    private var compressedBuf = ByteArray(1024)
+    private var uncompressedBuf = ByteArray(4096)
 
     /**
      * Executes a `block` on a fixed-size possibly compressed input.
@@ -102,22 +105,30 @@ public class SeekableDataInput protected constructor(
      */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
                        block: CountingOrderedDataInput.() -> T): T {
-        if (buf.size() < size) {
-            buf = buf.copyOf((size + size shr 1).toInt())  // 1.5x
-        }
-
         seek(offset)
-        readFully(buf, 0, size.toInt())
         val input = if (compressed) {
-            inf.reset()
+            compressedBuf = compressedBuf.ensureCapacity(size.toInt())
+            readFully(compressedBuf, 0, size.toInt())
+
             // Decompression step is (unfortunately) mandatory, since
             // we need to know the *exact* length of the data before
             // passing it to `block`.
-            val inflated = buf.decompress(0, size.toInt(), inf)
-            CountingDataInput(ByteArrayInputStream(inflated),
-                              inflated.size().toLong(), order)
+            inf.reset()
+            inf.setInput(compressedBuf, 0, size.toInt())
+            var uncompressedSize = 0
+            var step = size.toInt()
+            while (!inf.finished()) {
+                uncompressedBuf = uncompressedBuf.ensureCapacity(uncompressedSize + step)
+                val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
+                uncompressedSize += actual
+            }
+
+            CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, uncompressedSize),
+                              uncompressedSize.toLong(), order)
         } else {
-            CountingDataInput(ByteArrayInputStream(buf, 0, size.toInt()),
+            uncompressedBuf = uncompressedBuf.ensureCapacity(size.toInt())
+            readFully(uncompressedBuf, 0, size.toInt())
+            CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, size.toInt()),
                               size, order)
         }
         return with(input, block)
@@ -137,36 +148,31 @@ public class SeekableDataInput protected constructor(
         }
     }
 
+    public fun seek(pos: Long): Unit = file.seek(pos)
+
+    public fun tell(): Long = file.getFilePointer()
+
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         file.readFully(b, off, len)
     }
 
     override fun readUnsignedByte(): Int = file.readUnsignedByte()
 
-    public fun seek(pos: Long): Unit = file.seek(pos)
-
-    public fun tell(): Long = file.getFilePointer()
-
     override fun close() = file.close()
 
     companion object {
-        private fun ByteArray.decompress(off: Int, len: Int, inf: Inflater): ByteArray {
-            inf.setInput(this, off, len)
-            return ByteArrayOutputStream(len - off).use { out ->
-                val buf = ByteArray(512)
-                while (!inf.finished()) {
-                    val count = inf.inflate(buf)
-                    out.write(buf, 0, count)
-                }
-
-                out.toByteArray()
-            }
-        }
-
         public fun of(path: Path,
                       order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
             return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
         }
+    }
+}
+
+private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
+    return if (size() < requested) {
+        copyOf((requested + requested shr 1).toInt())  // 1.5x
+    } else {
+        this
     }
 }
 
