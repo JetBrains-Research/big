@@ -4,3 +4,4 @@ Authors and contributors, in no particular order:
 * Sergey Zherevchuk
 * Belyaev Igor
 * Sergei Lebedev
+* Roman Chernyatchik
