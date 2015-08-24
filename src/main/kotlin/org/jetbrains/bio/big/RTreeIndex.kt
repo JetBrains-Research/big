@@ -213,6 +213,13 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
         private fun compute(leaves: List<RTreeIndexLeaf>,
                             blockSize: Int): List<List<Interval>> {
             var intervals: List<Interval> = leaves.map { it.interval }
+            for (i in 1..intervals.size() - 1) {
+                if (intervals[i] intersects intervals[i - 1]) {
+                    LOG.warn("R+ tree leaves are overlapping: " +
+                             "${intervals[i]} ^ ${intervals[i - 1]}")
+                }
+            }
+
             val levels = arrayListOf(intervals)
             while (intervals.size() > 1) {
                 val level = ArrayList<Interval>(intervals.size() divCeiling blockSize)

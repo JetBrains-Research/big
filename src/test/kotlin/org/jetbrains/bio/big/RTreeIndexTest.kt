@@ -1,7 +1,7 @@
 package org.jetbrains.bio.big
 
 import org.junit.Test
-import java.util.Random
+import java.util.*
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,10 +46,15 @@ public class RTreeIndexTest {
 
     private fun testFindOverlappingLeaves(blockSize: Int) {
         withTempFile("random$blockSize", ".rti") { path ->
-            val leaves = (0 until 127).map {
-                val left = RANDOM.nextInt()
-                val interval = Interval(0, left, left + RANDOM.nextInt(999) + 1)
-                RTreeIndexLeaf(interval, 0, 0)
+            val size = 4096
+            val step = 1024
+            val leaves = ArrayList<RTreeIndexLeaf>()
+            var offset = 0
+            for (i in 0..size - 1) {
+                val next = offset + RANDOM.nextInt(step) + 1
+                val interval = Interval(0, offset, next)
+                leaves.add(RTreeIndexLeaf(interval, 0, 0))
+                offset = next
             }
 
             CountingDataOutput.of(path).use { RTreeIndex.write(it, leaves, blockSize) }
