@@ -209,7 +209,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                             childOffset += bytesInNextLevelBlock
                         }
 
-                        skipBytes(0, bytesInIndexSlot * (blockSize - childCount))
+                        skipBytes(bytesInIndexSlot * (blockSize - childCount))
                     }
                 }
 
@@ -228,7 +228,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                         items[i + j].write(output, keySize)
                     }
 
-                    skipBytes(0, bytesInLeafSlot * (blockSize - leafCount))
+                    skipBytes(bytesInLeafSlot * (blockSize - leafCount))
                 }
             }
 

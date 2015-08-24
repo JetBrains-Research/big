@@ -52,11 +52,10 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
 
     @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.join("")
-        val c = r.nextInt(64) + 32
         CountingDataOutput.of(path, order).use {
             it.writeBytes(s)
             it.writeBytes(s, s.length() + 8)
-            it.skipBytes(c, 16)
+            it.skipBytes(16)
         }
         SeekableDataInput.of(path, order).use {
             var b = ByteArray(s.length())
@@ -67,7 +66,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
             assertEquals(s, String(b).trimZeros())
 
             for (i in 0 until 16) {
-                assertEquals(c.toByte(), it.readByte())
+                assertEquals(0.toByte(), it.readByte())
             }
         }
     }

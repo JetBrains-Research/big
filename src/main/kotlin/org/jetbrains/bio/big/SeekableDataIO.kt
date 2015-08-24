@@ -219,10 +219,10 @@ private class CountingDataInput(private val input: InputStream,
 public interface OrderedDataOutput {
     public val order: ByteOrder
 
-    fun skipBytes(v: Int, count: Int) {
+    fun skipBytes(count: Int) {
         assert(count >= 0, "count must be >=0")
         for (i in 0..count - 1) {
-            writeByte(v)
+            writeByte(0)
         }
     }
 
@@ -230,7 +230,7 @@ public interface OrderedDataOutput {
 
     fun writeBytes(s: String, length: Int) {
         writeBytes(s)
-        skipBytes(0, length - s.length())
+        skipBytes(length - s.length())
     }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)

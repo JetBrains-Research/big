@@ -147,10 +147,10 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                                         order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
-                output.skipBytes(0, BigFile.Header.BYTES)
-                output.skipBytes(0, ZoomLevel.BYTES * zoomLevelCount)
+                output.skipBytes(BigFile.Header.BYTES)
+                output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
-                output.skipBytes(0, BigSummary.BYTES)
+                output.skipBytes(BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizesPath.chromosomes()
                         .filter { it.key in groupedSections }

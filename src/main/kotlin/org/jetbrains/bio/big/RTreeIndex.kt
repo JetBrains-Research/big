@@ -182,7 +182,7 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
                         }
 
                         // Write out zeroes for empty slots in node.
-                        skipBytes(0, RTreeIndexNode.BYTES * (blockSize - childCount))
+                        skipBytes(RTreeIndexNode.BYTES * (blockSize - childCount))
                     }
                 }
 
@@ -201,7 +201,7 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
                     }
 
                     // Write out zeroes for empty slots in node.
-                    skipBytes(0, RTreeIndexLeaf.BYTES * (blockSize - leafCount))
+                    skipBytes(RTreeIndexLeaf.BYTES * (blockSize - leafCount))
                 }
             }
 
