@@ -3,6 +3,12 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.1.7
+-------------
+
+- Fixed 'BigFile.Post.Zoom' which produced degenerate R+ trees with
+  all leaves covering the same interval.
+
 Version 0.1.6
 -------------
 

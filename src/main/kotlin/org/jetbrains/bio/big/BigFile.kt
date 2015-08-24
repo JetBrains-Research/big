@@ -358,7 +358,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                         }
                     }
 
-                    leaves.add(RTreeIndexLeaf(query, dataOffset, output.tell() - dataOffset))
+                    // Compute the bounding interval.
+                    val interval = Interval(chromIx, slot.first().index * reduction,
+                                            (slot.last().index + 1) * reduction)
+                    leaves.add(RTreeIndexLeaf(interval, dataOffset, output.tell() - dataOffset))
                 }
             }
 
