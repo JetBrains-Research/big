@@ -94,17 +94,25 @@ public class SeekableDataInput protected constructor(
     // XXX this effectively makes the class non-thread safe.
     private var buf = ByteArray(4096)
 
-    /** Executes a `block` on a fixed-size possibly compressed input. */
+    /**
+     * Executes a `block` on a fixed-size possibly compressed input.
+     *
+     * This of this method as a way to get buffered input locally.
+     * See for example [RTreeIndex.findOverlappingBlocks].
+     */
     public fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
                        block: CountingOrderedDataInput.() -> T): T {
         if (buf.size() < size) {
-            buf = buf.copyOf((size + size shr 1).toInt())
+            buf = buf.copyOf((size + size shr 1).toInt())  // 1.5x
         }
 
         seek(offset)
         readFully(buf, 0, size.toInt())
         val input = if (compressed) {
             inf.reset()
+            // Decompression step is (unfortunately) mandatory, since
+            // we need to know the *exact* length of the data before
+            // passing it to `block`.
             val inflated = buf.decompress(0, size.toInt(), inf)
             CountingDataInput(ByteArrayInputStream(inflated),
                               inflated.size().toLong(), order)
