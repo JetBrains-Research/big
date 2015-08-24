@@ -6,6 +6,8 @@ Here you can see the full list of changes between each big release.
 Version 0.1.6
 -------------
 
+Released on August 24th 2015
+
 - Fixed WIG section re-alignment in 'BigWigFile#queryInternal': queries
   for overlapping intervals were incorrectly shifted to the right.
 - Changed 'BigFile.Post.Zoom' to start with initial reduction estimated
