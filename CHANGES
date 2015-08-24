@@ -8,6 +8,7 @@ Version 0.1.7
 
 - Fixed 'BigFile.Post.Zoom' which produced degenerate R+ trees with
   all leaves covering the same interval.
+- Updated 'WigParser' to handle NaN and infinities.
 
 Version 0.1.6
 -------------

@@ -111,9 +111,11 @@ private class WigIterator(private val reader: BufferedReader) :
     }
 
     companion object {
-        val RE_VALUE = "(\\d+)?\\s*[+-]?(\\d+(?:\\.\\d+)?(e\\+?\\d+)?)?".toRegex()
-        val RE_WHITESPACE = "\\s".toRegex()
-        val RE_PARAM = "(\\S+)=(\"[^\"]*\"|\\S+)".toRegex()
+        private val RE_VALUE = arrayOf(
+                "NaN", "[+-]Infinity",
+                "(\\d+)?\\s*[+-]?(\\d+(?:\\.\\d+)?(e\\+?\\d+)?)?").join("|").toRegex()
+        private val RE_WHITESPACE = "\\s".toRegex()
+        private val RE_PARAM = "(\\S+)=(\"[^\"]*\"|\\S+)".toRegex()
     }
 }
 

@@ -224,9 +224,24 @@ public class WigParserTest {
     @Test fun testFixedStep() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "fixedStep chrom=chr1 start=10471 step=10 span=5\n" +
-                    "0.4242\n" + "0.2424"
+                    "0.4242\n" +
+                    "0.2424"
 
         testWigSection(input)
+    }
+
+    @Test fun testNaNInfinity() {
+        val input = "track type=wiggle_0 windowingFunction=mean\n" +
+                    "fixedStep chrom=chr1 start=10471 step=10 span=5\n" +
+                    "NaN\n" +
+                    "+Infinity\n" +
+                    "-Infinity"
+
+        val it = WigParser(input.reader()).iterator()
+        val intervals = it.next().query().toList()
+        assertTrue(intervals[0].score.isNaN())
+        assertEquals(Float.POSITIVE_INFINITY, intervals[1].score)
+        assertEquals(Float.NEGATIVE_INFINITY, intervals[2].score)
     }
 
     // Not implemented yet.
