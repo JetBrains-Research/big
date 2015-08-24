@@ -95,21 +95,21 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
          * Creates a BigBED file from given entries.
          *
          * @param bedEntries entries to write and index.
-         * @param chromSizesPath path to the TSV file with chromosome
-         *                       names and sizes.
+         * @param chromSizes chromosome names and sizes, e.g.
+         *                   `("chrX", 59373566)`.
          * @param outputPath BigBED file path.
          * @param itemsPerSlot number of items to store in a single
          *                     R+ tree index node. Defaults to `1024`.
          * @param zoomLevelCount number of zoom levels to pre-compute.
          *                       Defaults to `8`.
          * @param compressed compress BigBED data sections with gzip.
-         *                   Defaults to `false`.
+         *                   Defaults to `true`.
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
         @throws(IOException::class)
         public platformStatic fun write(bedEntries: Iterable<BedEntry>,
-                                        chromSizesPath: Path,
+                                        chromSizes: Iterable<Pair<String, Int>>,
                                         outputPath: Path,
                                         itemsPerSlot: Int = 1024,
                                         zoomLevelCount: Int = 8,
@@ -122,8 +122,9 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
 
-                val unsortedChromosomes = chromSizesPath.chromosomes()
-                        .filter { it.key in groupedEntries }
+                val unsortedChromosomes = chromSizes.mapIndexed { i, p ->
+                    BPlusLeaf(p.first, i, p.second)
+                }.filter { it.key in groupedEntries }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 

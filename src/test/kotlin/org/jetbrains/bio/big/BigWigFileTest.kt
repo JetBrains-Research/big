@@ -21,7 +21,7 @@ public class BigWigFileTest {
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         withTempFile("example", ".bw") { path ->
             val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
-            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"],
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compressed = compressed, order = order)
 
             BigWigFile.read(path).use { bwf ->
@@ -156,7 +156,7 @@ public class BigWigFileTest {
     private fun testSummarize(wigSections: List<WigSection>, numBins: Int, index: Boolean) {
         val name = wigSections.map { it.chrom }.first()
         withTempFile("example", ".bw") { path ->
-            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"], path)
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
             BigWigFile.read(path).use { bbf ->
                 val summaries = bbf.summarize(name, 0, 0, numBins, index = index)
                 val expected = wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble()
@@ -231,7 +231,7 @@ public class BigWigFileTest {
         section.add(22.0f)
         section.add(33.0f)
 
-        BigWigFile.write(listOf(section), Examples["hg19.chrom.sizes.gz"], path)
+        BigWigFile.write(listOf(section), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
         BigWigFile.read(path).use { bwf ->
             assertEquals("FixedStepSection{start=400600, end=400850, step=100, span=50}",
                          bwf.query("chr3").first().toString())

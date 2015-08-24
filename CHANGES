@@ -10,6 +10,7 @@ Version 0.1.6
   for overlapping intervals were incorrectly shifted to the right.
 - Changed 'BigFile.Post.Zoom' to start with initial reduction estimated
   from mean interval size in the data.
+- Changed 'Big*.write' to accept chromosome names and sizes explicitly.
 
 Version 0.1.5
 -------------

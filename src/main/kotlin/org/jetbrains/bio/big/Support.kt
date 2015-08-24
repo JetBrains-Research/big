@@ -4,13 +4,7 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.Iterators
 import com.google.common.math.IntMath
 import org.apache.log4j.Logger
-import java.io.BufferedReader
 import java.math.RoundingMode
-import java.nio.file.Files
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.util.zip.GZIPInputStream
-import java.util.zip.ZipInputStream
 
 /**
  * Various internal helpers.
@@ -40,10 +34,6 @@ fun Int.logCeiling(base: Int): Int {
     return acc
 }
 
-// XXX use sparingly, because the optimizer fails to translate
-// this into a pure-Java forloop. See KT-8901.
-fun Int.until(other: Int) = this..other - 1
-
 // XXX calling the 'Iterable<T>#map' leads to boxing.
 private class TransformingIntIterator<R>(private val it: IntIterator,
                                          private val transform: (Int) -> R) :
@@ -64,35 +54,8 @@ fun IntProgression.mapUnboxed<R>(transform: (Int) -> R): Sequence<R> {
 
 fun String.trimZeros() = trimEnd { it == '\u0000' }
 
-fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
-    val inputStream = Files.newInputStream(this, *options).buffered()
-    return when (toFile().extension) {
-        "gz"  -> GZIPInputStream(inputStream)
-        "zip" -> ZipInputStream(inputStream)
-        else  -> inputStream
-    }.bufferedReader()
-}
-
-inline fun withTempFile(prefix: String, suffix: String,
-                        block: (Path) -> Unit) {
-    val path = Files.createTempFile(prefix, suffix)
-    try {
-        block(path)
-    } finally {
-        Files.delete(path)
-    }
-}
-
-/** Fetches chromosome sizes from a UCSC provided TSV file. */
-fun Path.chromosomes(): List<BPlusLeaf> {
-    return bufferedReader().lineSequence().mapIndexed { i, line ->
-        val chunks = line.split('\t', limit = 3)
-        BPlusLeaf(chunks[0], i, chunks[1].toInt())
-    }.toList()
-}
-
 fun Sequence<T>.partition<T>(n: Int): Sequence<List<T>> {
-    require(n > 0, "n must be >0")
+    require(n > 1, "n must be >1")
     val that = this
     return object : Sequence<List<T>> {
         override fun iterator(): Iterator<List<T>> {
@@ -101,10 +64,11 @@ fun Sequence<T>.partition<T>(n: Int): Sequence<List<T>> {
     }
 }
 
-inline fun Logger.time(message: String, block: () -> Unit) {
+inline fun Logger.time<T>(message: String, block: () -> T): T {
     debug(message)
     val stopwatch = Stopwatch.createStarted()
-    block()
+    val res = block()
     stopwatch.stop()
     debug("Done in $stopwatch")
+    return res
 }

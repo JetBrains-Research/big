@@ -128,19 +128,18 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
          * Creates a BigWIG file from given sections.
          *
          * @param wigSections sections to write and index.
-         * @param chromSizesPath path to the TSV file with chromosome
-         *                       names and sizes.
+         * @param chromSizes chromosome names and sizes, e.g.
+         *                   `("chrX", 59373566)`.
          * @param zoomLevelCount number of zoom levels to pre-compute.
          *                       Defaults to `8`.
          * @param outputPath BigWIG file path.
          * @param compressed compress BigWIG data sections with gzip.
-         *                   Defaults to `false`.
+         *                   Defaults to `true`.
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
-        @throws(IOException::class)
         public platformStatic fun write(wigSections: Iterable<WigSection>,
-                                        chromSizesPath: Path,
+                                        chromSizes: Iterable<Pair<String, Int>>,
                                         outputPath: Path,
                                         zoomLevelCount: Int = 8,
                                         compressed: Boolean = true,
@@ -152,8 +151,9 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
 
-                val unsortedChromosomes = chromSizesPath.chromosomes()
-                        .filter { it.key in groupedSections }
+                val unsortedChromosomes = chromSizes.mapIndexed { i, p ->
+                    BPlusLeaf(p.first, i, p.second)
+                }.filter { it.key in groupedSections }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 

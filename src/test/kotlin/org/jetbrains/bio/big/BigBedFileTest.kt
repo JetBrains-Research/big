@@ -13,8 +13,7 @@ public class BigBedFileTest {
     @Test fun testWriteReadSmall() {
         withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
-
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
             BigBedFile.read(path).use { bbf ->
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
@@ -33,7 +32,7 @@ public class BigBedFileTest {
     private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
         withTempFile("example1", ".bb") { path ->
             val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"],
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compressed = compressed, order = order)
 
             BigBedFile.read(path).use { bbf ->
@@ -187,7 +186,7 @@ public class BigBedFileTest {
     private fun testSummarize(bedEntries: List<BedEntry>, numBins: Int) {
         val name = bedEntries.map { it.chrom }.first()
         withTempFile("example", ".bb") { path ->
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"], path)
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
             BigBedFile.read(path).use { bbf ->
                 val aggregate = bedEntries.asSequence().aggregate()
                 val summaries = bbf.summarize(name, 0, 0, numBins)
