@@ -42,33 +42,12 @@ private fun Sequence<Pair<K, V>>.toMap<K, V>(): Map<K, V> {
     return acc
 }
 
-private class WigIterator(private val reader: BufferedReader) :
-        UnmodifiableIterator<WigSection>() {
-
-    private var lines: PeekingIterator<String> =
-            Iterators.peekingIterator(reader.lines().iterator())
-    private var cached: WigSection? = null
-
-    override fun hasNext(): Boolean {
-        if (cached == null) {
-            cached = cache()  // Got some?
-        }
-
-        return cached != null
-    }
-
-    override fun next(): WigSection? {
-        check(hasNext())
-        val next = cached
-        cached = null
-        return next
-    }
-
-    private fun cache(): WigSection? {
+private class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(reader) {
+    override fun cache(): WigSection? {
         var track: WigSection? = null
         var state = State.WAITING
         loop@ while (lines.hasNext()) {
-            val line = lines.peek()
+            val line = lines.peek().trim()
             when {
                 line.startsWith('#') -> {
                     lines.next()
@@ -78,7 +57,7 @@ private class WigIterator(private val reader: BufferedReader) :
                     break@loop     // My job here is done.
             }
 
-            val chunks = RE_WHITESPACE.split(line.trim(), 2)
+            val chunks = RE_WHITESPACE.split(line, 2)
             when (state) {
                 State.WAITING -> {
                     val (type, rest) = chunks

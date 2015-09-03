@@ -2,8 +2,11 @@ package org.jetbrains.bio.big
 
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Iterators
+import com.google.common.collect.PeekingIterator
+import com.google.common.collect.UnmodifiableIterator
 import com.google.common.math.IntMath
 import org.apache.log4j.Logger
+import java.io.BufferedReader
 import java.math.RoundingMode
 
 /**
@@ -71,4 +74,30 @@ inline fun Logger.time<T>(message: String, block: () -> T): T {
     stopwatch.stop()
     debug("Done in $stopwatch")
     return res
+}
+
+// It's a false positive. Without the ? the code doesn't compile
+// at least on M12.
+@suppress("base_with_nullable_upper_bound")
+abstract class CachingIterator<T>(reader: BufferedReader) : UnmodifiableIterator<T>() {
+    protected var lines: PeekingIterator<String> =
+            Iterators.peekingIterator(reader.lines().iterator())
+    private var cached: T? = null
+
+    override fun hasNext(): Boolean {
+        if (cached == null) {
+            cached = cache()  // Got some?
+        }
+
+        return cached != null
+    }
+
+    override fun next(): T? {
+        check(hasNext())
+        val next = cached
+        cached = null
+        return next
+    }
+
+    protected abstract fun cache(): T?
 }

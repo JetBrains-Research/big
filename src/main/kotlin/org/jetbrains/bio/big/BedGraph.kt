@@ -1,12 +1,76 @@
 package org.jetbrains.bio.big
 
+import com.google.common.collect.Iterators
+import com.google.common.collect.PeekingIterator
+import com.google.common.collect.UnmodifiableIterator
 import com.google.common.primitives.Ints
 import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
 import gnu.trove.list.array.TFloatArrayList
 import gnu.trove.list.array.TIntArrayList
 import org.apache.commons.math3.stat.descriptive.moment.Mean
+import java.io.BufferedReader
+import java.io.Closeable
+import java.io.Reader
 import java.util.NoSuchElementException
+
+/**
+ * A basic BedGraph format parser.
+ *
+ * Separated from [WigParser] for clarity.
+ *
+ * See http://genome.ucsc.edu/goldenpath/help/bedgraph.html
+ */
+public class BedGraphParser(private val reader: Reader) :
+        Iterable<BedGraphSection>, AutoCloseable, Closeable {
+
+    override fun iterator(): Iterator<BedGraphSection> = BedGraphIterator(reader.buffered())
+
+    override fun close() = reader.close()
+}
+
+private class BedGraphIterator(reader: BufferedReader) :
+        CachingIterator<BedGraphSection>(reader) {
+
+    private var waiting = true
+
+    override fun cache(): BedGraphSection? {
+        var track: BedGraphSection? = null
+        loop@ while (lines.hasNext()) {
+            val line = lines.peek().trim()
+            if (line.isEmpty() || line.startsWith('#')) {
+                // Skip blank lines and comments.
+            } else if (waiting) {
+                val (type, rest) = RE_WHITESPACE.split(line, 2)
+                val params = RE_PARAM.matchAll(rest).map { m ->
+                    (m.groups[1]!!.value to
+                            m.groups[2]!!.value.removeSurrounding("\""))
+                }.toMap()
+
+                check(type == "track" && params["type"] == "bedGraph")
+                waiting = false
+            } else {
+                val (chrom, start, end, value) = RE_WHITESPACE.split(line, 4)
+                if (track == null) {
+                    track = BedGraphSection(chrom)
+                } else if (track.chrom != chrom) {
+                    break@loop
+                }
+
+                track[start.toInt(), end.toInt()] = value.toFloat()
+            }
+
+            lines.next()
+        }
+
+        return track
+    }
+
+    companion object {
+        private val RE_WHITESPACE = "\\s".toRegex()
+        private val RE_PARAM = "(\\S+)=(\"[^\"]*\"|\\S+)".toRegex()
+    }
+}
 
 /**
  * A section for variable step / variable span intervals.

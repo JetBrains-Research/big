@@ -5,6 +5,8 @@ import org.junit.Test
 import java.util.Random
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 public class BedGraphSectionTest {
     private var section: BedGraphSection by Delegates.notNull()
@@ -75,5 +77,56 @@ public class BedGraphSectionTest {
 
     companion object {
         private val RANDOM = Random()
+    }
+}
+
+public class BedGraphParserTest {
+    @Test fun testEmptyTrack() {
+        val input = "track type=bedGraph name=track_label description=center_label"
+        val it = BedGraphParser(input.reader()).iterator()
+        assertFalse(it.hasNext())
+    }
+
+    @Test fun testCommentsAndEmpty() {
+        val input = """
+track type=bedGraph name=track_label description=center_label
+
+# no see.
+"""
+        val it = BedGraphParser(input.reader()).iterator()
+        assertFalse(it.hasNext())
+    }
+
+    @Test fun testSingleChromosome() {
+        val input = """
+track type=bedGraph name=track_label description=center_label
+chr19 49302000 49302300 -1.0
+chr19 49302300 49302600 -0.75
+"""
+        val it = BedGraphParser(input.reader()).iterator()
+        assertTrue(it.hasNext())
+
+        val track = it.next()
+        assertFalse(it.hasNext())
+        assertEquals("chr19", track.chrom)
+        assertEquals(2, track.size())
+        assertEquals(listOf(WigInterval(49302000, 49302300, -1f),
+                            WigInterval(49302300, 49302600, -.75f)),
+                     track.query().toList())
+    }
+
+    @Test fun testMultipleChromosomes() {
+        val input = """
+track type=bedGraph name=track_label description=center_label
+chr19 49302000 49302300 -1.0
+chr19 49302300 49302600 -0.75
+chr20 100500 500100 -0.50
+"""
+        val tracks = BedGraphParser(input.reader()).toList()
+        assertEquals(2, tracks.size())
+        assertEquals("chr20", tracks[1].chrom)
+        assertEquals(1, tracks[1].size())
+        assertEquals(listOf(WigInterval(100500, 500100, -.5f)),
+                     tracks[1].query().toList())
     }
 }
