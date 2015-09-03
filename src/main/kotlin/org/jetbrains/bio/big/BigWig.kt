@@ -46,9 +46,10 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
      *   it either intersects the query (and overlaps is `true`)
      *   or it is completely contained in the query.
      */
-    private fun ChromosomeInterval.contains(pos: Int, span: Int,
+    private fun ChromosomeInterval.contains(startOffset: Int,
+                                            endOffset: Int,
                                             overlaps: Boolean): Boolean {
-        val interval = Interval(chromIx, pos, pos + span)
+        val interval = Interval(chromIx, startOffset, endOffset)
         return (overlaps && interval intersects this) || interval in this
     }
 
@@ -70,14 +71,25 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
             val types = WigSection.Type.values()
             check(type >= 1 && type <= types.size())
             when (types[type - 1]) {
-                WigSection.Type.BED_GRAPH ->
-                    throw IllegalStateException("bedGraph sections aren't supported")
+                WigSection.Type.BED_GRAPH -> {
+                    val section = BedGraphSection(chrom)
+                    for (i in 0..count - 1) {
+                        val startOffset = readInt()
+                        val endOffset = readInt()
+                        val value = readFloat()
+                        if (query.contains(startOffset, endOffset, overlaps)) {
+                            section[startOffset, endOffset] = value
+                        }
+                    }
+
+                    section
+                }
                 WigSection.Type.VARIABLE_STEP -> {
                     val section = VariableStepSection(chrom, span)
                     for (i in 0..count - 1) {
                         val pos = readInt()
                         val value = readFloat()
-                        if (query.contains(pos, span, overlaps)) {
+                        if (query.contains(pos, pos + span, overlaps)) {
                             section[pos] = value
                         }
                     }
@@ -106,7 +118,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                     for (i in 0..count - 1) {
                         val pos = start + i * step
                         val value = readFloat()
-                        if (query.contains(pos, span, overlaps)) {
+                        if (query.contains(pos, pos + span, overlaps)) {
                             section.add(value)
                         }
                     }
@@ -169,6 +181,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
                         val dataOffset = output.tell()
                         val current = output.with(compressed) {
                             when (section) {
+                                is BedGraphSection -> section.write(this, resolver)
                                 is FixedStepSection -> section.write(this, resolver)
                                 is VariableStepSection -> section.write(this, resolver)
                             }
@@ -210,6 +223,24 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
     }
 }
 
+private fun BedGraphSection.write(output: OrderedDataOutput, resolver: Map<String, Int>) {
+    with(output) {
+        writeInt(resolver[chrom]!!)
+        writeInt(start)
+        writeInt(end)
+        writeInt(0)   // not applicable.
+        writeInt(span)
+        writeByte(WigSection.Type.BED_GRAPH.ordinal() + 1)
+        writeByte(0)  // reserved.
+        writeShort(size())
+        for (i in 0..size() - 1) {
+            writeInt(startOffsets[i])
+            writeInt(endOffsets[i])
+            writeFloat(values[i])
+        }
+    }
+}
+
 private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<String, Int>) {
     with(output) {
         writeInt(resolver[chrom]!!)
@@ -218,7 +249,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeInt(step)
         writeInt(span)
         writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
-        writeByte(0) // reserved.
+        writeByte(0)  // reserved.
         writeShort(size())
         for (i in 0..size() - 1) {
             writeFloat(values[i])
@@ -231,7 +262,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(resolver[chrom]!!)
         writeInt(start)
         writeInt(end)
-        writeInt(0)
+        writeInt(0)   // not applicable.
         writeInt(span)
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
         writeByte(0)  // reserved.

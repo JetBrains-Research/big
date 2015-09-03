@@ -3,6 +3,11 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.1.8
+-------------
+
+- Added support for reading and writing BedGraph sections to 'BigWigFile'.
+
 Version 0.1.7
 -------------
 

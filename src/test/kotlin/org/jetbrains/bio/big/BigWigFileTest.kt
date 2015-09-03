@@ -23,7 +23,6 @@ public class BigWigFileTest {
             val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compressed = compressed, order = order)
-
             BigWigFile.read(path).use { bwf ->
                 assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
                 assertFalse(bwf.totalSummary.isEmpty())
@@ -171,6 +170,19 @@ public class BigWigFileTest {
 
     @Test fun testQueryPartialFixed() = testQueryPartial(Examples["fixed_step.bw"])
 
+    @Test fun testQueryPartialBedGraph() {
+        withTempFile("bed_graph", ".bw") { path ->
+            BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+                val name = bwf.chromosomes.valueCollection().first()
+                BigWigFile.write(bwf.query(name).map { it.toBedGraph() }.toList(),
+                                 Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                                 path)
+            }
+
+            testQueryPartial(path)
+        }
+    }
+
     @Test fun testQueryLeftEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
             assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
@@ -301,5 +313,14 @@ public class BigWigFileTest {
 
     companion object {
         private val RANDOM = Random()
+
+        private fun WigSection.toBedGraph(): BedGraphSection {
+            val surrogate = BedGraphSection(chrom)
+            for ((startOffset, endOffset, score) in query()) {
+                surrogate[startOffset, endOffset] = score
+            }
+
+            return surrogate
+        }
     }
 }

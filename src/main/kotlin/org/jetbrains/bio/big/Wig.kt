@@ -251,13 +251,13 @@ public data class VariableStepSection(
     }
 
     override val start: Int get() {
-        return if (positions.isEmpty()) 0 else positions[0]
+        check(size() > 0, "no data")
+        return positions[0]
     }
 
-    override val end: Int get() = if (positions.isEmpty()) {
-        Integer.MAX_VALUE
-    } else {
-        positions[positions.size() - 1] + span
+    override val end: Int get() {
+        check(size() > 0, "no data")
+        return positions[positions.size() - 1] + span
     }
 
     public fun set(pos: Int, value: Float) {
