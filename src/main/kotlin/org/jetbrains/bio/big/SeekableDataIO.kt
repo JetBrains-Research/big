@@ -81,11 +81,13 @@ public interface OrderedDataInput {
     public fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
 }
 
-public class SeekableDataInput protected constructor(
-        private val file: RandomAccessFile,
+public class SeekableDataInput private constructor(
+        private val path: Path,
         public override var order: ByteOrder)
 :
         OrderedDataInput, Closeable, AutoCloseable {
+
+    private val file = RandomAccessFile(path.toFile(), "r")
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
@@ -141,7 +143,7 @@ public class SeekableDataInput protected constructor(
         val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
         order = if (bigMagic != magic) {
             val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
-            check(littleMagic == magic, "bad signature")
+            check(littleMagic == magic) { "bad signature in $path" }
             ByteOrder.LITTLE_ENDIAN
         } else {
             ByteOrder.BIG_ENDIAN
@@ -163,7 +165,7 @@ public class SeekableDataInput protected constructor(
     companion object {
         public fun of(path: Path,
                       order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
-            return SeekableDataInput(RandomAccessFile(path.toFile(), "r"), order)
+            return SeekableDataInput(path, order)
         }
     }
 }
