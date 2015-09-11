@@ -24,6 +24,13 @@ public class BedGraphSectionTest {
         assertEquals(42f + 42f, section[100500, 100600])
     }
 
+    @Test fun testQueryEmpty() {
+        val emptySection = BedGraphSection("chr1")
+        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<WigInterval>(),
+                     emptySection.query(100500, 500100).toList())
+    }
+
     @Test fun testQueryNoBounds() {
         val correct = arrayOf(WigInterval(100500, 100600, 42f),
                               WigInterval(500100, 500300, 24f),

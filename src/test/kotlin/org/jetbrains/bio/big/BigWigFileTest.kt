@@ -130,7 +130,7 @@ public class BigWigFileTest {
         }
     }
 
-    Test(expected = IllegalArgumentException::class) fun testSummarizeTooManyBins() {
+    @Test(expected = IllegalArgumentException::class) fun testSummarizeTooManyBins() {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             bwf.summarize(name, 0, 100, numBins = 200)
@@ -160,7 +160,7 @@ public class BigWigFileTest {
                 val summaries = bbf.summarize(name, 0, 0, numBins, index = index)
                 val expected = wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble()
                 val actual = summaries.map { it.sum }.sum()
-                assertTrue(Precision.equalsWithRelativeTolerance(expected, actual, 0.01),
+                assertTrue(Precision.equalsWithRelativeTolerance(expected, actual, 0.1),
                            "$expected /= $actual")
             }
         }

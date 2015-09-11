@@ -25,6 +25,13 @@ public class VariableStepSectionTest {
         assertEquals(42f + 42f , section[100500])
     }
 
+    @Test fun testQueryEmpty() {
+        val emptySection = VariableStepSection("chr1", 20)
+        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<WigInterval>(),
+                     emptySection.query(100500, 500100).toList())
+    }
+
     @Test fun testQueryNoBounds() {
         val correct = arrayOf(WigInterval(100500, 100520, 42f),
                               WigInterval(500100, 500120, 24f))
@@ -100,8 +107,15 @@ public class FixedStepSectionTest {
         assertEquals(33f, section[400801])
     }
 
-    Test(expected = IndexOutOfBoundsException::class) fun testOutOfBounds() {
+    @Test(expected = IndexOutOfBoundsException::class) fun testOutOfBounds() {
         section[400901]
+    }
+
+    @Test fun testQueryEmpty() {
+        val emptySection = FixedStepSection("chr1", 400601, 100, 5)
+        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<WigInterval>(),
+                     emptySection.query(400601, 400801).toList())
     }
 
     @Test fun testQueryNoBounds() {

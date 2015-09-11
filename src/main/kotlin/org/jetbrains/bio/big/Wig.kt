@@ -182,7 +182,13 @@ public interface WigSection : Comparable<WigSection> {
     /**
      * Returns a list with all intervals in the section.
      */
-    public fun query(): Sequence<WigInterval> = query(start, end)
+    public fun query(): Sequence<WigInterval> {
+        return if (size() == 0) {
+            emptySequence()
+        } else {
+            query(start, end)
+        }
+    }
 
     /**
      * Returns a intervals contained within a given semi-interval.
