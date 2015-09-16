@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.1.9
 -------------
 
-Bugfix release
+Bugfix release, released on September 16th 2015
 
 - Fixed a bug in 'WigSection#query', which threw if the callee was empty.
 - Migrated to Kotlin M13.
