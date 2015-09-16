@@ -4,7 +4,6 @@ import com.google.common.collect.ComparisonChain
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.platform.platformStatic
 
 class BedFile(private val path: Path) : Iterable<BedEntry> {
     override fun iterator(): Iterator<BedEntry> = Files.lines(path).map { line ->
@@ -14,29 +13,29 @@ class BedFile(private val path: Path) : Iterable<BedEntry> {
     }.iterator()
 
     companion object {
-        @throws(IOException::class)
-        public platformStatic fun read(path: Path): BedFile = BedFile(path)
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path): BedFile = BedFile(path)
     }
 }
 
 /**
  * A minimal representation of a BED file entry.
  */
-public data class BedEntry(
+data class BedEntry(
         /** Chromosome name, e.g. `"chr9"`. */
-        public val chrom: String,
+        val chrom: String,
         /** 0-based start offset (inclusive). */
-        public val start: Int,
+        val start: Int,
         /** 0-based end offset (exclusive). */
-        public val end: Int,
+        val end: Int,
         /** Name of feature. */
-        public val name: String,
+        val name: String,
         /** A number from [0, 1000] that controls shading of item. */
-        public val score: Short,
+        val score: Short,
         /** + or – or . for unknown. */
-        public val strand: Char,
+        val strand: Char,
         /** Comma-separated string of additional BED values. */
-        public val rest: String = "") : Comparable<BedEntry> {
+        val rest: String = "") : Comparable<BedEntry> {
 
     init {
         require(score >= 0 && score <= 1000)
@@ -49,8 +48,7 @@ public data class BedEntry(
             .result()
 
     companion object {
-        public fun invoke(chrom: String, start: Int, end: Int,
-                          rest: String = ""): BedEntry {
+        fun invoke(chrom: String, start: Int, end: Int, rest: String = ""): BedEntry {
             val it = rest.split(',', limit = 4).iterator()
             return BedEntry(
                 chrom, start, end,

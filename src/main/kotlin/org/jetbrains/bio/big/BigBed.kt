@@ -5,14 +5,12 @@ import com.google.common.collect.Lists
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.ArrayList
-import java.util.Collections
-import kotlin.platform.platformStatic
+import java.util.*
 
 /**
  * Just like BED only BIGGER.
  */
-public class BigBedFile @throws(IOException::class) protected constructor(path: Path) :
+class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
         BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
@@ -62,7 +60,7 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
             val chunk = ArrayList<BedEntry>()
             do {
                 val chromIx = readInt()
-                assert(chromIx == query.chromIx, "interval contains wrong chromosome")
+                assert(chromIx == query.chromIx) { "interval contains wrong chromosome" }
                 val startOffset = readInt()
                 val endOffset = readInt()
                 val sb = StringBuilder()
@@ -86,10 +84,10 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        val MAGIC: Int = 0x8789F2EB.toInt()
+        internal val MAGIC: Int = 0x8789F2EB.toInt()
 
-        @throws(IOException::class)
-        public platformStatic fun read(path: Path): BigBedFile = BigBedFile(path)
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path): BigBedFile = BigBedFile(path)
 
         /**
          * Creates a BigBED file from given entries.
@@ -107,14 +105,14 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
-        @throws(IOException::class)
-        public platformStatic fun write(bedEntries: Iterable<BedEntry>,
-                                        chromSizes: Iterable<Pair<String, Int>>,
-                                        outputPath: Path,
-                                        itemsPerSlot: Int = 1024,
-                                        zoomLevelCount: Int = 8,
-                                        compressed: Boolean = true,
-                                        order: ByteOrder = ByteOrder.nativeOrder()) {
+        @Throws(IOException::class)
+        @JvmStatic fun write(bedEntries: Iterable<BedEntry>,
+                             chromSizes: Iterable<Pair<String, Int>>,
+                             outputPath: Path,
+                             itemsPerSlot: Int = 1024,
+                             zoomLevelCount: Int = 8,
+                             compressed: Boolean = true,
+                             order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedEntries = bedEntries.groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
@@ -191,7 +189,6 @@ public class BigBedFile @throws(IOException::class) protected constructor(path: 
     }
 }
 
-
 private class AggregationEvent(val offset: Int, val type: Int,
                                val item: BedEntry) : Comparable<AggregationEvent> {
 
@@ -207,7 +204,7 @@ private val END = 0    // must be before start.
 private val START = 1
 
 /** Computes intervals of uniform coverage. */
-fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
+internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     val events = flatMap {
         listOf(AggregationEvent(it.start, START, it),
                AggregationEvent(it.end, END, it)).asSequence()

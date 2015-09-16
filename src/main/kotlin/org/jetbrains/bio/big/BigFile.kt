@@ -9,9 +9,8 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.ArrayList
-import java.util.NoSuchElementException
-import kotlin.properties.Delegates
+import java.util.*
+import kotlin.LazyThreadSafetyMode.NONE
 
 /**
  * A common superclass for Big files.
@@ -42,16 +41,14 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     /** Whole-file summary. */
-    public val totalSummary: BigSummary by Delegates.lazy {
-        BigSummary.read(input)
-    }
+    val totalSummary: BigSummary by lazy(NONE) { BigSummary.read(input) }
 
     /**
      * An in-memory mapping of chromosome IDs to chromosome names.
      *
      * Because sometimes (always) you don't need a B+ tree for that.
      */
-    public val chromosomes: TIntObjectMap<String> by Delegates.lazy {
+    val chromosomes: TIntObjectMap<String> by lazy(NONE) {
         with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
             for (leaf in traverse(input)) {
@@ -62,7 +59,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         }
     }
 
-    public val compressed: Boolean get() {
+    val compressed: Boolean get() {
         // Compression was introduced in version 3 of the format. See
         // bbiFile.h in UCSC sources.
         return header.version >= 3 && header.uncompressBufSize > 0
@@ -81,10 +78,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param index if `true` pre-computed is index is used if possible.
      * @return a list of summaries.
      */
-    @throws(IOException::class)
-    public fun summarize(name: String,
-                         startOffset: Int, endOffset: Int,
-                         numBins: Int, index: Boolean = true): List<BigSummary> {
+    @Throws(IOException::class)
+    fun summarize(name: String, startOffset: Int, endOffset: Int,
+                  numBins: Int, index: Boolean = true): List<BigSummary> {
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
@@ -116,7 +112,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         return summaries.asList()
     }
 
-    @throws(IOException::class)
+    @Throws(IOException::class)
     protected abstract fun summarizeInternal(
             query: ChromosomeInterval, numBins: Int): Sequence<IndexedValue<BigSummary>>
 
@@ -178,9 +174,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @return a list of items.
      * @throws IOException if the underlying [SeekableDataInput] does so.
      */
-    @throws(IOException::class)
-    public fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
-                     overlaps: Boolean = false): Sequence<T> {
+    @Throws(IOException::class)
+    fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
+              overlaps: Boolean = false): Sequence<T> {
         val res = bPlusTree.find(input, name)
         return if (res == null) {
             emptySequence()
@@ -196,23 +192,23 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 .flatMap { queryInternal(it.dataOffset, it.dataSize, query, overlaps) }
     }
 
-    @throws(IOException::class)
+    @Throws(IOException::class)
     protected abstract fun queryInternal(dataOffset: Long, dataSize: Long,
                                          query: ChromosomeInterval,
                                          overlaps: Boolean): Sequence<T>
 
-    @throws(IOException::class)
+    @Throws(IOException::class)
     override fun close() = input.close()
 
-    data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,
-                      val zoomLevelCount: Int = 0,
-                      val chromTreeOffset: Long, val unzoomedDataOffset: Long,
-                      val unzoomedIndexOffset: Long, val fieldCount: Int,
-                      val definedFieldCount: Int, val asOffset: Long = 0,
-                      val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
-                      val extendedHeaderOffset: Long = 0) {
+    internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,
+                               val zoomLevelCount: Int = 0,
+                               val chromTreeOffset: Long, val unzoomedDataOffset: Long,
+                               val unzoomedIndexOffset: Long, val fieldCount: Int,
+                               val definedFieldCount: Int, val asOffset: Long = 0,
+                               val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
+                               val extendedHeaderOffset: Long = 0) {
 
-        fun write(output: CountingDataOutput) = with(output) {
+        internal fun write(output: CountingDataOutput) = with(output) {
             check(output.tell() == 0L)  // a header is always first.
             writeInt(magic)
             writeShort(version)
@@ -230,9 +226,9 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         companion object {
             /** Number of bytes used for this header. */
-            val BYTES = 64
+            internal val BYTES = 64
 
-            fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
+            internal fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
                 guess(magic)
 
                 val version = readUnsignedShort()
@@ -256,7 +252,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     companion object {
-        private val LOG = LogManager.getLogger(javaClass)
+        private val LOG = LogManager.getLogger(BigFile::class.java)
 
         /** Checks if a given `path` starts with a valid `magic`. */
         fun check(path: Path, magic: Int): Boolean {
@@ -312,7 +308,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `initial`, next `initial * step` etc.
          */
-        fun zoom(path: Path, itemsPerSlot: Int = 512, initial: Int = 8, step: Int = 4) {
+        internal fun zoom(path: Path, itemsPerSlot: Int = 512,
+                          initial: Int = 8, step: Int = 4) {
             LOG.time("Computing zoom levels with step $step for $path") {
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
@@ -380,7 +377,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
          * The file must contain `BigSummary.BYTES` zero bytes right after
          * the zoom levels block.
          */
-        fun totalSummary(path: Path) {
+        internal fun totalSummary(path: Path) {
             val totalSummaryOffset = BigFile.read(path).use {
                 it.header.totalSummaryOffset
             }

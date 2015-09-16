@@ -5,7 +5,7 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-public class SupportTest {
+class SupportTest {
     @Test fun testLogCeiling() {
         assertEquals(2, 4.logCeiling(2))
         assertEquals(3, 5.logCeiling(2))

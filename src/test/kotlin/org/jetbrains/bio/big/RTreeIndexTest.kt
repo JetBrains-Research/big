@@ -2,11 +2,11 @@ package org.jetbrains.bio.big
 
 import org.junit.Test
 import java.util.*
-import kotlin.properties.Delegates
+import kotlin.LazyThreadSafetyMode.NONE
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-public class RTreeIndexTest {
+class RTreeIndexTest {
     @Test fun testReadHeader() {
         exampleFile.use { bbf ->
             val rti = bbf.rTree
@@ -74,7 +74,7 @@ public class RTreeIndexTest {
         return BigBedFile.read(Examples["example1.bb"])
     }
 
-    private val exampleItems: List<BedEntry> by Delegates.lazy {
+    private val exampleItems: List<BedEntry> by lazy(NONE) {
         BedFile.read(Examples["example1.bed"]).toList()
     }
 

@@ -13,11 +13,7 @@ import java.util.zip.ZipInputStream
  * You shouldn't be using them outside of `big`.
  */
 
-// XXX use sparingly, because the optimizer fails to translate
-// this into a pure-Java forloop. See KT-8901.
-fun Int.until(other: Int) = this..other - 1
-
-fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
+internal fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
     val inputStream = Files.newInputStream(this, *options).buffered()
     return when (toFile().extension) {
         "gz"  -> GZIPInputStream(inputStream)
@@ -27,15 +23,15 @@ fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
 }
 
 /** Fetches chromosome sizes from a UCSC provided TSV file. */
-fun Path.chromosomes(): List<Pair<String, Int>> {
+internal fun Path.chromosomes(): List<Pair<String, Int>> {
     return bufferedReader().lineSequence().map { line ->
         val chunks = line.split('\t', limit = 3)
         chunks[0] to chunks[1].toInt()
     }.toList()
 }
 
-inline fun withTempFile(prefix: String, suffix: String,
-                        block: (Path) -> Unit) {
+internal inline fun withTempFile(prefix: String, suffix: String,
+                                 block: (Path) -> Unit) {
     val path = Files.createTempFile(prefix, suffix)
     try {
         block(path)

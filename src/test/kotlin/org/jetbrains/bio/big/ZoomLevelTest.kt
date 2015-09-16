@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-public class ZoomLevelTest {
+class ZoomLevelTest {
     @Test fun testReductionLevel() {
         BigBedFile.read(Examples.get("example1.bb")).use { bbf ->
             assertEquals(bbf.zoomLevels[0].reduction, 3911)

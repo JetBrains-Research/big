@@ -3,14 +3,12 @@ package org.jetbrains.bio.big
 import com.google.common.math.IntMath
 import org.junit.Test
 import java.nio.file.Files
-import java.util.Random
-import java.util.stream.Collectors
-import java.util.stream.IntStream
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-public class BPlusTreeTest {
+class BPlusTreeTest {
     @Test fun testReadHeader() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
             val bpt = bf.bPlusTree
@@ -80,9 +78,9 @@ public class BPlusTreeTest {
     }
 
     private fun getSequentialItems(itemCount: Int): List<BPlusLeaf> {
-        return IntStream.rangeClosed(1, itemCount)
-                .mapToObj { i -> BPlusLeaf("chr" + i, i - 1, i * 100) }
-                .collect(Collectors.toList())
+        return (1..itemCount).map { i ->
+            BPlusLeaf("chr" + i, i - 1, i * 100)
+        }.toList()
     }
 
     @Test fun testWriteReadRandom() {
@@ -94,10 +92,10 @@ public class BPlusTreeTest {
 
     private fun getRandomItems(itemCount: Int): List<BPlusLeaf> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
-        return IntStream.range(0, names.size()).mapToObj { i ->
+        return (0 until names.size()).map { i ->
             val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
             BPlusLeaf("chr" + names[i], i, size)
-        }.collect(Collectors.toList())
+        }.toList()
     }
 
     @Test fun testWriteReadRealChromosomes() {
@@ -107,10 +105,10 @@ public class BPlusTreeTest {
 
     private fun getExampleItems(example: String): List<BPlusLeaf> {
         val lines = Files.readAllLines(Examples[example])
-        return IntStream.range(0, lines.size()).mapToObj { i ->
+        return (0 until lines.size()).map { i ->
             val chunks = lines[i].split('\t', limit = 2)
             BPlusLeaf(chunks[0], i, chunks[1].toInt())
-        }.collect(Collectors.toList())
+        }.toList()
     }
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {

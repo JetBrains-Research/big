@@ -1,12 +1,12 @@
 package org.jetbrains.bio.big
 
 import org.junit.Test
-import java.util.Random
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-public class IntervalTest {
+class IntervalTest {
     @Test fun testOverlapsSameChromosome() {
         val interval = Interval(1, 100, 200)
         assertOverlaps(interval, interval)
@@ -75,7 +75,7 @@ public class IntervalTest {
     }
 }
 
-public class OffsetTest {
+class OffsetTest {
     @Test fun testCompareToSameChromosome() {
         val offset = Offset(1, 100)
         assertTrue(offset > Offset(1, 50))

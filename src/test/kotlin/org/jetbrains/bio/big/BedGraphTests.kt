@@ -2,13 +2,13 @@ package org.jetbrains.bio.big
 
 import org.junit.Before
 import org.junit.Test
-import java.util.Random
+import java.util.*
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-public class BedGraphSectionTest {
+class BedGraphSectionTest {
     private var section: BedGraphSection by Delegates.notNull()
 
     @Before fun setUp() {
@@ -87,7 +87,7 @@ public class BedGraphSectionTest {
     }
 }
 
-public class BedGraphParserTest {
+class BedGraphParserTest {
     @Test fun testEmptyTrack() {
         val input = "track type=bedGraph name=track_label description=center_label"
         val it = BedGraphParser(input.reader()).iterator()

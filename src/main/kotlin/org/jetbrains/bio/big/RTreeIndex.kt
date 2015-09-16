@@ -6,8 +6,7 @@ import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
 import java.io.IOException
 import java.nio.ByteOrder
-import java.util.ArrayList
-import java.util.Collections
+import java.util.*
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -31,22 +30,22 @@ import java.util.Collections
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
  */
-public class RTreeIndex(val header: RTreeIndex.Header) {
+class RTreeIndex(val header: RTreeIndex.Header) {
     /**
      * Recursively traverses an R+ tree calling `consumer` on each
      * block (aka leaf) overlapping a given `query`. Note that some
      * of the intervals contained in a block might *not* overlap the
      * `query`.
      */
-    @throws(IOException::class)
-    public fun findOverlappingBlocks(input: SeekableDataInput,
-                                     query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
+    @Throws(IOException::class)
+    fun findOverlappingBlocks(input: SeekableDataInput,
+                              query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return findOverlappingBlocksRecursively(input, query, header.rootOffset)
     }
 
-    fun findOverlappingBlocksRecursively(input: SeekableDataInput,
-                                         query: ChromosomeInterval,
-                                         offset: Long): Sequence<RTreeIndexLeaf> {
+    internal fun findOverlappingBlocksRecursively(input: SeekableDataInput,
+                                                  query: ChromosomeInterval,
+                                                  offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
         input.seek(offset)
 
@@ -85,12 +84,12 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    class Header(val order: ByteOrder, val blockSize: Int, val itemCount: Long,
-                 val startChromIx: Int, val startBase: Int,
-                 val endChromIx: Int, val endBase: Int,
-                 val endDataOffset: Long, val itemsPerSlot: Int, val rootOffset: Long) {
+    internal class Header(val order: ByteOrder, val blockSize: Int, val itemCount: Long,
+                          val startChromIx: Int, val startBase: Int,
+                          val endChromIx: Int, val endBase: Int,
+                          val endDataOffset: Long, val itemsPerSlot: Int, val rootOffset: Long) {
 
-        fun write(output: OrderedDataOutput) = with(output) {
+        internal fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)
             writeLong(itemCount)
@@ -105,11 +104,11 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
 
         companion object {
             /** Number of bytes used for this header. */
-            val BYTES = Ints.BYTES * 8 + Longs.BYTES * 2
+            internal val BYTES = Ints.BYTES * 8 + Longs.BYTES * 2
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ACE0
 
-            fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
+            internal fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
                 seek(offset)
                 guess(MAGIC)
 
@@ -131,16 +130,16 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger(javaClass)
+        private val LOG = LogManager.getLogger(RTreeIndex::class.java)
 
-        fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
+        internal fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
         }
 
-        fun write(output: CountingDataOutput, leaves: List<RTreeIndexLeaf>,
-                  blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
-            require(leaves.isNotEmpty(), "no data")
-            require(blockSize > 1, "blockSize must be >1")
+        internal fun write(output: CountingDataOutput, leaves: List<RTreeIndexLeaf>,
+                           blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
+            require(leaves.isNotEmpty()) { "no data" }
+            require(blockSize > 1) { "blockSize must be >1" }
 
             val leftmost = leaves.first().interval.left
             var rightmost = leaves.last().interval.right
@@ -248,19 +247,19 @@ public class RTreeIndex(val header: RTreeIndex.Header) {
 /**
  * External node aka *leaf* of the chromosome R+ tree.
  */
-public data class RTreeIndexLeaf(public val interval: Interval,
-                                 public val dataOffset: Long,
-                                 public val dataSize: Long) {
-    fun write(output: OrderedDataOutput) = with(output) {
+data class RTreeIndexLeaf(val interval: Interval,
+                          val dataOffset: Long,
+                          val dataSize: Long) {
+    internal fun write(output: OrderedDataOutput) = with(output) {
         interval.write(this)
         writeLong(dataOffset)
         writeLong(dataSize)
     }
 
     companion object {
-        val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
+        internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
 
-        fun read(input: OrderedDataInput) = with(input) {
+        internal fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()
@@ -274,17 +273,17 @@ public data class RTreeIndexLeaf(public val interval: Interval,
 /**
  * Internal node of the chromosome R+ tree.
  */
-private data class RTreeIndexNode(public val interval: Interval,
-                                  public val dataOffset: Long) {
-    fun write(output: OrderedDataOutput) = with(output) {
+private data class RTreeIndexNode(val interval: Interval,
+                                  val dataOffset: Long) {
+    internal fun write(output: OrderedDataOutput) = with(output) {
         interval.write(this)
         writeLong(dataOffset)
     }
 
     companion object {
-        val BYTES = Ints.BYTES * 4 + Longs.BYTES
+        internal val BYTES = Ints.BYTES * 4 + Longs.BYTES
 
-        fun read(input: OrderedDataInput) = with(input) {
+        internal fun read(input: OrderedDataInput) = with(input) {
             val startChromIx = readInt()
             val startOffset = readInt()
             val endChromIx = readInt()

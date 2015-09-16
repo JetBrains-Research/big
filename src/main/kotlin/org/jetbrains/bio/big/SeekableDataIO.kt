@@ -11,24 +11,24 @@ import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
-import kotlin.properties.Delegates
+import kotlin.LazyThreadSafetyMode.NONE
 
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
-public interface OrderedDataInput {
-    public var order: ByteOrder
+interface OrderedDataInput {
+    var order: ByteOrder
         private set
 
-    public fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size())
+    fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size())
 
-    public fun readBoolean(): Boolean = readUnsignedByte() != 0
+    fun readBoolean(): Boolean = readUnsignedByte() != 0
 
-    public fun readByte(): Byte = readUnsignedByte().toByte()
+    fun readByte(): Byte = readUnsignedByte().toByte()
 
-    public fun readUnsignedByte(): Int
+    fun readUnsignedByte(): Int
 
-    public fun readShort(): Short {
+    fun readShort(): Short {
         val b1 = readByte()
         val b2 = readByte()
         return if (order == ByteOrder.BIG_ENDIAN) {
@@ -38,7 +38,7 @@ public interface OrderedDataInput {
         }
     }
 
-    public fun readUnsignedShort(): Int {
+    fun readUnsignedShort(): Int {
         val b1 = readByte()
         val b2 = readByte()
         return if (order == ByteOrder.BIG_ENDIAN) {
@@ -48,7 +48,7 @@ public interface OrderedDataInput {
         }
     }
 
-    public fun readInt(): Int {
+    fun readInt(): Int {
         val b1 = readByte()
         val b2 = readByte()
         val b3 = readByte()
@@ -60,7 +60,7 @@ public interface OrderedDataInput {
         }
     }
 
-    public fun readLong(): Long {
+    fun readLong(): Long {
         val b1 = readByte()
         val b2 = readByte()
         val b3 = readByte()
@@ -76,14 +76,14 @@ public interface OrderedDataInput {
         }
     }
 
-    public fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
+    fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
 
-    public fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
+    fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
 }
 
-public class SeekableDataInput private constructor(
+class SeekableDataInput private constructor(
         private val path: Path,
-        public override var order: ByteOrder)
+        override var order: ByteOrder)
 :
         OrderedDataInput, Closeable, AutoCloseable {
 
@@ -91,7 +91,7 @@ public class SeekableDataInput private constructor(
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
-    private val inf by Delegates.lazy { Inflater() }
+    private val inf by lazy(NONE) { Inflater() }
 
     // For performance reasons we use fixed-size buffers for both
     // compressed and uncompressed inputs. Unfortunately this makes
@@ -105,8 +105,8 @@ public class SeekableDataInput private constructor(
      * This of this method as a way to get buffered input locally.
      * See for example [RTreeIndex.findOverlappingBlocks].
      */
-    public fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
-                       block: CountingOrderedDataInput.() -> T): T {
+    fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
+                block: CountingOrderedDataInput.() -> T): T {
         seek(offset)
         val input = if (compressed) {
             compressedBuf = compressedBuf.ensureCapacity(size.toInt())
@@ -137,7 +137,7 @@ public class SeekableDataInput private constructor(
     }
 
     /** Guess byte order from a given big-endian `magic`. */
-    public fun guess(magic: Int) {
+    fun guess(magic: Int) {
         val b = ByteArray(4)
         readFully(b)
         val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
@@ -150,9 +150,9 @@ public class SeekableDataInput private constructor(
         }
     }
 
-    public fun seek(pos: Long): Unit = file.seek(pos)
+    fun seek(pos: Long): Unit = file.seek(pos)
 
-    public fun tell(): Long = file.getFilePointer()
+    fun tell(): Long = file.filePointer
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         file.readFully(b, off, len)
@@ -163,8 +163,7 @@ public class SeekableDataInput private constructor(
     override fun close() = file.close()
 
     companion object {
-        public fun of(path: Path,
-                      order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
+        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
             return SeekableDataInput(path, order)
         }
     }
@@ -178,31 +177,31 @@ private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
     }
 }
 
-public interface CountingOrderedDataInput : OrderedDataInput {
+interface CountingOrderedDataInput : OrderedDataInput {
     /**
      * Returns `true` if the input doesn't contain any more data and
      * `false` otherwise.
      * */
-    public val finished: Boolean
+    val finished: Boolean
 }
 
 private class CountingDataInput(private val input: InputStream,
                                 private val size: Long,
-                                public override var order: ByteOrder)
+                                override var order: ByteOrder)
 :
         CountingOrderedDataInput {
 
     private var read = 0L
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
-        check(!finished, "no data")
+        check(!finished) { "no data" }
         val available = Math.min(len, (size - read).toInt())
         ByteStreams.readFully(input, b, off, available)
         read += available
     }
 
     override fun readUnsignedByte(): Int {
-        check(!finished, "no data")
+        check(!finished) { "no data" }
         val b = input.read()
         if (b < 0) {
             throw EOFException()
@@ -218,11 +217,11 @@ private class CountingDataInput(private val input: InputStream,
 /**
  * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
-public interface OrderedDataOutput {
-    public val order: ByteOrder
+interface OrderedDataOutput {
+    val order: ByteOrder
 
     fun skipBytes(count: Int) {
-        assert(count >= 0, "count must be >=0")
+        assert(count >= 0) { "count must be >=0" }
         for (i in 0..count - 1) {
             writeByte(0)
         }
@@ -290,9 +289,9 @@ public interface OrderedDataOutput {
     fun writeDouble(v: Double) = writeLong(java.lang.Double.doubleToLongBits(v))
 }
 
-public open class CountingDataOutput(private val output: OutputStream,
-                                     private val offset: Long,
-                                     public override val order: ByteOrder)
+open class CountingDataOutput(private val output: OutputStream,
+                              private val offset: Long,
+                              override val order: ByteOrder)
 :
         OrderedDataOutput, Closeable, AutoCloseable {
 
@@ -301,7 +300,7 @@ public open class CountingDataOutput(private val output: OutputStream,
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
-    private val def by Delegates.lazy { Deflater() }
+    private val def by lazy(NONE) { Deflater() }
 
     private fun ack(size: Int) {
         written += size
@@ -311,7 +310,7 @@ public open class CountingDataOutput(private val output: OutputStream,
      * Executes a `block` (compressing the output) and returns the
      * total number of *uncompressed* bytes written.
      */
-    public fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
+    fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
         return if (compressed) {
             // This is slightly involved. We stack deflater on top of
             // our input stream and report the number of uncompressed
@@ -320,8 +319,8 @@ public open class CountingDataOutput(private val output: OutputStream,
             val inner = DeflaterOutputStream(output, def)
             with(CountingDataOutput(inner, offset, order), block)
             inner.finish()
-            ack(def.getBytesWritten().toInt())
-            def.getBytesRead()
+            ack(def.bytesWritten.toInt())
+            def.bytesRead
         } else {
             val snapshot = written
             with(this, block)
@@ -342,18 +341,16 @@ public open class CountingDataOutput(private val output: OutputStream,
         ack(1)
     }
 
-    public fun tell(): Long = offset + written
+    fun tell(): Long = offset + written
 
     override fun close() = output.close()
 
     companion object {
-        public fun of(path: Path,
-                      order: ByteOrder = ByteOrder.nativeOrder(),
-                      offset: Long = 0): CountingDataOutput {
+        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
+               offset: Long = 0): CountingDataOutput {
             val file = RandomAccessFile(path.toFile(), "rw")
             file.seek(offset)
-            val channel = file.getChannel()
-            val output = Channels.newOutputStream(channel).buffered()
+            val output = Channels.newOutputStream(file.channel).buffered()
             return CountingDataOutput(output, offset, order)
         }
     }

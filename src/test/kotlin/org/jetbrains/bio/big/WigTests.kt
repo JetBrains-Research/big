@@ -4,14 +4,14 @@ import org.junit.Before
 import org.junit.Test
 import java.io.StringReader
 import java.io.StringWriter
-import java.util.Random
+import java.util.*
 import kotlin.properties.Delegates
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-public class VariableStepSectionTest {
+class VariableStepSectionTest {
     private var section: VariableStepSection by Delegates.notNull()
 
     @Before fun setUp() {
@@ -91,7 +91,7 @@ public class VariableStepSectionTest {
     }
 }
 
-public class FixedStepSectionTest {
+class FixedStepSectionTest {
     private var section: FixedStepSection by Delegates.notNull()
 
     @Before fun setUp() {
@@ -203,7 +203,7 @@ public class FixedStepSectionTest {
     }
 }
 
-public class WigParserTest {
+class WigParserTest {
     @Test(expected = IllegalStateException::class) fun testInvalidType() {
         val input = "track type=wiggle_1 windowingFunction=mean\n"
 
@@ -285,7 +285,7 @@ public class WigParserTest {
     }
 
     // Not implemented yet.
-    Test(expected = AssertionError::class) fun testVariableStepReuse() {
+    @Test(expected = AssertionError::class) fun testVariableStepReuse() {
         val input = "track type=wiggle_0 windowingFunction=mean\n" +
                     "variableStep chrom=chr1 span=5\n" +
                     "10471   0.4242\n" +
@@ -356,7 +356,7 @@ public class WigParserTest {
     }
 }
 
-public class WigPrinterTest {
+class WigPrinterTest {
     @Test fun testWriteFixedStep() {
         val track = FixedStepSection("chr1", 1000500)
         track.add(42f)
@@ -367,7 +367,7 @@ public class WigPrinterTest {
         val output = StringWriter()
         WigPrinter(output, name = "yada").use { it.print(track) }
 
-        val input = output.getBuffer().toString()
+        val input = output.buffer.toString()
         val it = WigParser(StringReader(input)).iterator()
         val parsed = it.next()
 
@@ -388,7 +388,7 @@ public class WigPrinterTest {
         val output = StringWriter()
         WigPrinter(output, name = "yada").use { it.print(track) }
 
-        val input = output.getBuffer().toString()
+        val input = output.buffer.toString()
         val it = WigParser(StringReader(input)).iterator()
         val parsed = it.next()
 

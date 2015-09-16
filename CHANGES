@@ -9,6 +9,7 @@ Version 0.1.9
 Bugfix release
 
 - Fixed a bug in 'WigSection#query', which threw if the callee was empty.
+- Migrated to Kotlin M13.
 
 Version 0.1.8
 -------------

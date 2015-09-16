@@ -3,14 +3,12 @@ package org.jetbrains.bio.big
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.ArrayList
-import java.util.Collections
-import kotlin.platform.platformStatic
+import java.util.*
 
 /**
  * Bigger brother of the good-old WIG format.
  */
-public class BigWigFile @throws(IOException::class) protected constructor(path: Path) :
+class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
         BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
 
     override fun summarizeInternal(query: ChromosomeInterval,
@@ -59,7 +57,7 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
         val chrom = chromosomes[query.chromIx]
         return sequenceOf(input.with(dataOffset, dataSize, compressed) {
             val chromIx = readInt()
-            assert(chromIx == query.chromIx, "section contains wrong chromosome")
+            assert(chromIx == query.chromIx) { "section contains wrong chromosome" }
             val start = readInt()
             readInt()   // end.
             val step = readInt()
@@ -131,10 +129,10 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        val MAGIC: Int = 0x888FFC26.toInt()
+        internal val MAGIC: Int = 0x888FFC26.toInt()
 
-        @throws(IOException::class)
-        public platformStatic fun read(path: Path): BigWigFile = BigWigFile(path)
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path): BigWigFile = BigWigFile(path)
 
         /**
          * Creates a BigWIG file from given sections.
@@ -150,12 +148,12 @@ public class BigWigFile @throws(IOException::class) protected constructor(path: 
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
-        public platformStatic fun write(wigSections: Iterable<WigSection>,
-                                        chromSizes: Iterable<Pair<String, Int>>,
-                                        outputPath: Path,
-                                        zoomLevelCount: Int = 8,
-                                        compressed: Boolean = true,
-                                        order: ByteOrder = ByteOrder.nativeOrder()) {
+        @JvmStatic fun write(wigSections: Iterable<WigSection>,
+                             chromSizes: Iterable<Pair<String, Int>>,
+                             outputPath: Path,
+                             zoomLevelCount: Int = 8,
+                             compressed: Boolean = true,
+                             order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)

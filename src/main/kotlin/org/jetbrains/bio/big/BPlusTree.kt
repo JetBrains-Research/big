@@ -17,12 +17,12 @@ import java.nio.ByteOrder
  * See tables 8-11 in Supplementary Data for byte-to-byte details
  * on the B+ header and node formats.
  */
-public class BPlusTree(val header: BPlusTree.Header) {
+class BPlusTree(internal val header: BPlusTree.Header) {
     /**
      * Recursively goes across tree, calling callback on the leaves.
      */
-    @throws(IOException::class)
-    public fun traverse(input: SeekableDataInput): Sequence<BPlusLeaf> {
+    @Throws(IOException::class)
+    fun traverse(input: SeekableDataInput): Sequence<BPlusLeaf> {
         return traverseRecursively(input, header.rootOffset)
     }
 
@@ -51,8 +51,8 @@ public class BPlusTree(val header: BPlusTree.Header) {
      * Recursively traverses a B+ tree looking for a leaf corresponding
      * to `query`.
      */
-    @throws(IOException::class)
-    public fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
+    @Throws(IOException::class)
+    fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
         if (query.length() > header.keySize) {
             return null
         }
@@ -97,9 +97,9 @@ public class BPlusTree(val header: BPlusTree.Header) {
         }
     }
 
-    class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
-                 val itemCount: Int, val rootOffset: Long) {
-        val valSize: Int = Ints.BYTES * 2  // (ID, Size)
+    internal class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
+                          val itemCount: Int, val rootOffset: Long) {
+        internal val valSize: Int = Ints.BYTES * 2  // (ID, Size)
 
         fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
@@ -112,7 +112,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
 
         companion object {
             /** Number of bytes used for this header. */
-            val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
+            internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x78CA8C91
 
@@ -122,7 +122,7 @@ public class BPlusTree(val header: BPlusTree.Header) {
                 val blockSize = readInt()
                 val keySize = readInt()
                 val valSize = readInt()
-                check(valSize == Ints.BYTES * 2, "inconsistent value size: $valSize")
+                check(valSize == Ints.BYTES * 2) { "inconsistent value size: $valSize" }
 
                 val itemCount = readLong()
                 readLong()  // reserved.
@@ -135,9 +135,9 @@ public class BPlusTree(val header: BPlusTree.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger(javaClass)
+        private val LOG = LogManager.getLogger(BPlusTree::class.java)
 
-        fun read(input: SeekableDataInput, offset: Long): BPlusTree {
+        internal fun read(input: SeekableDataInput, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
         }
 
@@ -161,14 +161,14 @@ public class BPlusTree(val header: BPlusTree.Header) {
          * @param itemCount total number of leaves in a B+ tree
          * @return required number of levels.
          */
-        fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
+        internal fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
 
-        fun write(output: CountingDataOutput, unsortedItems: List<BPlusLeaf>,
-                  blockSize: Int = 256) {
-            require(unsortedItems.isNotEmpty(), "no data")
-            require(blockSize > 1, "blockSize must be >1")
+        internal fun write(output: CountingDataOutput, unsortedItems: List<BPlusLeaf>,
+                           blockSize: Int = 256) {
+            require(unsortedItems.isNotEmpty()) { "no data" }
+            require(blockSize > 1) { "blockSize must be >1" }
 
-            val items = unsortedItems.sortBy { it.key }
+            val items = unsortedItems.sortedBy { it.key }
             val itemCount = items.size()
             val keySize = items.map { it.key.length() }.max()!!
 
@@ -242,19 +242,19 @@ public class BPlusTree(val header: BPlusTree.Header) {
 /**
  * A leaf in a B+ tree.
  */
-public data class BPlusLeaf(
+data class BPlusLeaf(
         /** Chromosome name, e.g. "chr19" or "chrY". */
-        public val key: String,
+        val key: String,
         /** Unique chromosome identifier.  */
-        public val id: Int,
+        val id: Int,
         /** Chromosome length in base pairs.  */
-        public val size: Int) {
+        val size: Int) {
     init {
-        require(id >= 0, "id must be >=0")
-        require(size >= 0, "size must be >=0")
+        require(id >= 0) { "id must be >=0" }
+        require(size >= 0) { "size must be >=0" }
     }
 
-    fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
+    internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
         writeBytes(key, keySize)
         writeInt(id)
         writeInt(size)
@@ -263,7 +263,7 @@ public data class BPlusLeaf(
     override fun toString(): String = "$key => ($id; $size)"
 
     companion object {
-        fun read(input: OrderedDataInput, keySize: Int) = with(input) {
+        internal fun read(input: OrderedDataInput, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val chromId = readInt()
@@ -278,17 +278,17 @@ public data class BPlusLeaf(
  */
 private class BPlusNode(
         /** Chromosome name, e.g. "chr19" or "chrY". */
-        public val key: String,
+        val key: String,
         /** Offset to child node. */
-        public val childOffset: Long) {
+        val childOffset: Long) {
 
-    fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
+    internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
         writeBytes(key, keySize)
         writeLong(childOffset)
     }
 
     companion object {
-        fun read(input: OrderedDataInput, keySize: Int) = with(input) {
+        internal fun read(input: OrderedDataInput, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             readFully(keyBuf)
             val childOffset = readLong()

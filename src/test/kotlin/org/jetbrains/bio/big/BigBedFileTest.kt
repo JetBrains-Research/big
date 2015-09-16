@@ -4,12 +4,12 @@ import org.apache.commons.math3.util.Precision
 import org.junit.Test
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.Random
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-public class BigBedFileTest {
+class BigBedFileTest {
     @Test fun testWriteReadSmall() {
         withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
@@ -156,7 +156,7 @@ public class BigBedFileTest {
             val entry = BedEntry("chr1", startOffset, endOffset)
             startOffset = endOffset + RANDOM.nextInt(100)
             entry
-        }.toList().sortBy { it.start }
+        }.toList().sortedBy { it.start }
 
         testSummarize(bedEntries, numBins = 2)
     }
@@ -167,7 +167,7 @@ public class BigBedFileTest {
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
             entry
-        }.toList().sortBy { it.start }
+        }.toList().sortedBy { it.start }
 
         testSummarize(bedEntries, numBins = 4)
     }
@@ -178,7 +178,7 @@ public class BigBedFileTest {
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
             entry
-        }.toList().sortBy { it.start }
+        }.toList().sortedBy { it.start }
 
         testSummarize(bedEntries, numBins = 1000)
     }

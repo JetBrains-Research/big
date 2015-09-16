@@ -1,8 +1,5 @@
 package org.jetbrains.bio.big
 
-import com.google.common.collect.Iterators
-import com.google.common.collect.PeekingIterator
-import com.google.common.collect.UnmodifiableIterator
 import com.google.common.primitives.Ints
 import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
@@ -12,7 +9,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean
 import java.io.BufferedReader
 import java.io.Closeable
 import java.io.Reader
-import java.util.NoSuchElementException
+import java.util.*
 
 /**
  * A basic BedGraph format parser.
@@ -21,7 +18,7 @@ import java.util.NoSuchElementException
  *
  * See http://genome.ucsc.edu/goldenpath/help/bedgraph.html
  */
-public class BedGraphParser(private val reader: Reader) :
+class BedGraphParser(private val reader: Reader) :
         Iterable<BedGraphSection>, AutoCloseable, Closeable {
 
     override fun iterator(): Iterator<BedGraphSection> = BedGraphIterator(reader.buffered())
@@ -78,14 +75,14 @@ private class BedGraphIterator(reader: BufferedReader) :
  * Even though BedGraph is a separate format it is allowed in BigWIG
  * data section.
  * */
-public data class BedGraphSection(
-        public override val chrom: String,
+data class BedGraphSection(
+        override val chrom: String,
         /** Per-interval start positions. */
-        val startOffsets: TIntList = TIntArrayList(),
+        internal val startOffsets: TIntList = TIntArrayList(),
         /** Per-interval end positions. */
-        val endOffsets: TIntList = TIntArrayList(),
+        internal val endOffsets: TIntList = TIntArrayList(),
         /** Per-interval values. */
-        val values: TFloatList = TFloatArrayList()) : WigSection {
+        internal val values: TFloatList = TFloatArrayList()) : WigSection {
 
     override val span: Int get() {
         val mean = Mean()
@@ -93,22 +90,22 @@ public data class BedGraphSection(
             mean.increment((endOffsets[i] - endOffsets[i]).toDouble())
         }
 
-        return Ints.saturatedCast(Math.round(mean.getResult()))
+        return Ints.saturatedCast(Math.round(mean.result))
     }
 
     override val start: Int get() {
-        check(size() > 0, "no data")
+        check(size() > 0) { "no data" }
         return startOffsets[0]
     }
 
     override val end: Int get() {
-        check(size() > 0, "no data")
+        check(size() > 0) { "no data" }
         // XXX intervals might overlap, so in general we don't know the
         // rightmost offset.
         return endOffsets.max()
     }
 
-    public fun set(startOffset: Int, endOffset: Int, value: Float) {
+    fun set(startOffset: Int, endOffset: Int, value: Float) {
         val i = startOffsets.binarySearch(startOffset)
         when {
             i < 0 -> {
@@ -127,7 +124,7 @@ public data class BedGraphSection(
         }
     }
 
-    public fun get(startOffset: Int, endOffset: Int): Float {
+    fun get(startOffset: Int, endOffset: Int): Float {
         val i = startOffsets.binarySearch(startOffset)
         if (i < 0 || endOffsets[i] != endOffset) {
             throw NoSuchElementException()

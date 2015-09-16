@@ -2,9 +2,6 @@ package org.jetbrains.bio.big
 
 import com.google.common.base.MoreObjects
 import com.google.common.collect.ComparisonChain
-import com.google.common.collect.Iterators
-import com.google.common.collect.PeekingIterator
-import com.google.common.collect.UnmodifiableIterator
 import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
 import gnu.trove.list.array.TFloatArrayList
@@ -13,9 +10,7 @@ import java.io.BufferedReader
 import java.io.Closeable
 import java.io.Reader
 import java.io.Writer
-import java.util.HashMap
-import java.util.NoSuchElementException
-import java.util.Objects
+import java.util.*
 
 /**
  * A basic WIG format parser.
@@ -25,21 +20,12 @@ import java.util.Objects
  *
  * See http://genome.ucsc.edu/goldenPath/help/wiggle.html
  */
-public class WigParser(private val reader: Reader) :
+class WigParser(private val reader: Reader) :
         Iterable<WigSection>, AutoCloseable, Closeable {
 
     override fun iterator(): Iterator<WigSection> = WigIterator(reader.buffered())
 
     override fun close() = reader.close()
-}
-
-private fun Sequence<Pair<K, V>>.toMap<K, V>(): Map<K, V> {
-    val acc = HashMap<K, V>()
-    for (val (k, v) in this) {
-        acc[k] = v
-    }
-
-    return acc
 }
 
 private class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(reader) {
@@ -130,7 +116,7 @@ private enum class State {
     abstract fun create(params: Map<String, String>): WigSection
 }
 
-public class WigPrinter jvmOverloads constructor(
+class WigPrinter @JvmOverloads constructor(
         private val writer: Writer,
         private val name: String,
         private val description: String = name) : Closeable, AutoCloseable {
@@ -139,7 +125,7 @@ public class WigPrinter jvmOverloads constructor(
         writer.write("track type=wiggle_0 name=\"$name\" description=\"$description\"\n")
     }
 
-    public fun print(track: VariableStepSection) {
+    fun print(track: VariableStepSection) {
         writer.write("variableStep chrom=${track.chrom} span=${track.span}\n")
 
         for (interval in track.query()) {
@@ -147,7 +133,7 @@ public class WigPrinter jvmOverloads constructor(
         }
     }
 
-    public fun print(track: FixedStepSection) {
+    fun print(track: FixedStepSection) {
         writer.write("fixedStep chrom=${track.chrom} " +
                      "start=${track.start + 1} " +
                      "step=${track.step} span=${track.span}\n")
@@ -161,7 +147,7 @@ public class WigPrinter jvmOverloads constructor(
 }
 
 
-public interface WigSection : Comparable<WigSection> {
+interface WigSection : Comparable<WigSection> {
     val chrom: String
 
     /** Interval width. */
@@ -182,7 +168,7 @@ public interface WigSection : Comparable<WigSection> {
     /**
      * Returns a list with all intervals in the section.
      */
-    public fun query(): Sequence<WigInterval> {
+    fun query(): Sequence<WigInterval> {
         return if (size() == 0) {
             emptySequence()
         } else {
@@ -196,21 +182,21 @@ public interface WigSection : Comparable<WigSection> {
      * @param from inclusive
      * @param to exclusive
      */
-    public fun query(from: Int, to: Int): Sequence<WigInterval>
+    fun query(from: Int, to: Int): Sequence<WigInterval>
 
     /**
      * Splices a section into sub-section of size at most [Short.MAX_SIZE].
      */
-    fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
+    internal fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
-    public fun size(): Int
+    fun size(): Int
 
     override fun compareTo(other: WigSection): Int = ComparisonChain.start()
             .compare(chrom, other.chrom)
             .compare(start, other.start)
             .result()
 
-    public enum class Type() {
+    enum class Type() {
         BED_GRAPH,
         VARIABLE_STEP,
         FIXED_STEP
@@ -222,30 +208,30 @@ public interface WigSection : Comparable<WigSection> {
  * arbitrary distance from i-th interval. Note, however, that interval
  * width remains _fixed_ throughout the track.
  */
-public data class VariableStepSection(
-        public override val chrom: String,
+data class VariableStepSection(
+        override val chrom: String,
         /** Interval width. */
-        public override val span: Int = 1,
+        override val span: Int = 1,
         /** Per-interval positions. */
-        val positions: TIntList = TIntArrayList(),
+        internal val positions: TIntList = TIntArrayList(),
         /** Per-interval values. */
-        val values: TFloatList = TFloatArrayList()) : WigSection {
+        internal val values: TFloatList = TFloatArrayList()) : WigSection {
 
     init {
         require(positions.size() == values.size())
     }
 
     override val start: Int get() {
-        check(size() > 0, "no data")
+        check(size() > 0) { "no data" }
         return positions[0]
     }
 
     override val end: Int get() {
-        check(size() > 0, "no data")
+        check(size() > 0) { "no data" }
         return positions[positions.size() - 1] + span
     }
 
-    public fun set(pos: Int, value: Float) {
+    fun set(pos: Int, value: Float) {
         val i = positions.binarySearch(pos)
         if (i < 0) {
             positions.insert(i.inv(), pos)
@@ -255,7 +241,7 @@ public data class VariableStepSection(
         }
     }
 
-    public fun get(pos: Int): Float {
+    fun get(pos: Int): Float {
         val i = positions.binarySearch(pos)
         if (i < 0) {
             throw NoSuchElementException()
@@ -315,24 +301,24 @@ public data class VariableStepSection(
  * consecutive intervals and interval width is fixed throughout the
  * section.
  */
-public data class FixedStepSection(
-        public override val chrom: String,
+data class FixedStepSection(
+        override val chrom: String,
         /** Start offset of the first interval on the track. */
-        public override val start: Int,
+        override val start: Int,
         /** Distance between consecutive intervals. */
-        public val step: Int = 1,
+        val step: Int = 1,
         /** Interval width. */
-        public override val span: Int = 1,
+        override val span: Int = 1,
         /** Per-interval values. */
-        val values: TFloatList = TFloatArrayList()) : WigSection {
+        internal val values: TFloatList = TFloatArrayList()) : WigSection {
 
     override val end: Int get() = start + step * (values.size() - 1) + span
 
-    public fun add(value: Float) {
+    fun add(value: Float) {
         values.add(value)
     }
 
-    public fun get(pos: Int): Float {
+    fun get(pos: Int): Float {
         // Note(lebedev): we expect 'pos' to be a starting position.
         return values[(pos - start) / step]
     }
@@ -377,6 +363,6 @@ public data class FixedStepSection(
     override fun hashCode(): Int = Objects.hash(start, step, span, values)
 }
 
-public data class WigInterval(val start: Int, val end: Int, val score: Float) {
+data class WigInterval(val start: Int, val end: Int, val score: Float) {
     override fun toString(): String = "$score@[$start; $end)"
 }

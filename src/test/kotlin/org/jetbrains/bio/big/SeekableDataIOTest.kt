@@ -8,12 +8,11 @@ import org.junit.runners.Parameterized.Parameters
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Random
-import kotlin.platform.platformStatic
+import java.util.*
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
-public class SeekableDataIOTest(private val order: ByteOrder) {
+class SeekableDataIOTest(private val order: ByteOrder) {
     @Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
         val b = r.nextByte()
         val s = r.nextInt(Short.MAX_VALUE.toInt())
@@ -120,7 +119,7 @@ public class SeekableDataIOTest(private val order: ByteOrder) {
         val RANDOM: Random = Random()  // private causes compiler crash.
 
         @Parameters(name = "{0}")
-        platformStatic fun data(): Iterable<ByteOrder> {
+        @JvmStatic fun data(): Iterable<ByteOrder> {
             return listOf(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
         }
     }

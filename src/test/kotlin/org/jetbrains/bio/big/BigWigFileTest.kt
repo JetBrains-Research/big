@@ -4,12 +4,12 @@ import org.apache.commons.math3.util.Precision
 import org.junit.Test
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.util.Random
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-public class BigWigFileTest {
+class BigWigFileTest {
     @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
     @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
@@ -146,7 +146,7 @@ public class BigWigFileTest {
             }
 
             section
-        }.toList().sortBy { it.start }
+        }.toList().sortedBy { it.start }
 
         testSummarize(wigSections, numBins = 4, index = false)
         testSummarize(wigSections, numBins = 4, index = true)
