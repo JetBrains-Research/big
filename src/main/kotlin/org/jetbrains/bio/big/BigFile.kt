@@ -74,13 +74,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @param startOffset 0-based start offset (inclusive).
      * @param endOffset 0-based end offset (exclusive), if 0 than the whole
      *                  chromosome is used.
-     * @param numBins number of summaries to compute
+     * @param numBins number of summaries to compute. Defaults to `1`.
      * @param index if `true` pre-computed is index is used if possible.
      * @return a list of summaries.
      */
     @Throws(IOException::class)
-    fun summarize(name: String, startOffset: Int, endOffset: Int,
-                  numBins: Int, index: Boolean = true): List<BigSummary> {
+    fun summarize(name: String, startOffset: Int = 0, endOffset: Int = 0,
+                  numBins: Int = 1, index: Boolean = true): List<BigSummary> {
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 

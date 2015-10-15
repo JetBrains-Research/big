@@ -1,6 +1,8 @@
 # big [![Build Status](https://travis-ci.org/JetBrains-Research/big.svg?branch=master)](https://travis-ci.org/JetBrains-Research/big) [![Build status](https://ci.appveyor.com/api/projects/status/e9q4o6rgdfhyy6ry?svg=true)](https://ci.appveyor.com/project/superbobry/big)
 
-`big` implements classes for reading and writing BigWIG and BigBED. You can use `big` in any programming language running on the JVM, but the API is in part Kotlin-specific.
+`big` implements classes for reading and writing BigWIG and BigBED. You can use
+`big` in any programming language running on the JVM, but the API is in part
+Kotlin-specific.
 
 Installation
 ------------
@@ -24,7 +26,7 @@ dependencies {
 Example
 -------
 
-Download example [BED file] [bed-example] and hg19 [chromosome sizes] [chrom-sizes] 
+Download example [BED file] [bed-example] and hg19 [chromosome sizes] [chrom-sizes]
 from the [BigBED] [bigbed] documention. Unfortunately the example file has a header
 line which makes it improper BED. Remove the header either manually or via `tail`:
 
