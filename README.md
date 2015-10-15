@@ -29,7 +29,7 @@ Useful links
 * Reference C [implementation](http://hgdownload.cse.ucsc.edu/admin/exe) of both big formats by UCSC
 
 [paper]: http://bioinformatics.oxfordjournals.org/content/26/17/2204.abstract
-[wig]: http://genome.ucsc.edu/goldenpath/help/wig.html
+[wig]: http://genome.ucsc.edu/goldenpath/help/wiggle.html
 [bed]: http://genome.ucsc.edu/goldenpath/help/bed.html
 [bigwig]: http://genome.ucsc.edu/goldenpath/help/bigWig.html
 [bigbed]: http://genome.ucsc.edu/goldenpath/help/bigBed.html
