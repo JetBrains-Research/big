@@ -30,6 +30,6 @@ Useful links
 
 [paper]: http://bioinformatics.oxfordjournals.org/content/26/17/2204.abstract
 [wig]: http://genome.ucsc.edu/goldenpath/help/wiggle.html
-[bed]: http://genome.ucsc.edu/goldenpath/help/bed.html
+[bed]: https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 [bigwig]: http://genome.ucsc.edu/goldenpath/help/bigWig.html
 [bigbed]: http://genome.ucsc.edu/goldenpath/help/bigBed.html
