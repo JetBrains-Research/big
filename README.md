@@ -1,8 +1,8 @@
 # big [![Build Status](https://travis-ci.org/JetBrains-Research/big.svg?branch=master)](https://travis-ci.org/JetBrains-Research/big) [![Build status](https://ci.appveyor.com/api/projects/status/e9q4o6rgdfhyy6ry?svg=true)](https://ci.appveyor.com/project/superbobry/big)
 
-`big` implements classes for reading and writing BigWIG and BigBED. You can use
-`big` in any programming language running on the JVM, but the API is in part
-Kotlin-specific.
+`big` implements high performance classes for reading and writing BigWIG and BigBED. 
+You can use `big` in any programming language running on the JVM, but the API is in 
+part Kotlin-specific.
 
 Installation
 ------------
