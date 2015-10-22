@@ -17,7 +17,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..wigItems.size() - 1) {
+            for (j in edge..wigItems.size - 1) {
                 val wigItem = wigItems[j]
                 if (wigItem.end <= bin.startOffset) {
                     edge = j + 1
@@ -66,8 +66,8 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
             readByte()  // reserved.
             val count = readUnsignedShort()
 
-            val types = WigSection.Type.values()
-            check(type >= 1 && type <= types.size())
+            val types = WigSection.Type.values
+            check(type >= 1 && type <= types.size)
             when (types[type - 1]) {
                 WigSection.Type.BED_GRAPH -> {
                     val section = BedGraphSection(chrom)
@@ -207,7 +207,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
 
             var count = 0
             var sum = 0L
-            for (section in groupedSections.values().flatten()) {
+            for (section in groupedSections.values.flatten()) {
                 sum += section.span
                 count++
             }
@@ -228,7 +228,7 @@ private fun BedGraphSection.write(output: OrderedDataOutput, resolver: Map<Strin
         writeInt(end)
         writeInt(0)   // not applicable.
         writeInt(span)
-        writeByte(WigSection.Type.BED_GRAPH.ordinal() + 1)
+        writeByte(WigSection.Type.BED_GRAPH.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size())
         for (i in 0..size() - 1) {
@@ -246,7 +246,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeInt(end)
         writeInt(step)
         writeInt(span)
-        writeByte(WigSection.Type.FIXED_STEP.ordinal() + 1)
+        writeByte(WigSection.Type.FIXED_STEP.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size())
         for (i in 0..size() - 1) {
@@ -262,7 +262,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(end)
         writeInt(0)   // not applicable.
         writeInt(span)
-        writeByte(WigSection.Type.VARIABLE_STEP.ordinal() + 1)
+        writeByte(WigSection.Type.VARIABLE_STEP.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size())
         for (i in 0..size() - 1) {

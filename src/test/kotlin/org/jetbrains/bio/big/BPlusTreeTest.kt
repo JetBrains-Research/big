@@ -92,7 +92,7 @@ class BPlusTreeTest {
 
     private fun getRandomItems(itemCount: Int): List<BPlusLeaf> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
-        return (0 until names.size()).map { i ->
+        return (0 until names.size).map { i ->
             val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
             BPlusLeaf("chr" + names[i], i, size)
         }.toList()
@@ -105,7 +105,7 @@ class BPlusTreeTest {
 
     private fun getExampleItems(example: String): List<BPlusLeaf> {
         val lines = Files.readAllLines(Examples[example])
-        return (0 until lines.size()).map { i ->
+        return (0 until lines.size).map { i ->
             val chunks = lines[i].split('\t', limit = 2)
             BPlusLeaf(chunks[0], i, chunks[1].toInt())
         }.toList()

@@ -39,7 +39,7 @@ data class BigSummary(
     }
 
     /** Because monoids rock. */
-    internal fun plus(other: BigSummary): BigSummary = when {
+    internal operator fun plus(other: BigSummary): BigSummary = when {
         isEmpty()       -> other
         other.isEmpty() -> this
         else -> BigSummary(count + other.count,

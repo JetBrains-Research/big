@@ -19,7 +19,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..coverage.size() - 1) {
+            for (j in edge..coverage.size - 1) {
                 val bedEntry = coverage[j]
                 if (bedEntry.end <= bin.startOffset) {
                     edge = j + 1
@@ -134,12 +134,12 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                     Collections.sort(items)
 
                     val chromIx = resolver[name]!!
-                    for (i in 0..items.size() - 1 step itemsPerSlot) {
+                    for (i in 0..items.size - 1 step itemsPerSlot) {
                         val dataOffset = output.tell()
                         val start = items[i].start
                         var end = 0
                         val current = output.with(compressed) {
-                            for (j in 0..Math.min(items.size() - i, itemsPerSlot) - 1) {
+                            for (j in 0..Math.min(items.size - i, itemsPerSlot) - 1) {
                                 val item = items[i + j]
                                 writeInt(chromIx)
                                 writeInt(item.start)
@@ -175,7 +175,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
 
             var sum = 0L
             var count = 0
-            for (section in groupedEntries.values().flatten()) {
+            for (section in groupedEntries.values.flatten()) {
                 sum += section.end - section.start
                 count++
             }
@@ -224,7 +224,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
 
                 current += 1
             }
-            event.type == END || i == events.size() - 1 -> {
+            event.type == END || i == events.size - 1 -> {
                 assert(event.offset >= left)
                 // Produce a single aggregate for duplicate intervals.
                 // For ease of use we abuse the semantics of the

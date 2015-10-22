@@ -16,11 +16,10 @@ import kotlin.LazyThreadSafetyMode.NONE
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
-interface OrderedDataInput {
+internal interface OrderedDataInput {
     var order: ByteOrder
-        private set
 
-    fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size())
+    fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size)
 
     fun readBoolean(): Boolean = readUnsignedByte() != 0
 
@@ -105,8 +104,8 @@ class SeekableDataInput private constructor(
      * This of this method as a way to get buffered input locally.
      * See for example [RTreeIndex.findOverlappingBlocks].
      */
-    fun with<T>(offset: Long, size: Long, compressed: Boolean = false,
-                block: CountingOrderedDataInput.() -> T): T {
+    fun <T> with(offset: Long, size: Long, compressed: Boolean = false,
+                 block: CountingOrderedDataInput.() -> T): T {
         seek(offset)
         val input = if (compressed) {
             compressedBuf = compressedBuf.ensureCapacity(size.toInt())
@@ -170,7 +169,7 @@ class SeekableDataInput private constructor(
 }
 
 private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
-    return if (size() < requested) {
+    return if (size < requested) {
         copyOf((requested + requested shr 1).toInt())  // 1.5x
     } else {
         this
@@ -231,7 +230,7 @@ interface OrderedDataOutput {
 
     fun writeBytes(s: String, length: Int) {
         writeBytes(s)
-        skipBytes(length - s.length())
+        skipBytes(length - s.length)
     }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
@@ -333,7 +332,7 @@ open class CountingDataOutput(private val output: OutputStream,
             output.write(ch.toInt())
         }
 
-        ack(s.length())
+        ack(s.length)
     }
 
     override fun writeByte(v: Int) {

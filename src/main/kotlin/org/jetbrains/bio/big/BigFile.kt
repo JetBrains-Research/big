@@ -18,9 +18,9 @@ import kotlin.LazyThreadSafetyMode.NONE
 abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         Closeable, AutoCloseable {
 
-    val input: SeekableDataInput = SeekableDataInput.of(path)
-    val header: Header = Header.read(input, magic)
-    val zoomLevels: List<ZoomLevel> = (0..header.zoomLevelCount - 1).asSequence()
+    internal val input = SeekableDataInput.of(path)
+    internal val header = Header.read(input, magic)
+    internal val zoomLevels = (0..header.zoomLevelCount - 1).asSequence()
             .map { ZoomLevel.read(input) }.toList()
     val bPlusTree: BPlusTree
     val rTree: RTreeIndex
@@ -140,7 +140,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         var edge = 0  // yay! map with a side effect.
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..zoomData.size() - 1) {
+            for (j in edge..zoomData.size - 1) {
                 val interval = zoomData[j].interval
                 if (interval.endOffset <= bin.startOffset) {
                     edge = j + 1
@@ -314,7 +314,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = initial
-                    for (level in 0..bf.zoomLevels.size() - 1) {
+                    for (level in 0..bf.zoomLevels.size - 1) {
                         val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
                         if (zoomLevel == null) {
                             LOG.trace("${reduction}x reduction rejected")
@@ -362,7 +362,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 }
             }
 
-            return if (leaves.size() > 1) {
+            return if (leaves.size > 1) {
                 val zoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
                 ZoomLevel(reduction, zoomedDataOffset, zoomedIndexOffset)

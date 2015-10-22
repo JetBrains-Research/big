@@ -17,7 +17,7 @@ import java.nio.ByteOrder
  * See tables 8-11 in Supplementary Data for byte-to-byte details
  * on the B+ header and node formats.
  */
-class BPlusTree(internal val header: BPlusTree.Header) {
+internal class BPlusTree(val header: BPlusTree.Header) {
     /**
      * Recursively goes across tree, calling callback on the leaves.
      */
@@ -53,13 +53,13 @@ class BPlusTree(internal val header: BPlusTree.Header) {
      */
     @Throws(IOException::class)
     fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
-        if (query.length() > header.keySize) {
+        if (query.length > header.keySize) {
             return null
         }
 
         // Trim query to 'keySize' because the spec. guarantees us
         // that all B+ tree nodes have a fixed-size key.
-        val trimmedQuery = query.substring(0, Math.min(query.length(), header.keySize))
+        val trimmedQuery = query.substring(0, Math.min(query.length, header.keySize))
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
@@ -169,8 +169,8 @@ class BPlusTree(internal val header: BPlusTree.Header) {
             require(blockSize > 1) { "blockSize must be >1" }
 
             val items = unsortedItems.sortedBy { it.key }
-            val itemCount = items.size()
-            val keySize = items.map { it.key.length() }.max()!!
+            val itemCount = items.size
+            val keySize = items.map { it.key.length }.max()!!
 
             val header = Header(output.order, blockSize, keySize, itemCount,
                                 output.tell() + Header.BYTES)
@@ -186,7 +186,7 @@ class BPlusTree(internal val header: BPlusTree.Header) {
             val bytesInLeafBlock = (bytesInNodeHeader + blockSize * bytesInLeafSlot).toLong()
 
             // Write B+ tree levels top to bottom.
-            val levels = countLevels(blockSize, items.size())
+            val levels = countLevels(blockSize, items.size)
             for (d in levels - 1 downTo 1) {
                 val levelOffset = output.tell()
                 val itemsPerSlot = blockSize pow d
@@ -232,7 +232,7 @@ class BPlusTree(internal val header: BPlusTree.Header) {
                 }
             }
 
-            LOG.trace("Wrote ${items.size()} leaves at level $levels " +
+            LOG.trace("Wrote ${items.size} leaves at level $levels " +
                       "(offset: $levelOffset)")
             LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
         }

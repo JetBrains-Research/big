@@ -50,17 +50,17 @@ class SeekableDataIOTest(private val order: ByteOrder) {
     }
 
     @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
-        val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.join("")
+        val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.joinToString("")
         CountingDataOutput.of(path, order).use {
             it.writeBytes(s)
-            it.writeBytes(s, s.length() + 8)
+            it.writeBytes(s, s.length + 8)
             it.skipBytes(16)
         }
         SeekableDataInput.of(path, order).use {
-            var b = ByteArray(s.length())
+            var b = ByteArray(s.length)
             it.readFully(b)
             assertArrayEquals(s.toByteArray(), b)
-            b = ByteArray(s.length() + 8)
+            b = ByteArray(s.length + 8)
             it.readFully(b)
             assertEquals(s, String(b).trimZeros())
 
@@ -76,7 +76,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             b.forEach { output.writeByte(it.toInt()) }
         }
         SeekableDataInput.of(path, order).use {
-            for (i in 0 until b.size()) {
+            for (i in 0 until b.size) {
                 it.seek(i.toLong())
                 assertEquals(b[i], it.readByte())
                 assertEquals(i + 1L, it.tell())
@@ -94,7 +94,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
 
         SeekableDataInput.of(path, order).use {
             it.with(0L, Files.size(path), compressed = true) {
-                for (i in 0 until b.size()) {
+                for (i in 0 until b.size) {
                     assertEquals(b[i], readByte())
                 }
             }

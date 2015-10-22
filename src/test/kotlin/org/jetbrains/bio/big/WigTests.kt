@@ -64,7 +64,7 @@ class VariableStepSectionTest {
         }
 
         val subsections = section.splice().toList()
-        assertEquals(2, subsections.size())
+        assertEquals(2, subsections.size)
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size())
@@ -178,7 +178,7 @@ class FixedStepSectionTest {
         }
 
         val subsections = section.splice().toList()
-        assertEquals(2, subsections.size())
+        assertEquals(2, subsections.size)
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
     }
@@ -304,7 +304,7 @@ class WigParserTest {
                     "0.2424"
 
         val tracks = WigParser(StringReader(input)).toList()
-        assertEquals(2, tracks.size())
+        assertEquals(2, tracks.size)
         assertEquals("chr1", tracks[0].chrom)
         assertEquals("chr2", tracks[1].chrom)
     }
@@ -317,7 +317,7 @@ class WigParserTest {
                     "0.2424"
 
         val tracks = WigParser(StringReader(input)).toList()
-        assertEquals(2, tracks.size())
+        assertEquals(2, tracks.size)
         assertEquals("chr1", tracks[0].chrom)
         assertEquals("chr1", tracks[1].chrom)
     }

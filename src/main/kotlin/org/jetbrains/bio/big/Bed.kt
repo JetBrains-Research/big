@@ -6,10 +6,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class BedFile(private val path: Path) : Iterable<BedEntry> {
-    override fun iterator(): Iterator<BedEntry> = Files.lines(path).map { line ->
+    override fun iterator() = Files.lines(path).map { line ->
         val chunks = line.split('\t', limit = 4)
         BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
-                 if (chunks.size() == 3) "" else chunks[3])
+                 if (chunks.size == 3) "" else chunks[3])
     }.iterator()
 
     companion object {
@@ -48,7 +48,7 @@ data class BedEntry(
             .result()
 
     companion object {
-        fun invoke(chrom: String, start: Int, end: Int, rest: String = ""): BedEntry {
+        operator fun invoke(chrom: String, start: Int, end: Int, rest: String = ""): BedEntry {
             val it = rest.split(',', limit = 4).iterator()
             return BedEntry(
                 chrom, start, end,

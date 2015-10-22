@@ -62,7 +62,7 @@ class IntervalTest {
             val n = Math.min(RANDOM.nextInt(99) + 1, interval.length())
             val slices = interval.slice(n).toList()
 
-            assertEquals(n, slices.size())
+            assertEquals(n, slices.size)
             assertEquals(interval, slices.reduce(Interval::union))
             for (slice in slices) {
                 assertTrue(slices.all { it == slice || !(it intersects slice) })

@@ -30,7 +30,7 @@ import java.util.*
  * See tables 14-17 in the Supplementary Data for byte-to-byte details
  * on the R+ tree header and node formats.
  */
-class RTreeIndex(val header: RTreeIndex.Header) {
+internal class RTreeIndex(val header: RTreeIndex.Header) {
     /**
      * Recursively traverses an R+ tree calling `consumer` on each
      * block (aka leaf) overlapping a given `query`. Note that some
@@ -145,14 +145,14 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             var rightmost = leaves.last().interval.right
 
             val header = Header(output.order, blockSize,
-                                leaves.size().toLong(),
+                                leaves.size.toLong(),
                                 leftmost.chromIx, leftmost.offset,
                                 rightmost.chromIx, rightmost.offset,
                                 output.tell(), itemsPerSlot,
                                 output.tell() + Header.BYTES)
             header.write(output)
 
-            LOG.debug("Creating R+ tree for ${leaves.size()} items " +
+            LOG.debug("Creating R+ tree for ${leaves.size} items " +
                       "($blockSize slots/node, $itemsPerSlot items/slot)")
 
             // HEAVY COMPUTER SCIENCE CALCULATION!
@@ -164,13 +164,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             for ((d, level) in levels.withIndex()) {
                 val bytesInCurrentBlock = bytesInIndexBlock
                 val bytesInNextLevelBlock =
-                        if (d == levels.size() - 1) bytesInLeafBlock else bytesInCurrentBlock
+                        if (d == levels.size - 1) bytesInLeafBlock else bytesInCurrentBlock
 
                 val levelOffset = output.tell()
-                val nodeCount = level.size() divCeiling blockSize
+                val nodeCount = level.size divCeiling blockSize
                 var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
-                for (i in 0..level.size() - 1 step blockSize) {
-                    val childCount = Math.min(blockSize, level.size() - i)
+                for (i in 0..level.size - 1 step blockSize) {
+                    val childCount = Math.min(blockSize, level.size - i)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
@@ -185,12 +185,12 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                     }
                 }
 
-                LOG.trace("Wrote ${level.size()} slots at level $d (offset: $levelOffset)")
+                LOG.trace("Wrote ${level.size} slots at level $d (offset: $levelOffset)")
             }
 
             val levelOffset = output.tell()
-            for (i in 0..leaves.size() - 1 step blockSize) {
-                val leafCount = Math.min(blockSize, leaves.size() - i)
+            for (i in 0..leaves.size - 1 step blockSize) {
+                val leafCount = Math.min(blockSize, leaves.size - i)
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
@@ -204,7 +204,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
                 }
             }
 
-            LOG.trace("Wrote ${leaves.size()} slots at level ${levels.size()} " +
+            LOG.trace("Wrote ${leaves.size} slots at level ${levels.size} " +
                       "(offset: $levelOffset)")
             LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }
@@ -212,7 +212,7 @@ class RTreeIndex(val header: RTreeIndex.Header) {
         private fun compute(leaves: List<RTreeIndexLeaf>,
                             blockSize: Int): List<List<Interval>> {
             var intervals: List<Interval> = leaves.map { it.interval }
-            for (i in 1..intervals.size() - 1) {
+            for (i in 1..intervals.size - 1) {
                 if (intervals[i] intersects intervals[i - 1]) {
                     LOG.warn("R+ tree leaves are overlapping: " +
                              "${intervals[i]} ^ ${intervals[i - 1]}")
@@ -220,13 +220,13 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             val levels = arrayListOf(intervals)
-            while (intervals.size() > 1) {
-                val level = ArrayList<Interval>(intervals.size() divCeiling blockSize)
-                for (i in 0..intervals.size() - 1 step blockSize) {
+            while (intervals.size > 1) {
+                val level = ArrayList<Interval>(intervals.size divCeiling blockSize)
+                for (i in 0..intervals.size - 1 step blockSize) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
-                    val links = intervals.subList(i, Math.min(intervals.size(), i + blockSize))
+                    val links = intervals.subList(i, Math.min(intervals.size, i + blockSize))
                     level.add(links.reduce(Interval::union))
                 }
 
@@ -235,11 +235,11 @@ class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             Collections.reverse(levels)
-            LOG.debug("Computed ${levels.size()} levels: ${levels.map { it.size() }}")
+            LOG.debug("Computed ${levels.size} levels: ${levels.map { it.size }}")
 
             // Omit the root since it's trivial and leaves --- we'll deal
             // with them later.
-            return levels.subList(1, Math.max(1, levels.size() - 1))
+            return levels.subList(1, Math.max(1, levels.size - 1))
         }
     }
 }

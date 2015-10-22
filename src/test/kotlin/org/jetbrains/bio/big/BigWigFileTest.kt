@@ -126,7 +126,7 @@ class BigWigFileTest {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val summaries = bwf.summarize(name, 0, 100, numBins = 100)
-            assertEquals(100, summaries.size())
+            assertEquals(100, summaries.size)
         }
     }
 
@@ -260,7 +260,7 @@ class BigWigFileTest {
             assertEquals(expected,
                          bwf.query("chr3", 400615, 410000, overlaps = true)
                                  .flatMap { it.query() }.toList())
-            assertEquals(expected.subList(1, expected.size()),
+            assertEquals(expected.subList(1, expected.size),
                          bwf.query("chr3", 400715, 410000, overlaps = true)
                                  .flatMap { it.query() }.toList())
         }
@@ -293,8 +293,8 @@ class BigWigFileTest {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val (name, chromIx, _size) = bwf.bPlusTree.traverse(bwf.input).first()
             val wigItems = bwf.query(name).flatMap { it.query().asSequence() }.toList()
-            val i = RANDOM.nextInt(wigItems.size())
-            val j = RANDOM.nextInt(wigItems.size())
+            val i = RANDOM.nextInt(wigItems.size)
+            val j = RANDOM.nextInt(wigItems.size)
             val query = Interval(chromIx,
                                  wigItems[Math.min(i, j)].start,
                                  wigItems[Math.max(i, j)].end)

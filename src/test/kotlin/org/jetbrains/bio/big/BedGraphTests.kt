@@ -60,7 +60,7 @@ class BedGraphSectionTest {
         }
 
         val subsections = section.splice().toList()
-        assertEquals(2, subsections.size())
+        assertEquals(2, subsections.size)
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size())
@@ -130,7 +130,7 @@ chr19 49302300 49302600 -0.75
 chr20 100500 500100 -0.50
 """
         val tracks = BedGraphParser(input.reader()).toList()
-        assertEquals(2, tracks.size())
+        assertEquals(2, tracks.size)
         assertEquals("chr20", tracks[1].chrom)
         assertEquals(1, tracks[1].size())
         assertEquals(listOf(WigInterval(100500, 500100, -.5f)),

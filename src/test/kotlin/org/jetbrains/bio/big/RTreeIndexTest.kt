@@ -16,7 +16,7 @@ class RTreeIndexTest {
             assertEquals(192819L, rti.header.rootOffset)
 
             val items = exampleItems
-            assertEquals(items.size().toLong(), rti.header.itemCount)
+            assertEquals(items.size.toLong(), rti.header.itemCount)
             assertEquals(0, rti.header.startChromIx)
             assertEquals(0, rti.header.endChromIx)
             assertEquals(items.map { it.start }.min(), rti.header.startBase)
@@ -28,8 +28,8 @@ class RTreeIndexTest {
         val rti = bbf.rTree
         val items = exampleItems
         for (i in 0 until 100) {
-            val left = RANDOM.nextInt(items.size() - 1)
-            val right = left + RANDOM.nextInt(items.size() - left)
+            val left = RANDOM.nextInt(items.size - 1)
+            val right = left + RANDOM.nextInt(items.size - left)
             val query = Interval(0, items[left].start, items[right].end)
 
             for (block in rti.findOverlappingBlocks(bbf.input, query)) {

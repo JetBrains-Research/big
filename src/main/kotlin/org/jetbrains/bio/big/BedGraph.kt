@@ -39,7 +39,7 @@ private class BedGraphIterator(reader: BufferedReader) :
                 // Skip blank lines and comments.
             } else if (waiting) {
                 val (type, rest) = RE_WHITESPACE.split(line, 2)
-                val params = RE_PARAM.matchAll(rest).map { m ->
+                val params = RE_PARAM.findAll(rest).map { m ->
                     (m.groups[1]!!.value to
                             m.groups[2]!!.value.removeSurrounding("\""))
                 }.toMap()
@@ -105,7 +105,7 @@ data class BedGraphSection(
         return endOffsets.max()
     }
 
-    fun set(startOffset: Int, endOffset: Int, value: Float) {
+    operator fun set(startOffset: Int, endOffset: Int, value: Float) {
         val i = startOffsets.binarySearch(startOffset)
         when {
             i < 0 -> {
@@ -124,7 +124,7 @@ data class BedGraphSection(
         }
     }
 
-    fun get(startOffset: Int, endOffset: Int): Float {
+    operator fun get(startOffset: Int, endOffset: Int): Float {
         val i = startOffsets.binarySearch(startOffset)
         if (i < 0 || endOffsets[i] != endOffset) {
             throw NoSuchElementException()

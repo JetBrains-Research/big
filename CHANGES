@@ -4,8 +4,12 @@ big Changelog
 Here you can see the full list of changes between each big release.
 
 Version 0.2.0
--------------
+--------------
 
+Technical release, released on October 22th 2015
+
+- Migrated to Kotlin 1.0.0-beta.
+- Added reasonable defaults to 'BigFile#summarize'.
 
 Version 0.1.9
 -------------

@@ -47,7 +47,7 @@ private class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(
             when (state) {
                 State.WAITING -> {
                     val (type, rest) = chunks
-                    val params = RE_PARAM.matchAll(rest).map { m ->
+                    val params = RE_PARAM.findAll(rest).map { m ->
                         (m.groups[1]!!.value to
                                 m.groups[2]!!.value.removeSurrounding("\""))
                     }.toMap()
@@ -78,7 +78,7 @@ private class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(
     companion object {
         private val RE_VALUE = arrayOf(
                 "NaN", "[+-]Infinity",
-                "(\\d+)?\\s*[+-]?(\\d+(?:\\.\\d+)?(e\\+?\\d+)?)?").join("|").toRegex()
+                "(\\d+)?\\s*[+-]?(\\d+(?:\\.\\d+)?(e\\+?\\d+)?)?").joinToString("|").toRegex()
         private val RE_WHITESPACE = "\\s".toRegex()
         private val RE_PARAM = "(\\S+)=(\"[^\"]*\"|\\S+)".toRegex()
     }
@@ -187,7 +187,7 @@ interface WigSection : Comparable<WigSection> {
     /**
      * Splices a section into sub-section of size at most [Short.MAX_SIZE].
      */
-    internal fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
+    fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
     fun size(): Int
 
@@ -231,7 +231,7 @@ data class VariableStepSection(
         return positions[positions.size() - 1] + span
     }
 
-    fun set(pos: Int, value: Float) {
+    operator fun set(pos: Int, value: Float) {
         val i = positions.binarySearch(pos)
         if (i < 0) {
             positions.insert(i.inv(), pos)
@@ -241,7 +241,7 @@ data class VariableStepSection(
         }
     }
 
-    fun get(pos: Int): Float {
+    operator fun get(pos: Int): Float {
         val i = positions.binarySearch(pos)
         if (i < 0) {
             throw NoSuchElementException()
@@ -318,7 +318,7 @@ data class FixedStepSection(
         values.add(value)
     }
 
-    fun get(pos: Int): Float {
+    operator fun get(pos: Int): Float {
         // Note(lebedev): we expect 'pos' to be a starting position.
         return values[(pos - start) / step]
     }

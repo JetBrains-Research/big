@@ -55,7 +55,7 @@ class BigBedFileTest {
     private fun testQuerySmall(path: Path, items: List<BedEntry>) {
         BigBedFile.read(path).use { bbf ->
             for (i in 0 until 100) {
-                testQuery(bbf, items, items[RANDOM.nextInt(items.size())])
+                testQuery(bbf, items, items[RANDOM.nextInt(items.size)])
             }
         }
     }
@@ -63,8 +63,8 @@ class BigBedFileTest {
     private fun testQueryLarge(path: Path, items: List<BedEntry>) {
         BigBedFile.read(path).use { bbf ->
             for (i in 0 until 10) {
-                val a = items[RANDOM.nextInt(items.size())]
-                val b = items[RANDOM.nextInt(items.size())]
+                val a = items[RANDOM.nextInt(items.size)]
+                val b = items[RANDOM.nextInt(items.size)]
                 testQuery(bbf, items, BedEntry(a.chrom, Math.min(a.start, b.start),
                                                Math.max(a.end, b.end)))
             }
@@ -81,7 +81,7 @@ class BigBedFileTest {
                 .filter { it.start >= query.start && it.end <= query.end }
                 .toList()
 
-        assertEquals(expected.size(), actual.size());
+        assertEquals(expected.size, actual.size);
         assertEquals(expected, actual, message = query.toString())
     }
 
@@ -93,8 +93,8 @@ class BigBedFileTest {
         BigBedFile.read(Examples["example1.bb"]).use { bbf ->
             val (name, chromIx, _size) = bbf.bPlusTree.traverse(bbf.input).first()
             val bedEntries = bbf.query(name).toList()
-            val i = RANDOM.nextInt(bedEntries.size())
-            val j = RANDOM.nextInt(bedEntries.size())
+            val i = RANDOM.nextInt(bedEntries.size)
+            val j = RANDOM.nextInt(bedEntries.size)
             val query = Interval(chromIx,
                                  bedEntries[Math.min(i, j)].start,
                                  bedEntries[Math.max(i, j)].end)
