@@ -173,7 +173,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
             val items = unsortedItems.sortedBy { it.key }
             val itemCount = items.size
-            val keySize = items.map { it.key.length }.max() ?: 0
+            val keySize = (items.map { it.key.length }.max() ?: 0) + 1
+            // ^^^ the +1 is to account for the trailing null.
 
             val header = Header(output.order, blockSize, keySize, itemCount,
                                 output.tell() + Header.BYTES)
@@ -262,7 +263,7 @@ data class BPlusLeaf(
     }
 
     internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
-        writeBytes(key, keySize)
+        writeCString(key, keySize)
         writeInt(id)
         writeInt(size)
     }
@@ -290,7 +291,7 @@ private class BPlusNode(
         val childOffset: Long) {
 
     internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
-        writeBytes(key, keySize)
+        writeCString(key, keySize)
         writeLong(childOffset)
     }
 

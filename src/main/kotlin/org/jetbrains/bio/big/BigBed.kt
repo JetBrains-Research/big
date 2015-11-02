@@ -63,18 +63,9 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                 assert(chromIx == query.chromIx) { "interval contains wrong chromosome" }
                 val startOffset = readInt()
                 val endOffset = readInt()
-                val sb = StringBuilder()
-                while (true) {
-                    var ch = readUnsignedByte()
-                    if (ch == 0) {
-                        break
-                    }
-
-                    sb.append(ch.toChar())
-                }
-
+                val rest = readCString()
                 if (query.contains(startOffset, endOffset, overlaps)) {
-                    chunk.add(BedEntry(chrom, startOffset, endOffset, sb.toString()))
+                    chunk.add(BedEntry(chrom, startOffset, endOffset, rest))
                 }
             } while (!finished)
 
@@ -144,8 +135,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                                 writeInt(chromIx)
                                 writeInt(item.start)
                                 writeInt(item.end)
-                                writeBytes("${item.name},${item.score},${item.strand},${item.rest}")
-                                writeByte(0)  // null-terminated.
+                                writeCString("${item.name},${item.score},${item.strand},${item.rest}")
 
                                 end = Math.max(end, item.end)
                             }

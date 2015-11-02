@@ -1,6 +1,5 @@
 package org.jetbrains.bio.big
 
-import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,15 +51,13 @@ class SeekableDataIOTest(private val order: ByteOrder) {
     @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.joinToString("")
         CountingDataOutput.of(path, order).use {
-            it.writeBytes(s)
-            it.writeBytes(s, s.length + 8)
+            it.writeCString(s)
+            it.writeCString(s, s.length + 8)
             it.skipBytes(16)
         }
         SeekableDataInput.of(path, order).use {
-            var b = ByteArray(s.length)
-            it.readFully(b)
-            assertArrayEquals(s.toByteArray(), b)
-            b = ByteArray(s.length + 8)
+            assertEquals(s, it.readCString())
+            var b = ByteArray(s.length + 8)
             it.readFully(b)
             assertEquals(s, String(b).trimZeros())
 

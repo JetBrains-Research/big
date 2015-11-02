@@ -21,11 +21,25 @@ internal interface OrderedDataInput {
 
     fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size)
 
-    fun readBoolean(): Boolean = readUnsignedByte() != 0
+    fun readBoolean() = readUnsignedByte() != 0
 
-    fun readByte(): Byte = readUnsignedByte().toByte()
+    fun readByte() = readUnsignedByte().toByte()
 
     fun readUnsignedByte(): Int
+
+    fun readCString(): String {
+        val sb = StringBuilder()
+        do {
+            val ch = readUnsignedByte()
+            if (ch == 0) {
+                break
+            }
+
+            sb.append(ch.toChar())
+        } while (true)
+
+        return sb.toString()
+    }
 
     fun readShort(): Short {
         val b1 = readByte()
@@ -75,9 +89,9 @@ internal interface OrderedDataInput {
         }
     }
 
-    fun readFloat(): Float = java.lang.Float.intBitsToFloat(readInt())
+    fun readFloat() = java.lang.Float.intBitsToFloat(readInt())
 
-    fun readDouble(): Double = java.lang.Double.longBitsToDouble(readLong())
+    fun readDouble() = java.lang.Double.longBitsToDouble(readLong())
 }
 
 class SeekableDataInput private constructor(
@@ -227,11 +241,12 @@ interface OrderedDataOutput {
         }
     }
 
-    fun writeBytes(s: String)
+    fun writeCString(s: String)
 
-    fun writeBytes(s: String, length: Int) {
-        writeBytes(s)
-        skipBytes(length - s.length)
+    fun writeCString(s: String, length: Int) {
+        assert(length >= s.length + 1)
+        writeCString(s)
+        skipBytes(length - (s.length + 1))
     }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
@@ -328,12 +343,13 @@ open class CountingDataOutput(private val output: OutputStream,
         }.toInt()
     }
 
-    override fun writeBytes(s: String) {
+    override fun writeCString(s: String) {
         for (ch in s) {
             output.write(ch.toInt())
         }
 
-        ack(s.length)
+        output.write(0)  // null-terminated.
+        ack(s.length + 1)
     }
 
     override fun writeByte(v: Int) {
