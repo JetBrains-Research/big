@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.2.1
 -------------
 
-Bugfix release
+Bugfix release, released on November 2nd 2015
 
 - Allowed creating creating empty 'BigWigFile' and 'BigBedFile'.
 
