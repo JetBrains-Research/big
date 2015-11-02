@@ -1,0 +1,3 @@
+chromosome	start	end	feature	one	two	three
+chr1	2150459	2150460	Test_one	0.01	0	0.99
+chr1	3558044	3558045	Test_two	0.25	0.71	1.31
