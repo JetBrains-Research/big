@@ -42,9 +42,9 @@ private class TransformingIntIterator<R>(private val it: IntIterator,
                                          private val transform: (Int) -> R) :
         Iterator<R> {
 
-    override fun next(): R = transform(it.nextInt())
+    override fun next() = transform(it.nextInt())
 
-    override fun hasNext(): Boolean = it.hasNext()
+    override fun hasNext() = it.hasNext()
 }
 
 internal fun <R> IntRange.mapUnboxed(transform: (Int) -> R): Sequence<R> {

@@ -20,10 +20,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     internal val input = SeekableDataInput.of(path)
     internal val header = Header.read(input, magic)
-    internal val zoomLevels = (0..header.zoomLevelCount - 1).asSequence()
-            .map { ZoomLevel.read(input) }.toList()
-    val bPlusTree: BPlusTree
-    val rTree: RTreeIndex
+    internal val zoomLevels = (0..header.zoomLevelCount - 1)
+            .map { ZoomLevel.read(input) }
+    internal val bPlusTree: BPlusTree
+    internal val rTree: RTreeIndex
 
     init {
         if (header.asOffset > 0) {
@@ -187,15 +187,15 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         }
     }
 
-    protected fun query(query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
+    internal fun query(query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
         return rTree.findOverlappingBlocks(input, query)
                 .flatMap { queryInternal(it.dataOffset, it.dataSize, query, overlaps) }
     }
 
     @Throws(IOException::class)
-    protected abstract fun queryInternal(dataOffset: Long, dataSize: Long,
-                                         query: ChromosomeInterval,
-                                         overlaps: Boolean): Sequence<T>
+    internal abstract fun queryInternal(dataOffset: Long, dataSize: Long,
+                                        query: ChromosomeInterval,
+                                        overlaps: Boolean): Sequence<T>
 
     @Throws(IOException::class)
     override fun close() = input.close()

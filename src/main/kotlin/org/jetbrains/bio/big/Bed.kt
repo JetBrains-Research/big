@@ -14,7 +14,7 @@ class BedFile(private val path: Path) : Iterable<BedEntry> {
 
     companion object {
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): BedFile = BedFile(path)
+        @JvmStatic fun read(path: Path) = BedFile(path)
     }
 }
 

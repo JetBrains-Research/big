@@ -132,7 +132,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
         internal val MAGIC: Int = 0x888FFC26.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): BigWigFile = BigWigFile(path)
+        @JvmStatic fun read(path: Path) = BigWigFile(path)
 
         /**
          * Creates a BigWIG file from given sections.

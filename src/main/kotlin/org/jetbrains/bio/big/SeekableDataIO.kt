@@ -104,8 +104,9 @@ class SeekableDataInput private constructor(
      * This of this method as a way to get buffered input locally.
      * See for example [RTreeIndex.findOverlappingBlocks].
      */
-    fun <T> with(offset: Long, size: Long, compressed: Boolean = false,
-                 block: CountingOrderedDataInput.() -> T): T {
+    internal fun <T> with(offset: Long, size: Long,
+                          compressed: Boolean = false,
+                          block: CountingOrderedDataInput.() -> T): T {
         seek(offset)
         val input = if (compressed) {
             compressedBuf = compressedBuf.ensureCapacity(size.toInt())
@@ -176,7 +177,7 @@ private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
     }
 }
 
-interface CountingOrderedDataInput : OrderedDataInput {
+internal interface CountingOrderedDataInput : OrderedDataInput {
     /**
      * Returns `true` if the input doesn't contain any more data and
      * `false` otherwise.
