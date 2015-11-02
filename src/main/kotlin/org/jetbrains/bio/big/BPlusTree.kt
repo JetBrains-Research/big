@@ -23,7 +23,11 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      */
     @Throws(IOException::class)
     fun traverse(input: SeekableDataInput): Sequence<BPlusLeaf> {
-        return traverseRecursively(input, header.rootOffset)
+        return if (header.itemCount == 0) {
+            emptySequence()
+        } else {
+            traverseRecursively(input, header.rootOffset)
+        }
     }
 
     private fun traverseRecursively(input: SeekableDataInput,
@@ -53,7 +57,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      */
     @Throws(IOException::class)
     fun find(input: SeekableDataInput, query: String): BPlusLeaf? {
-        if (query.length > header.keySize) {
+        if (header.itemCount == 0 || query.length > header.keySize) {
             return null
         }
 
@@ -165,16 +169,19 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
         internal fun write(output: CountingDataOutput, unsortedItems: List<BPlusLeaf>,
                            blockSize: Int = 256) {
-            require(unsortedItems.isNotEmpty()) { "no data" }
             require(blockSize > 1) { "blockSize must be >1" }
 
             val items = unsortedItems.sortedBy { it.key }
             val itemCount = items.size
-            val keySize = items.map { it.key.length }.max()!!
+            val keySize = items.map { it.key.length }.max() ?: 0
 
             val header = Header(output.order, blockSize, keySize, itemCount,
                                 output.tell() + Header.BYTES)
             header.write(output)
+
+            if (itemCount == 0) {
+                return
+            }
 
             LOG.debug("Creating a B+ tree for $itemCount items ($blockSize slots/node)")
 

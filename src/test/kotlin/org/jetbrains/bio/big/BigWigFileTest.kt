@@ -10,6 +10,15 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BigWigFileTest {
+    @Test fun testWriteReadEmpty() {
+        withTempFile("empty", ".bw") { path ->
+            BigWigFile.write(emptyList<WigSection>(), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+            BigWigFile.read(path).use { bbf ->
+                assertEquals(0, bbf.query("chr21", 0, 0).count())
+            }
+        }
+    }
+
     @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
     @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)

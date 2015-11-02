@@ -21,6 +21,15 @@ class BigBedFileTest {
         }
     }
 
+    @Test fun testWriteReadEmpty() {
+        withTempFile("empty", ".bb") { path ->
+            BigBedFile.write(emptyList<BedEntry>(), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(0, bbf.query("chr21", 0, 0).count())
+            }
+        }
+    }
+
     @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
 
     @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)

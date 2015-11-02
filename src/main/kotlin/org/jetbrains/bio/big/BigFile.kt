@@ -113,7 +113,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     }
 
     @Throws(IOException::class)
-    protected abstract fun summarizeInternal(
+    internal abstract fun summarizeInternal(
             query: ChromosomeInterval, numBins: Int): Sequence<IndexedValue<BigSummary>>
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
@@ -386,7 +386,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 modify(path, offset = totalSummaryOffset) { bf, output ->
                     bf.chromosomes.valueCollection()
                             .flatMap { bf.summarize(it, 0, 0, numBins = 1) }
-                            .reduceRight { a, b -> a + b }
+                            .fold(BigSummary(), BigSummary::plus)
                             .write(output)
                     assert((output.tell() - totalSummaryOffset).toInt() == BigSummary.BYTES)
                 }

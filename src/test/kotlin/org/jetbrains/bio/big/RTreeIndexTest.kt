@@ -24,6 +24,20 @@ class RTreeIndexTest {
         }
     }
 
+    @Test fun testWriteEmpty() {
+        withTempFile("empty", ".rti") { path ->
+            CountingDataOutput.of(path).use { output ->
+                RTreeIndex.write(output, emptyList())
+            }
+
+            SeekableDataInput.of(path).use { input ->
+                val rti = RTreeIndex.read(input, 0L)
+                val query = Interval(0, 100, 200)
+                assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
+            }
+        }
+    }
+
     @Test fun testFindOverlappingBlocksExample() = exampleFile.use { bbf ->
         val rti = bbf.rTree
         val items = exampleItems

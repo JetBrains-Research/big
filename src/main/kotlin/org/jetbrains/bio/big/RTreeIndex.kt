@@ -40,7 +40,11 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
     @Throws(IOException::class)
     fun findOverlappingBlocks(input: SeekableDataInput,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
-        return findOverlappingBlocksRecursively(input, query, header.rootOffset)
+        return if (header.itemCount == 0L) {
+            emptySequence()
+        } else {
+            findOverlappingBlocksRecursively(input, query, header.rootOffset)
+        }
     }
 
     internal fun findOverlappingBlocksRecursively(input: SeekableDataInput,
@@ -138,8 +142,17 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
 
         internal fun write(output: CountingDataOutput, leaves: List<RTreeIndexLeaf>,
                            blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
-            require(leaves.isNotEmpty()) { "no data" }
             require(blockSize > 1) { "blockSize must be >1" }
+
+            if (leaves.isEmpty()) {
+                Header(output.order, blockSize,
+                        leaves.size.toLong(),
+                        0, 0, 0, 0,
+                        output.tell(), itemsPerSlot,
+                        output.tell() + Header.BYTES).write(output)
+
+                return
+            }
 
             val leftmost = leaves.first().interval.left
             var rightmost = leaves.last().interval.right
