@@ -21,7 +21,6 @@ class TdfFileTest {
         TdfFile.read(Examples["example.tdf"]).use { tdf ->
             val dataset = tdf.getDataset("All")
             assertTrue(dataset.attributes.isEmpty())
-            assertEquals(dataset.dataType, TdfDataset.Type.FLOAT)
         }
     }
 

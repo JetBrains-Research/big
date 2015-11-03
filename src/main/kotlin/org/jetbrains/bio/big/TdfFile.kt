@@ -9,6 +9,14 @@ import java.util.*
 /**
  * A Tiled Data Format (TDF) reader.
  *
+ * TDF format is a binary format for track data designed by IGV team
+ * for their browser.
+ *
+ * TDF lacks an accurate and complete spec, thus the implementation
+ * is based on the high-level format overview in `notes.txt` and
+ * the sources of IGV itself.
+ *
+ * See https://github.com/igvteam/igv/blob/master/src/org/broad/igv/tdf/notes.txt.
  * See https://www.broadinstitute.org/software/igv/TDF.
  */
 class TdfFile @Throws(IOException::class) private constructor(path: Path) :
@@ -67,6 +75,26 @@ class TdfFile @Throws(IOException::class) private constructor(path: Path) :
         }
     }
 
+    /**
+     * Header consists of a fixed-size 24 byte component and variable-size
+     * component with metadata.
+     *
+     * magic                   int32  'T' 'D' 'F' '4' in LE byte order
+     * version                 int32  currently 4
+     * master index offset     int64
+     * master index size       int32
+     * header size             int32  # of bytes in the variable-size component
+     * # of window functions   int32
+     * [window function name]  null-terminated string (enum)
+     * track type              null-terminated string (enum)
+     * track line              null-terminated string
+     * # of track names        int32
+     * [track name]            null-terminated string
+     * build                   null-terminated string
+     * flags                   int32  carries compression flag `0x1`
+     *
+     * Here [] mean that the field can be repeated multiple times.
+     */
     internal data class Header(val magic: Int, val version: Int,
                                val indexOffset: Long, val indexSize: Int,
                                val headerSize: Int) {
@@ -101,6 +129,21 @@ class TdfFile @Throws(IOException::class) private constructor(path: Path) :
 
 internal data class TdfIndexEntry(val offset: Long, val size: Int)
 
+/**
+ * Master index provides random access to datasets and groups.
+ *
+ * # of datasets    int32
+ * [dataset name    null-terminated string
+ *  offset          int64
+ *  size in bytes]  int32
+ * # of groups      int32
+ * [group name      null-terminated string
+ *  offset          int64
+ *  size in bytes]  int32
+ *
+ * It's perfectly valid to have zero datasets and groups, thus
+ * the repeated fields ([] notation) can be empty.
+ */
 internal data class TdfMasterIndex private constructor(
         val datasets: Map<String, TdfIndexEntry>,
         val groups: Map<String, TdfIndexEntry>) {
@@ -136,20 +179,25 @@ private fun OrderedDataInput.readAttributes(): Map<String, String> {
     }.toMap()
 }
 
+/**
+ * Dataset wraps a number of tiles aka data-containers.
+ *
+ * In theory dataset is abstract wrt to the data types stored
+ * in the tiles, but IGV implementation seems to always use
+ * floats.
+ */
 data class TdfDataset private constructor(
         val attributes: Map<String, String>,
-        val dataType: TdfDataset.Type,
         val tileWidth: Int, val tileCount: Int,
         val tileOffsets: LongArray, val tileSizes: IntArray) {
-
-    enum class Type {
-        BYTE, SHORT, INT, FLOAT, DOUBLE, STRING
-    }
 
     companion object {
         fun read(input: OrderedDataInput) = with(input) {
             val attributes = readAttributes()
-            val dataType = Type.valueOf(readCString())
+            val dataType = readCString()
+            check(dataType.toLowerCase() == "float") {
+                "unsupported data type: $dataType"
+            }
             val tileWidth = readFloat().toInt()
             // ^^^ unsure why this is a float.
 
@@ -161,12 +209,14 @@ data class TdfDataset private constructor(
                 tileSizes[i] = readInt()
             }
 
-            TdfDataset(attributes, dataType, tileWidth,
-                       tileCount, tileOffsets, tileSizes)
+            TdfDataset(attributes, tileWidth, tileCount, tileOffsets, tileSizes)
         }
     }
 }
 
+/**
+ * The data container.
+ */
 interface TdfTile {
     companion object {
         fun read(input: OrderedDataInput, trackCount: Int) = with(input) {
@@ -276,7 +326,11 @@ data class NamedBedTdfTile(val start: IntArray,
     }
 }
 
-
+/**
+ * A group is just a container of key-value attributes.
+ *
+ * TODO: document / group?
+ */
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
         fun read(input: OrderedDataInput) = with(input) {
