@@ -62,7 +62,7 @@ class TdfFile @Throws(IOException::class) private constructor(path: Path) :
             require(idx >= 0 && idx < tileCount) { "invalid tile index" }
             input.with(tileOffsets[idx], tileSizes[idx].toLong(),
                        compressed = compressed) {
-                TdfTile.read(this)
+                TdfTile.read(this, trackNames.size)
             }
         }
     }
@@ -169,36 +169,31 @@ data class TdfDataset private constructor(
 
 interface TdfTile {
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
+        fun read(input: OrderedDataInput, trackCount: Int) = with(input) {
             val type = readCString()
             when (type) {
-                "fixedStep" -> TODO()
+                "fixedStep" -> FixedTdfTile.read(this, trackCount)
                 "variableStep" -> VariableTdfTile.read(this)
                 "bed" -> BedTdfTile.read(this)
-                "bedWithName" -> TODO()
+                "bedWithName" -> NamedBedTdfTile.read(this)
                 else -> error("unexpected type: $type")
             }
         }
     }
 }
 
-data class VariableTdfTile(val tileStart: Int,
-                           val start: IntArray,
-                           private val span: Int,
-                           private val data: Array<FloatArray>) : TdfTile {
+data class FixedTdfTile(val start: Int, val step: Int, val span: Int,
+                        val data: Array<FloatArray>) : TdfTile {
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
-            val tileStart = readInt()
-            val span = readFloat().toInt()  // Really?
-
+        fun read(input: OrderedDataInput, trackCount: Int) = with(input) {
             val size = readInt()
-            val start = IntArray(size)
-            for (i in 0 until size) {
-                start[i] = readInt()
-            }
+            val start = readInt()
+            val span = readFloat().toInt()  // Really?
+            val step = readInt()
 
-            val sampleCount = readInt()
-            val data = Array(sampleCount) {
+            // vvv not part of the implementation, see igvteam/igv/#180.
+            // val trackCount = readInt()
+            val data = Array(trackCount) {
                 val acc = FloatArray(size)
                 for (i in 0 until size) {
                     acc[i] = readFloat()
@@ -207,14 +202,40 @@ data class VariableTdfTile(val tileStart: Int,
                 acc
             }
 
-            VariableTdfTile(tileStart, start, span, data)
+            FixedTdfTile(start, step, span, data)
         }
     }
 }
 
-data class BedTdfTile(val start: IntArray,
-                      val end: IntArray,
-                      private val data: Array<FloatArray>) : TdfTile {
+data class VariableTdfTile(val start: Int, val step: IntArray, val span: Int,
+                           val data: Array<FloatArray>) : TdfTile {
+    companion object {
+        fun read(input: OrderedDataInput) = with(input) {
+            val start = readInt()
+            val span = readFloat().toInt()  // Really?
+            val size = readInt()
+            val step = IntArray(size)
+            for (i in 0 until size) {
+                step[i] = readInt()
+            }
+
+            val trackCount = readInt()
+            val data = Array(trackCount) {
+                val acc = FloatArray(size)
+                for (i in 0 until size) {
+                    acc[i] = readFloat()
+                }
+
+                acc
+            }
+
+            VariableTdfTile(start, step, span, data)
+        }
+    }
+}
+
+data class BedTdfTile(val start: IntArray, val end: IntArray,
+                      val data: Array<FloatArray>) : TdfTile {
     companion object {
         fun read(input: OrderedDataInput) = with(input) {
             val size = readInt()
@@ -227,8 +248,8 @@ data class BedTdfTile(val start: IntArray,
                 start[i] = readInt()
             }
 
-            val sampleCount = readInt()
-            val data = Array(sampleCount) {
+            val trackCount = readInt()
+            val data = Array(trackCount) {
                 val acc = FloatArray(size)
                 for (i in 0 until size) {
                     acc[i] = readFloat()
@@ -241,6 +262,20 @@ data class BedTdfTile(val start: IntArray,
         }
     }
 }
+
+data class NamedBedTdfTile(val start: IntArray,
+                           val end: IntArray,
+                           val names: Array<String>,
+                           val data: Array<FloatArray>) : TdfTile {
+    companion object {
+        fun read(input: OrderedDataInput) = with(input) {
+            val (start, end, data) = BedTdfTile.read(this)
+            val names = Array(start.size) { readCString() }
+            NamedBedTdfTile(start, end, names, data)
+        }
+    }
+}
+
 
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
