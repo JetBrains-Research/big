@@ -27,7 +27,7 @@ class BigFileTest {
             BigWigFile.read(path).use { bwf ->
                 val (_name, chromIx, size) = bwf.bPlusTree.traverse(bwf.input).first()
                 val query = Interval(chromIx, 0, size)
-                for (val (reduction, _dataOffset, indexOffset) in bwf.zoomLevels) {
+                for ((reduction, _dataOffset, indexOffset) in bwf.zoomLevels) {
                     if (reduction == 0) {
                         break
                     }
