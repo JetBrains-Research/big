@@ -12,6 +12,7 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:0.9"
     }
 }
 
@@ -20,6 +21,7 @@ plugins {
 }
 
 apply plugin: 'kotlin'
+apply plugin: 'org.jetbrains.dokka'
 apply plugin: 'maven-publish'
 
 repositories {
@@ -38,6 +40,14 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     testCompile 'junit:junit:4.+'
+}
+
+dokka {
+    linkMapping {
+        dir = "src/main/kotlin"
+        url = "https://github.com/JetBrains-Research/big/blob/master/src/main/kotlin"
+        suffix = "#L"
+    }
 }
 
 task sourcesJar(type: Jar) {
