@@ -1,13 +1,8 @@
 buildscript {
-    // ext.kotlin_version = '1.0.0-beta-+'
-    ext.kotlin_version = '0.1-SNAPSHOT'
+    ext.kotlin_version = '1.0.0-beta-+'
 
     repositories {
         jcenter()
-
-        maven {
-            url 'http://oss.sonatype.org/content/repositories/snapshots'
-        }
     }
 
     dependencies {
