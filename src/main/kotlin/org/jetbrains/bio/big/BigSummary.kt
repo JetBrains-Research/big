@@ -4,6 +4,8 @@ import com.google.common.primitives.Doubles
 import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
+import org.jetbrains.bio.OrderedDataInput
+import org.jetbrains.bio.OrderedDataOutput
 
 data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */

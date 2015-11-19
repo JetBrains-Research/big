@@ -1,5 +1,7 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.SeekableDataInput
 import org.junit.Test
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE

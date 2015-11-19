@@ -5,3 +5,4 @@ Authors and contributors, in no particular order:
 * Belyaev Igor
 * Sergei Lebedev
 * Roman Chernyatchik
+* Oleg Shpynov

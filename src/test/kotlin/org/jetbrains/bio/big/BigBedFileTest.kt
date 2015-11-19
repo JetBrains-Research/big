@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
+import org.jetbrains.bio.pow
 import org.junit.Test
 import java.nio.ByteOrder
 import java.nio.file.Path

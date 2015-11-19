@@ -1,4 +1,4 @@
-package org.jetbrains.bio.big
+package org.jetbrains.bio
 
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Iterators

@@ -2,6 +2,8 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Ordering
+import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.mapUnboxed
 
 /**
  * A semi-closed interval.

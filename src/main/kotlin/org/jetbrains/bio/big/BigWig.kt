@@ -1,5 +1,7 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.OrderedDataOutput
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path

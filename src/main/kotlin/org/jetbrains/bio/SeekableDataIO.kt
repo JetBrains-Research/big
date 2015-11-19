@@ -1,4 +1,4 @@
-package org.jetbrains.bio.big
+package org.jetbrains.bio
 
 import com.google.common.io.ByteStreams
 import com.google.common.primitives.Ints
@@ -140,12 +140,12 @@ class SeekableDataInput private constructor(
             }
 
             CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, uncompressedSize),
-                              uncompressedSize.toLong(), order)
+                    uncompressedSize.toLong(), order)
         } else {
             uncompressedBuf = uncompressedBuf.ensureCapacity(size.toInt())
             readFully(uncompressedBuf, 0, size.toInt())
             CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, size.toInt()),
-                              size, order)
+                    size, order)
         }
         return with(input, block)
     }
