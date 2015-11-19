@@ -53,45 +53,31 @@ class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
         }
     }
 
-    fun getSummaryScores(chr: String, startLocation: Int, endLocation: Int, zoom: Int): List<ScoredRange> =
-            if (zoom <= maxPrecomputedZoom) {
-                // Window function == none => no windowing, so its not clear what to do.  For now use mean
-                val dataset = reader.getDatasetZoom(chr, zoom, WindowFunction.mean)
-                val tiles = reader.getTiles(dataset, startLocation, endLocation)
-                tiles.flatMap { t ->
-                    (0 until t.getSize()).map {
-                        val value = t.getValue(trackNumber, it).toDouble()
-                        if (value.isNaN()) {
-                            return@map null
-                        }
-                        val start = t.getStartPosition(it)
-                        val end = t.getEndPosition(it)
+    fun getSummaryScores(chr: String, startLocation: Int, endLocation: Int, zoom: Int): List<ScoredRange> {
+        val tiles = if (zoom <= maxPrecomputedZoom) {
+            val dataset = reader.getDatasetZoom(chr, zoom, WindowFunction.mean)
+            reader.getTiles(dataset, startLocation, endLocation)
+        } else {
+            // TODO we can do smarter here, taking into account desired bin size, configured by zoom
+            // By definition there are 2^z tiles per chromosome, and 700 bins per tile, where z is the zoom level.
+            reader.getTiles(reader.getDataset("/$chr/raw"), startLocation, endLocation)
+        }
+        return tiles.flatMap { t ->
+            (0 until t.getSize()).map {
+                val value = t.getValue(trackNumber, it).toDouble()
+                if (value.isNaN()) {
+                    return@map null
+                }
+                val start = t.getStartPosition(it)
+                val end = t.getEndPosition(it)
 
-                        if (Doubles.compare(value, 0.0) != 0 && startLocation <= start && end < endLocation) {
-                            ScoredRange(start, end, value)
-                        } else
-                            null
-                    }
-                }.filterNotNull()
-            } else {
-                // TODO we can do smarter here, taking into account desired bin size
-                // By definition there are 2^z tiles per chromosome, and 700 bins per tile, where z is the zoom level.
-                val rawTiles = reader.getTiles(reader.getDataset("/$chr/raw"), startLocation, endLocation)
-                rawTiles.flatMap { t ->
-                    (0 until t.getSize()).map {
-                        val value = t.getValue(trackNumber, it).toDouble()
-                        if (value.isNaN()) {
-                            return@map null
-                        }
-                        val start = t.getStartPosition(it)
-                        val end = t.getEndPosition(it)
-                        if (Doubles.compare(value, 0.0) != 0 && startLocation <= start && end < endLocation) {
-                            ScoredRange(start, end, value)
-                        } else
-                            null
-                    }
-                }.filterNotNull()
+                if (Doubles.compare(value, 0.0) != 0 && startLocation <= start && end < endLocation) {
+                    ScoredRange(start, end, value)
+                } else
+                    null
             }
+        }.filterNotNull()
+    }
 
     companion object {
 
