@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.2.2
+-------------
+
+Released on November 19th 2015
+
+- Added initial support for TDF format, see 'TDFReader'. The API is
+  unstable at the moment, it might change in future releases.
+
 Version 0.2.1
 -------------
 

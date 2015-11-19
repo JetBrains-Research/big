@@ -53,12 +53,14 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
         }
     }
 
+    // TODO: should be Kotlin getters.
     fun getDatasetNames(): Set<String> = index.datasets.keys
 
     fun getGroupNames(): Set<String> = index.groups.keys
 
     @JvmOverloads
-    fun getDatasetZoom(chromosome: String, zoom: Int = 0, windowFunction: WindowFunction = WindowFunction.mean): TDFDataset {
+    fun getDatasetZoom(chromosome: String, zoom: Int = 0,
+                       windowFunction: WindowFunction = WindowFunction.mean): TDFDataset {
         require(windowFunction in windowFunctions)
         return getDataset("/$chromosome/z$zoom/${windowFunction.name.toLowerCase()}")
     }
@@ -92,9 +94,9 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
             require(tileNumber >= 0 && tileNumber < nTiles) { "invalid tile index" }
             val position = tilePositions[tileNumber]
             if (position < 0) {
-                // Indicates empty tile
-                return null
+                return null  // Indicates empty tile.
             }
+
             val nBytes = tileSizes[tileNumber]
             synchronized(input) {
                 input.with(position, nBytes.toLong(), compressed = compressed) {
@@ -293,7 +295,8 @@ interface TDFTile {
 
 }
 
-data class TDFBedTile(val starts: IntArray, val ends: IntArray, val data: Array<FloatArray>) : TDFTile {
+data class TDFBedTile(val starts: IntArray, val ends: IntArray,
+                      val data: Array<FloatArray>) : TDFTile {
     companion object {
         fun fill(input: OrderedDataInput, nSamples: Int, type: String) = with(input) {
             val nPositions = readInt()
@@ -324,21 +327,21 @@ data class TDFBedTile(val starts: IntArray, val ends: IntArray, val data: Array<
         }
     }
 
-    override fun getSize(): Int = starts.size
+    override fun getSize() = starts.size
 
-    override fun getStartPosition(idx: Int): Int = starts[idx]
+    override fun getStartPosition(idx: Int) = starts[idx]
 
-    override fun getEndPosition(idx: Int): Int = ends[idx]
+    override fun getEndPosition(idx: Int) = ends[idx]
 
-    override fun getValue(row: Int, idx: Int): Float = data[row][idx]
+    override fun getValue(row: Int, idx: Int) = data[row][idx]
 
-    override fun getStart(): IntArray = starts
+    override fun getStart() = starts
 
-    override fun getEnd(): IntArray = ends
+    override fun getEnd() = ends
 
-    override fun getData(trackNumber: Int): FloatArray = data[trackNumber]
+    override fun getData(trackNumber: Int) = data[trackNumber]
 
-    override fun getNames(): Array<String>? = null
+    override fun getNames() = null
 }
 
 data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatArray>) : TDFTile {
@@ -370,29 +373,17 @@ data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatA
         return start + ((idx + 1) * span).toInt()
     }
 
-    override fun getValue(row: Int, idx: Int): Float {
-        return data[row][idx]
-    }
+    override fun getValue(row: Int, idx: Int) = data[row][idx]
 
-    override fun getSize(): Int {
-        return data[0].size
-    }
+    override fun getSize() = data[0].size
 
-    /**
-     * This should never be called, but is provided to satisfy the interface
-     * @return
-     */
-    override fun getStart(): IntArray =
-            throw IllegalStateException("This should never be called")
+    override fun getStart() = throw UnsupportedOperationException()
 
-    override fun getEnd(): IntArray =
-            throw IllegalStateException("This should never be called")
+    override fun getEnd() = throw UnsupportedOperationException()
 
-    override fun getData(trackNumber: Int): FloatArray =
-            data[trackNumber]  //To change body of implemented methods use File | Settings | File Templates.
+    override fun getData(trackNumber: Int) = data[trackNumber]
 
-    override fun getNames(): Array<String>? =
-            null
+    override fun getNames() = null
 }
 
 data class TDFVaryTile(val start: Int, val starts: IntArray, val span: Int,
@@ -423,27 +414,28 @@ data class TDFVaryTile(val start: Int, val starts: IntArray, val span: Int,
         }
     }
 
-    override fun getSize(): Int = starts.size
+    override fun getSize() = starts.size
 
-    override fun getStartPosition(idx: Int): Int = starts[idx]
+    override fun getStartPosition(idx: Int) = starts[idx]
 
-    override fun getEndPosition(idx: Int): Int = (starts[idx] + span).toInt()
+    override fun getEndPosition(idx: Int) = (starts[idx] + span).toInt()
 
-    override fun getValue(row: Int, idx: Int): Float = data[row][idx]
+    override fun getValue(row: Int, idx: Int) = data[row][idx]
 
-    override fun getStart(): IntArray = starts
+    override fun getStart() = starts
 
     override fun getEnd(): IntArray {
         val end = IntArray(starts.size)
         for (i in end.indices) {
             end[i] = (starts[i] + span).toInt()
         }
+
         return end
     }
 
-    override fun getData(trackNumber: Int): FloatArray = data[trackNumber]
+    override fun getData(trackNumber: Int) = data[trackNumber]
 
-    override fun getNames(): Array<String>? = null
+    override fun getNames() = null
 }
 
 
