@@ -57,7 +57,7 @@ object TDFUtils {
         println()
 
         println("DATASETS")
-        for (dsName in reader.getDatasetNames()) {
+        for (dsName in reader.dataSetNames) {
             println(dsName)
             val ds = reader.getDataset(dsName)
 
@@ -97,7 +97,7 @@ object TDFUtils {
         }
 
         println("GROUPS")
-        for (name in reader.getGroupNames()) {
+        for (name in reader.groupNames) {
             println(name)
             val group = reader.getGroup(name)
 

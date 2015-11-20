@@ -53,10 +53,11 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
         }
     }
 
-    // TODO: should be Kotlin getters.
-    fun getDatasetNames(): Set<String> = index.datasets.keys
+    val dataSetNames: Set<String>
+        get() = index.datasets.keys
 
-    fun getGroupNames(): Set<String> = index.groups.keys
+    val groupNames: Set<String>
+        get() = index.groups.keys
 
     @JvmOverloads
     fun getDatasetZoom(chromosome: String, zoom: Int = 0,

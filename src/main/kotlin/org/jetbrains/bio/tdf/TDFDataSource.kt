@@ -25,17 +25,20 @@
 
 package org.jetbrains.bio.tdf
 
-import com.google.common.primitives.Doubles
 import org.apache.log4j.Logger
+import org.jetbrains.bio.tdf.ScoredInterval
 
 /**
- * Thread safe entry point for TDF data manipulation.
- *
+ * Entry point for TDF data manipulation.
+ * [getSummaryScores] is thread safe, no additional synchronization required.
  * See https://www.broadinstitute.org/software/igv/TDF.
  */
 class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
+    companion object {
+        val LOG = Logger.getLogger(TDFDataSource::class.java)
+    }
+
     private var maxPrecomputedZoom = 6
-    private var genome: String
 
     init {
         val rootGroup = reader.getGroup("/")
@@ -44,16 +47,9 @@ class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
         } catch (e: Exception) {
             LOG.error("Error reading attribute 'maxZoom'", e)
         }
+   }
 
-        try {
-            genome = rootGroup["genome"]!!.substringAfterLast("/")
-        } catch (e: Exception) {
-            LOG.error("Unknown genome " + rootGroup["genome"])
-            throw RuntimeException("Unknown genome " + rootGroup["genome"]!!)
-        }
-    }
-
-    fun getSummaryScores(chr: String, startLocation: Int, endLocation: Int, zoom: Int): List<ScoredRange> {
+    fun getSummaryScores(chr: String, startLocation: Int, endLocation: Int, zoom: Int): List<ScoredInterval> {
         val tiles = if (zoom <= maxPrecomputedZoom) {
             val dataset = reader.getDatasetZoom(chr, zoom, WindowFunction.mean)
             reader.getTiles(dataset, startLocation, endLocation)
@@ -64,32 +60,18 @@ class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
         }
         return tiles.flatMap { t ->
             (0 until t.getSize()).map {
-                val value = t.getValue(trackNumber, it).toDouble()
+                val value = t.getValue(trackNumber, it)
                 if (value.isNaN()) {
                     return@map null
                 }
                 val start = t.getStartPosition(it)
                 val end = t.getEndPosition(it)
-
-                if (Doubles.compare(value, 0.0) != 0 && startLocation <= start && end < endLocation) {
-                    ScoredRange(start, end, value)
+                if (startLocation <= start && end < endLocation) {
+                    ScoredInterval(start, end, value)
                 } else
                     null
             }
         }.filterNotNull()
-    }
-
-    companion object {
-
-        data class ScoredRange(val startOffset: Int, val endOffset: Int, val score: Double) {
-            init {
-                require(startOffset <= endOffset) { "invalid range $this" }
-            }
-
-            override fun toString(): String = "($startOffset, $endOffset, ${"%.3f".format(score)})"
-        }
-
-        val LOG = Logger.getLogger(TDFDataSource::class.java)
     }
 }
 
