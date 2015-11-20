@@ -83,7 +83,7 @@ object TDFUtils {
                             print(tile.getStartPosition(b))
                             for (t in 0 until tracksToShow) {
                                 val value = tile.getValue(0, b)
-                                if (!java.lang.Float.isNaN(value)) {
+                                if (!value.isNaN()) {
                                     print("\t" + tile.getValue(t, b))
                                 }
                             }

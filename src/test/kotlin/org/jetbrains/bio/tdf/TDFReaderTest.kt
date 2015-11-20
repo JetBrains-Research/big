@@ -1,9 +1,6 @@
 package org.jetbrains.bio.tdf
 
 import org.jetbrains.bio.big.Examples
-import org.jetbrains.bio.tdf.TDFReader
-import org.jetbrains.bio.tdf.TrackType
-import org.jetbrains.bio.tdf.WindowFunction
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -12,7 +9,7 @@ class TDFReaderTest {
     @Test fun testHeader() {
         TDFReader.read(Examples["example.tdf"]).use { tdf ->
             assertEquals(4, tdf.version)
-            assertEquals(listOf(WindowFunction.mean), tdf.windowFunctions)
+            assertEquals(listOf(WindowFunction.MEAN), tdf.windowFunctions)
             assertEquals(TrackType("OTHER"), tdf.trackType)
             assertTrue(tdf.trackLine.isEmpty())
             assertEquals(listOf("one", "two", "three"), tdf.trackNames)

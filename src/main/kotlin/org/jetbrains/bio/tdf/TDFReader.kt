@@ -52,12 +52,12 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
 
     @JvmOverloads
     fun getDatasetZoom(chromosome: String, zoom: Int = 0,
-                       windowFunction: WindowFunction = WindowFunction.mean): TDFDataset {
+                       windowFunction: WindowFunction = WindowFunction.MEAN): TDFDataset {
         require(windowFunction in windowFunctions)
         return getDataset("/$chromosome/z$zoom/${windowFunction.name.toLowerCase()}")
     }
 
-    fun getDataset(name: String): TDFDataset {
+    internal fun getDataset(name: String): TDFDataset {
         if (name !in index.datasets) {
             throw NoSuchElementException(name)
         }
@@ -423,11 +423,11 @@ data class TDFGroup(val attributes: Map<String, String>) {
 }
 
 enum class WindowFunction {
-    mean;  // TODO: lowercase-enums, really?
+    MEAN;
 
     companion object {
         fun read(input: OrderedDataInput) = with(input) {
-            valueOf(readCString())
+            valueOf(readCString().toUpperCase())
         }
     }
 }

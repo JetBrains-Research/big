@@ -51,7 +51,7 @@ class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
 
     fun getSummaryScores(chr: String, startLocation: Int, endLocation: Int, zoom: Int): List<ScoredInterval> {
         val tiles = if (zoom <= maxPrecomputedZoom) {
-            val dataset = reader.getDatasetZoom(chr, zoom, WindowFunction.mean)
+            val dataset = reader.getDatasetZoom(chr, zoom, WindowFunction.MEAN)
             reader.getTiles(dataset, startLocation, endLocation)
         } else {
             // TODO we can do smarter here, taking into account desired bin size, configured by zoom
