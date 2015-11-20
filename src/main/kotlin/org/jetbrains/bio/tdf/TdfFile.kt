@@ -1,9 +1,7 @@
 package org.jetbrains.bio.tdf
 
 import org.apache.log4j.Logger
-import org.jetbrains.bio.OrderedDataInput
-import org.jetbrains.bio.SeekableDataInput
-import org.jetbrains.bio.mapUnboxed
+import org.jetbrains.bio.*
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -23,11 +21,11 @@ import java.util.*
  * See https://github.com/igvteam/igv/blob/master/src/org/broad/igv/tdf/notes.txt.
  * See https://www.broadinstitute.org/software/igv/TDF.
  */
-class TDFReader @Throws(IOException::class) private constructor(val path: Path) :
+class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         Closeable, AutoCloseable {
 
     private val input = SeekableDataInput.of(path)
-    private val index: TDFMasterIndex
+    private val index: TdfMasterIndex
     private val header: Header = Header.read(input)
 
     val windowFunctions = input.readSequenceOf { WindowFunction.read(this) }.toList()
@@ -42,7 +40,7 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
         // Make sure we haven't read anything extra.
         check(input.tell() == header.headerSize.toLong() + Header.BYTES)
         index = input.with(header.indexOffset, header.indexSize.toLong()) {
-            TDFMasterIndex.read(this)
+            TdfMasterIndex.read(this)
         }
     }
 
@@ -50,38 +48,45 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
 
     val groupNames: Set<String> get() = index.groups.keys
 
-    @JvmOverloads
-    fun getDatasetZoom(chromosome: String, zoom: Int = 0,
-                       windowFunction: WindowFunction = WindowFunction.MEAN): TDFDataset {
-        require(windowFunction in windowFunctions)
-        return getDataset("/$chromosome/z$zoom/${windowFunction.name.toLowerCase()}")
+    /**
+     * Returns a list of dataset tiles overlapping a given interval.
+     *
+     * @param dataset dataset to query.
+     * @param startOffset 0-based start offset.
+     * @param endOffset 0-based end offset.
+     * @return a list of tiles.
+     */
+    fun query(dataset: TdfDataset, startOffset: Int, endOffset: Int): List<TdfTile> {
+        val startTile = startOffset / dataset.tileWidth
+        val endTile = endOffset divCeiling dataset.tileWidth
+        return (startTile..Math.min(dataset.tileCount - 1, endTile)).map {
+            getTile(dataset, it)
+        }.filterNotNull()
     }
 
-    internal fun getDataset(name: String): TDFDataset {
-        if (name !in index.datasets) {
-            throw NoSuchElementException(name)
+    /**
+     * The implementation is thread safe, no additional synchronization
+     * is required.
+     */
+    fun summarize(chromosome: String, startOffset: Int, endOffset: Int,
+                  zoom: Int = 0): TdfSummary {
+        val dataset = try {
+            getDataset(chromosome, zoom)
+        } catch (e: NoSuchElementException) {
+            // TODO: we can do better here, taking into account bin size,
+            // used when computing zooms. By definition there are 2^z tiles
+            // per chromosome, and 700 bins per tile, where z is the zoom
+            // level.
+            getDatasetInternal("/$chromosome/raw")
         }
 
-        val (offset, size) = index.datasets[name]!!
-        synchronized(input) {
-            return input.with(offset, size.toLong()) { TDFDataset.read(this) }
-        }
-    }
-
-    fun getGroup(name: String): TDFGroup {
-        if (name !in index.groups) {
-            throw NoSuchElementException(name)
-        }
-
-        val (offset, size) = index.groups[name]!!
-        synchronized(input) {
-            return input.with(offset, size.toLong()) { TDFGroup.read(this) }
-        }
+        return TdfSummary(query(dataset, startOffset, endOffset),
+                          startOffset, endOffset)
     }
 
     // XXX ideally this should be part of 'TdfDataset', but it's unclear
     //     how to share resources between the dataset and 'TdfFile'.
-    fun readTile(ds: TDFDataset, tileNumber: Int): TDFTile? {
+    fun getTile(ds: TdfDataset, tileNumber: Int): TdfTile? {
         return with(ds) {
             require(tileNumber >= 0 && tileNumber < tileCount) { "invalid tile index" }
             val position = tilePositions[tileNumber]
@@ -92,18 +97,39 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
             synchronized(input) {
                 input.with(position, tileSizes[tileNumber].toLong(),
                            compressed = compressed) {
-                    TDFTile.read(this, trackNames.size)
+                    TdfTile.read(this, trackNames.size)
                 }
             }
         }
     }
 
-    fun getTiles(ds: TDFDataset, startLocation: Int, endLocation: Int): List<TDFTile> {
-        val startTile = (startLocation / ds.tileWidth).toInt()
-        val endTile = (endLocation / ds.tileWidth).toInt()
-        return (startTile..Math.min(ds.tileCount - 1, endTile)).map {
-            readTile(ds, it)
-        }.filterNotNull()
+    @JvmOverloads
+    fun getDataset(chromosome: String, zoom: Int = 0,
+                   windowFunction: WindowFunction = WindowFunction.MEAN): TdfDataset {
+        require(windowFunction in windowFunctions)
+        return getDatasetInternal("/$chromosome/z$zoom/${windowFunction.name.toLowerCase()}")
+    }
+
+    internal fun getDatasetInternal(name: String): TdfDataset {
+        if (name !in index.datasets) {
+            throw NoSuchElementException(name)
+        }
+
+        val (offset, size) = index.datasets[name]!!
+        synchronized(input) {
+            return input.with(offset, size.toLong()) { TdfDataset.read(this) }
+        }
+    }
+
+    fun getGroup(name: String): TdfGroup {
+        if (name !in index.groups) {
+            throw NoSuchElementException(name)
+        }
+
+        val (offset, size) = index.groups[name]!!
+        synchronized(input) {
+            return input.with(offset, size.toLong()) { TdfGroup.read(this) }
+        }
     }
 
     /**
@@ -156,9 +182,21 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
     override fun close() = input.close()
 
     companion object {
+        private val LOG = Logger.getLogger(TdfFile::class.java)
+
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = TDFReader(path)
+        @JvmStatic fun read(path: Path) = TdfFile(path)
     }
+}
+
+class TdfSummary(private val tiles: List<TdfTile>,
+                 private val startOffset: Int,
+                 private val endOffset: Int) {
+    operator fun get(trackNumber: Int) = tiles.asSequence()
+            .flatMap { it.view(trackNumber).asSequence() }
+            .filterNotNull()
+            .filter { startOffset <= it.start && endOffset > it.end }
+            .toList()
 }
 
 internal data class IndexEntry(val offset: Long, val size: Int)
@@ -178,7 +216,7 @@ internal data class IndexEntry(val offset: Long, val size: Int)
  * It's perfectly valid to have zero datasets and groups, thus
  * the repeated fields ([] notation) can be empty.
  */
-internal data class TDFMasterIndex private constructor(
+internal data class TdfMasterIndex private constructor(
         val datasets: Map<String, IndexEntry>,
         val groups: Map<String, IndexEntry>) {
 
@@ -195,7 +233,7 @@ internal data class TDFMasterIndex private constructor(
         fun read(input: OrderedDataInput) = with(input) {
             val datasets = readIndex()
             val groups = readIndex()
-            TDFMasterIndex(datasets, groups)
+            TdfMasterIndex(datasets, groups)
         }
     }
 }
@@ -220,7 +258,7 @@ private fun OrderedDataInput.readAttributes(): Map<String, String> {
  * in the tiles, but IGV implementation seems to always use
  * floats.
  */
-data class TDFDataset private constructor(
+data class TdfDataset private constructor(
         val attributes: Map<String, String>,
         val tileWidth: Int, val tileCount: Int,
         val tilePositions: LongArray, val tileSizes: IntArray) {
@@ -244,7 +282,7 @@ data class TDFDataset private constructor(
                 tileSizes[i] = readInt()
             }
 
-            TDFDataset(attributes, tileWidth, tileCount, tileOffsets, tileSizes)
+            TdfDataset(attributes, tileWidth, tileCount, tileOffsets, tileSizes)
         }
     }
 }
@@ -252,9 +290,8 @@ data class TDFDataset private constructor(
 /**
  * The data container.
  */
-interface TDFTile {
-    // TODO: both of these should be 'operator get'.
-    fun getData(trackNumber: Int): FloatArray
+interface TdfTile {
+    fun view(trackNumber: Int) = TdfTileView(this, trackNumber)
 
     fun getValue(trackNumber: Int, idx: Int): Float
 
@@ -267,19 +304,19 @@ interface TDFTile {
     val size: Int
 
     companion object {
-        private val LOG = Logger.getLogger(TDFTile::class.java)
+        private val LOG = Logger.getLogger(TdfTile::class.java)
 
         internal fun read(input: OrderedDataInput, expectedTracks: Int) = with(input) {
             val type = readCString()
             when (type) {
-                "fixedStep" -> TDFFixedTile.fill(this, expectedTracks)
-                "variableStep" -> TDFVaryTile.fill(this, expectedTracks)
+                "fixedStep" -> TdfFixedTile.fill(this, expectedTracks)
+                "variableStep" -> TdfVaryTile.fill(this, expectedTracks)
                 "bed", "bedWithName" -> {
                     if (type === "bedWithName") {
                         LOG.warn("bedWithName is not supported, assuming bed")
                     }
 
-                    TDFBedTile.fill(this, expectedTracks)
+                    TdfBedTile.fill(this, expectedTracks)
                 }
                 else -> error("unexpected type: $type")
             }
@@ -287,8 +324,24 @@ interface TDFTile {
     }
 }
 
-data class TDFBedTile(val starts: IntArray, val ends: IntArray,
-                      val data: Array<FloatArray>) : TDFTile {
+class TdfTileView(private val tile: TdfTile,
+                  private val trackNumber: Int) : Iterable<ScoredInterval?> {
+    override fun iterator(): Iterator<ScoredInterval?> {
+        return (0 until tile.size).asSequence().map {
+            val value = tile.getValue(trackNumber, it)
+            if (value.isNaN()) {
+                null
+            } else {
+                val start = tile.getStartPosition(it)
+                val end = tile.getEndPosition(it)
+                ScoredInterval(start, end, value)
+            }
+        }.iterator()
+    }
+}
+
+data class TdfBedTile(val starts: IntArray, val ends: IntArray,
+                      val data: Array<FloatArray>) : TdfTile {
     override val size: Int get() = starts.size
 
     override fun getStartPosition(idx: Int) = starts[idx]
@@ -296,8 +349,6 @@ data class TDFBedTile(val starts: IntArray, val ends: IntArray,
     override fun getEndPosition(idx: Int) = ends[idx]
 
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    override fun getData(trackNumber: Int) = data[trackNumber]
 
     companion object {
         fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
@@ -323,12 +374,12 @@ data class TDFBedTile(val starts: IntArray, val ends: IntArray,
                 acc
             }
 
-            TDFBedTile(start, end, data)
+            TdfBedTile(start, end, data)
         }
     }
 }
 
-data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatArray>) : TDFTile {
+data class TdfFixedTile(val start: Int, val span: Double, val data: Array<FloatArray>) : TdfTile {
 
     override val size: Int get() = data.first().size
 
@@ -341,8 +392,6 @@ data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatA
     }
 
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    override fun getData(trackNumber: Int) = data[trackNumber]
 
     companion object {
         fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
@@ -360,13 +409,13 @@ data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatA
                 acc
             }
 
-            TDFFixedTile(start, span, data)
+            TdfFixedTile(start, span, data)
         }
     }
 }
 
-data class TDFVaryTile(val starts: IntArray, val span: Int,
-                       val data: Array<FloatArray>) : TDFTile {
+data class TdfVaryTile(val starts: IntArray, val span: Int,
+                       val data: Array<FloatArray>) : TdfTile {
 
     override val size: Int get() = starts.size
 
@@ -375,8 +424,6 @@ data class TDFVaryTile(val starts: IntArray, val span: Int,
     override fun getEndPosition(idx: Int) = (starts[idx] + span).toInt()
 
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    override fun getData(trackNumber: Int) = data[trackNumber]
 
     companion object {
         fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
@@ -403,7 +450,7 @@ data class TDFVaryTile(val starts: IntArray, val span: Int,
                 acc
             }
 
-            TDFVaryTile(step, span, data)
+            TdfVaryTile(step, span, data)
         }
     }
 }
@@ -412,10 +459,10 @@ data class TDFVaryTile(val starts: IntArray, val span: Int,
 /**
  * A group is just a container of key-value attributes.
  */
-data class TDFGroup(val attributes: Map<String, String>) {
+data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
         fun read(input: OrderedDataInput) = with(input) {
-            TDFGroup(readAttributes())
+            TdfGroup(readAttributes())
         }
     }
 

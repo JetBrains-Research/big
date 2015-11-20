@@ -41,7 +41,7 @@ object TDFUtils {
     }
     @Throws(IOException::class)
     fun dumpSummary(ibfFile: String, dumpTiles: Boolean) {
-        val reader = TDFReader.read(Paths.get(ibfFile))
+        val reader = TdfFile.read(Paths.get(ibfFile))
 
         println("Version: " + reader.version)
         println("Window Functions")
@@ -59,7 +59,7 @@ object TDFUtils {
         println("DATASETS")
         for (dsName in reader.dataSetNames) {
             println(dsName)
-            val ds = reader.getDataset(dsName)
+            val ds = reader.getDatasetInternal(dsName)
 
             println("Attributes")
             for (entry in ds.attributes.entries) {
@@ -73,7 +73,7 @@ object TDFUtils {
             val tracksToShow = Math.min(4, nTracks)
 
             for (i in 0 until ds.tileCount) {
-                val tile = reader.readTile(ds, i)
+                val tile = reader.getTile(ds, i)
                 if (tile != null) {
                     print("  " + i)
                     if (dumpTiles) {
