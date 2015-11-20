@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.ScoredInterval
 import org.junit.Before
 import org.junit.Test
 import java.io.StringReader
@@ -27,14 +28,14 @@ class VariableStepSectionTest {
 
     @Test fun testQueryEmpty() {
         val emptySection = VariableStepSection("chr1", 20)
-        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
-        assertEquals(emptyList<WigInterval>(),
+        assertEquals(emptyList<ScoredInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<ScoredInterval>(),
                      emptySection.query(100500, 500100).toList())
     }
 
     @Test fun testQueryNoBounds() {
-        val correct = arrayOf(WigInterval(100500, 100520, 42f),
-                              WigInterval(500100, 500120, 24f))
+        val correct = arrayOf(ScoredInterval(100500, 100520, 42f),
+                              ScoredInterval(500100, 500120, 24f))
 
         assertEquals(correct.asList(), section.query().toList())
     }
@@ -44,8 +45,8 @@ class VariableStepSectionTest {
         section[100100] = 4242.0f
         section[500500] = 2424.0f
 
-        val correct = arrayOf(WigInterval(100500, 100520, 42f),
-                              WigInterval(500100, 500120, 24f))
+        val correct = arrayOf(ScoredInterval(100500, 100520, 42f),
+                              ScoredInterval(500100, 500120, 24f))
 
         // Note: why '500200'? because the 'end' value corresponds
         // to the right border of the rightmost 'Range', i. e.:
@@ -113,14 +114,14 @@ class FixedStepSectionTest {
 
     @Test fun testQueryEmpty() {
         val emptySection = FixedStepSection("chr1", 400601, 100, 5)
-        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
-        assertEquals(emptyList<WigInterval>(),
+        assertEquals(emptyList<ScoredInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<ScoredInterval>(),
                      emptySection.query(400601, 400801).toList())
     }
 
     @Test fun testQueryNoBounds() {
         val it = section.query().iterator()
-        var interval: WigInterval
+        var interval: ScoredInterval
         interval = it.next()
         assertEquals(400601, interval.start)
         assertEquals(400606, interval.end)
@@ -153,7 +154,7 @@ class FixedStepSectionTest {
         section.add(33f)
 
         val it = section.query().iterator()
-        var interval: WigInterval
+        var interval: ScoredInterval
         interval = it.next()
         assertEquals(400601, interval.start)
         assertEquals(400651, interval.end)
@@ -230,8 +231,8 @@ class WigParserTest {
 
         assertNotNull(track)
         assertEquals("chr1", track.chrom)
-        assertEquals(listOf(WigInterval(10470, 10471, 0.4242f),
-                            WigInterval(10480, 10481, 0.2424f)),
+        assertEquals(listOf(ScoredInterval(10470, 10471, 0.4242f),
+                            ScoredInterval(10480, 10481, 0.2424f)),
                      track.query().toList())
     }
 
@@ -350,8 +351,8 @@ class WigParserTest {
         assertFalse(it.hasNext())
         assertNotNull(track)
         assertEquals("chr1", track.chrom)
-        assertEquals(listOf(WigInterval(10470, 10475, 0.4242f),
-                            WigInterval(10480, 10485, 0.2424f)),
+        assertEquals(listOf(ScoredInterval(10470, 10475, 0.4242f),
+                            ScoredInterval(10480, 10485, 0.2424f)),
                      track.query().toList())
     }
 }

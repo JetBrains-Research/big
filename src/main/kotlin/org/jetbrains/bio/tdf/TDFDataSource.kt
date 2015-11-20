@@ -26,7 +26,7 @@
 package org.jetbrains.bio.tdf
 
 import org.apache.log4j.Logger
-import org.jetbrains.bio.tdf.ScoredInterval
+import org.jetbrains.bio.ScoredInterval
 
 /**
  * Entry point for TDF data manipulation.
@@ -58,14 +58,14 @@ class TDFDataSource(var reader: TDFReader, val trackNumber: Int) {
             // By definition there are 2^z tiles per chromosome, and 700 bins per tile, where z is the zoom level.
             reader.getTiles(reader.getDataset("/$chr/raw"), startLocation, endLocation)
         }
-        return tiles.flatMap { t ->
-            (0 until t.getSize()).map {
-                val value = t.getValue(trackNumber, it)
+        return tiles.flatMap { tile ->
+            (0 until tile.size).map {
+                val value = tile.getValue(trackNumber, it)
                 if (value.isNaN()) {
                     return@map null
                 }
-                val start = t.getStartPosition(it)
-                val end = t.getEndPosition(it)
+                val start = tile.getStartPosition(it)
+                val end = tile.getEndPosition(it)
                 if (startLocation <= start && end < endLocation) {
                     ScoredInterval(start, end, value)
                 } else

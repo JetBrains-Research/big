@@ -7,6 +7,7 @@ import gnu.trove.list.array.TFloatArrayList
 import gnu.trove.list.array.TIntArrayList
 import org.apache.commons.math3.stat.descriptive.moment.Mean
 import org.jetbrains.bio.CachingIterator
+import org.jetbrains.bio.ScoredInterval
 import org.jetbrains.bio.divCeiling
 import org.jetbrains.bio.mapUnboxed
 import java.io.BufferedReader
@@ -136,7 +137,7 @@ data class BedGraphSection(
         return values[i]
     }
 
-    override fun query(from: Int, to: Int): Sequence<WigInterval> {
+    override fun query(from: Int, to: Int): Sequence<ScoredInterval> {
         var i = startOffsets.binarySearch(from)
         if (i < 0) {
             i = i.inv()
@@ -149,7 +150,7 @@ data class BedGraphSection(
 
         return (i..j).asSequence()
                 .filter { endOffsets[it] <= to }
-                .map { WigInterval(startOffsets[it], endOffsets[it], values[it]) }
+                .map { ScoredInterval(startOffsets[it], endOffsets[it], values[it]) }
     }
 
     override fun splice(max: Int): Sequence<WigSection> {

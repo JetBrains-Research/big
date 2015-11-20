@@ -77,7 +77,7 @@ object TDFUtils {
                 if (tile != null) {
                     print("  " + i)
                     if (dumpTiles) {
-                        val nBins = tile.getSize()
+                        val nBins = tile.size
                         val binsToShow = Math.min(4, nBins)
                         for (b in 0 until binsToShow) {
                             print(tile.getStartPosition(b))

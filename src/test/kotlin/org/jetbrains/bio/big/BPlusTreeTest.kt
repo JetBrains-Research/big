@@ -4,6 +4,7 @@ import com.google.common.math.IntMath
 import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.SeekableDataInput
 import org.jetbrains.bio.pow
+import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.file.Files
 import java.util.*

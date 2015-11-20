@@ -1,6 +1,10 @@
 package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
+import org.jetbrains.bio.ScoredInterval
+import org.jetbrains.bio.bufferedReader
+import org.jetbrains.bio.chromosomes
+import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -198,8 +202,8 @@ class BigWigFileTest {
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
-                    WigInterval(400700, 400701, 22.0f),
-                    WigInterval(400800, 400801, 33.0f)
+                    ScoredInterval(400700, 400701, 22.0f),
+                    ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400700, 410000)
                     .flatMap { it.query() }.toList())
@@ -212,8 +216,8 @@ class BigWigFileTest {
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
-                    WigInterval(400700, 400701, 22.0f),
-                    WigInterval(400800, 400801, 33.0f)
+                    ScoredInterval(400700, 400701, 22.0f),
+                    ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400620, 400801)
                     .flatMap { it.query() }.toList())
@@ -225,7 +229,7 @@ class BigWigFileTest {
             assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
-            val expected = listOf(WigInterval(400700, 400701, 22.0f))
+            val expected = listOf(ScoredInterval(400700, 400701, 22.0f))
             assertEquals(expected, bwf.query("chr3", 400620, 400800)
                     .flatMap { it.query() }.toList())
         }
@@ -237,9 +241,9 @@ class BigWigFileTest {
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
-                    WigInterval(400600, 400601, 11.0f),
-                    WigInterval(400700, 400701, 22.0f),
-                    WigInterval(400800, 400801, 33.0f)
+                    ScoredInterval(400600, 400601, 11.0f),
+                    ScoredInterval(400700, 400701, 22.0f),
+                    ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400000, 410000)
                     .flatMap { it.query() }.toList())
@@ -258,9 +262,9 @@ class BigWigFileTest {
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
-                    WigInterval(400600, 400650, 11.0f),
-                    WigInterval(400700, 400750, 22.0f),
-                    WigInterval(400800, 400850, 33.0f)
+                    ScoredInterval(400600, 400650, 11.0f),
+                    ScoredInterval(400700, 400750, 22.0f),
+                    ScoredInterval(400800, 400850, 33.0f)
             )
 
             assertEquals(expected,

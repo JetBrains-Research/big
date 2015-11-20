@@ -1,4 +1,4 @@
-package org.jetbrains.bio.big
+package org.jetbrains.bio
 
 import java.io.BufferedReader
 import java.nio.file.Files

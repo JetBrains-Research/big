@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.ScoredInterval
 import org.junit.Before
 import org.junit.Test
 import java.util.*
@@ -26,25 +27,25 @@ class BedGraphSectionTest {
 
     @Test fun testQueryEmpty() {
         val emptySection = BedGraphSection("chr1")
-        assertEquals(emptyList<WigInterval>(), emptySection.query().toList())
-        assertEquals(emptyList<WigInterval>(),
+        assertEquals(emptyList<ScoredInterval>(), emptySection.query().toList())
+        assertEquals(emptyList<ScoredInterval>(),
                      emptySection.query(100500, 500100).toList())
     }
 
     @Test fun testQueryNoBounds() {
-        val correct = arrayOf(WigInterval(100500, 100600, 42f),
-                              WigInterval(500100, 500300, 24f),
-                              WigInterval(500200, 500300, 0f),
-                              WigInterval(500200, 500400, 0f))
+        val correct = arrayOf(ScoredInterval(100500, 100600, 42f),
+                              ScoredInterval(500100, 500300, 24f),
+                              ScoredInterval(500200, 500300, 0f),
+                              ScoredInterval(500200, 500400, 0f))
 
         assertEquals(4, section.size())
         assertEquals(correct.asList(), section.query().toList())
     }
 
     @Test fun testQuery() {
-        val correct = arrayOf(WigInterval(100500, 100600, 42f),
-                              WigInterval(500100, 500300, 24f),
-                              WigInterval(500200, 500300, 0f))
+        val correct = arrayOf(ScoredInterval(100500, 100600, 42f),
+                              ScoredInterval(500100, 500300, 24f),
+                              ScoredInterval(500200, 500300, 0f))
 
         assertEquals(correct.asList(), section.query(100500, 500300).toList())
 
@@ -117,8 +118,8 @@ chr19 49302300 49302600 -0.75
         assertFalse(it.hasNext())
         assertEquals("chr19", track.chrom)
         assertEquals(2, track.size())
-        assertEquals(listOf(WigInterval(49302000, 49302300, -1f),
-                            WigInterval(49302300, 49302600, -.75f)),
+        assertEquals(listOf(ScoredInterval(49302000, 49302300, -1f),
+                            ScoredInterval(49302300, 49302600, -.75f)),
                      track.query().toList())
     }
 
@@ -133,7 +134,7 @@ chr20 100500 500100 -0.50
         assertEquals(2, tracks.size)
         assertEquals("chr20", tracks[1].chrom)
         assertEquals(1, tracks[1].size())
-        assertEquals(listOf(WigInterval(100500, 500100, -.5f)),
+        assertEquals(listOf(ScoredInterval(100500, 500100, -.5f)),
                      tracks[1].query().toList())
     }
 }
