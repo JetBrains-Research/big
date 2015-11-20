@@ -83,7 +83,7 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
     //     how to share resources between the dataset and 'TdfFile'.
     fun readTile(ds: TDFDataset, tileNumber: Int): TDFTile? {
         return with(ds) {
-            require(tileNumber >= 0 && tileNumber < nTiles) { "invalid tile index" }
+            require(tileNumber >= 0 && tileNumber < tileCount) { "invalid tile index" }
             val position = tilePositions[tileNumber]
             if (position < 0) {
                 return null  // Indicates empty tile.
@@ -101,7 +101,7 @@ class TDFReader @Throws(IOException::class) private constructor(val path: Path) 
     fun getTiles(ds: TDFDataset, startLocation: Int, endLocation: Int): List<TDFTile> {
         val startTile = (startLocation / ds.tileWidth).toInt()
         val endTile = (endLocation / ds.tileWidth).toInt()
-        return (startTile..Math.min(ds.nTiles - 1, endTile)).map {
+        return (startTile..Math.min(ds.tileCount - 1, endTile)).map {
             readTile(ds, it)
         }.filterNotNull()
     }
@@ -222,7 +222,7 @@ private fun OrderedDataInput.readAttributes(): Map<String, String> {
  */
 data class TDFDataset private constructor(
         val attributes: Map<String, String>,
-        val tileWidth: Int, val nTiles: Int,
+        val tileWidth: Int, val tileCount: Int,
         val tilePositions: LongArray, val tileSizes: IntArray) {
 
     companion object {
@@ -253,19 +253,6 @@ data class TDFDataset private constructor(
  * The data container.
  */
 interface TDFTile {
-    /** Track names. */
-    val names: Array<String>? get() = null
-
-    // TODO: remove starts/ends in favour of get*?
-    /** Track start offsets (inclusive). */
-    val starts: IntArray
-
-    /** Track end offsets (exclusive). */
-    val ends: IntArray
-
-    /** Number of data points in a tile. */
-    val size: Int
-
     // TODO: both of these should be 'operator get'.
     fun getData(trackNumber: Int): FloatArray
 
@@ -276,21 +263,31 @@ interface TDFTile {
 
     fun getEndPosition(idx: Int): Int
 
+    /** Number of data points in a tile. */
+    val size: Int
+
     companion object {
+        private val LOG = Logger.getLogger(TDFTile::class.java)
+
         internal fun read(input: OrderedDataInput, expectedTracks: Int) = with(input) {
             val type = readCString()
             when (type) {
                 "fixedStep" -> TDFFixedTile.fill(this, expectedTracks)
                 "variableStep" -> TDFVaryTile.fill(this, expectedTracks)
-                "bed",
-                "bedWithName" -> TDFBedTile.fill(this, expectedTracks, type)
+                "bed", "bedWithName" -> {
+                    if (type === "bedWithName") {
+                        LOG.warn("bedWithName is not supported, assuming bed")
+                    }
+
+                    TDFBedTile.fill(this, expectedTracks)
+                }
                 else -> error("unexpected type: $type")
             }
         }
     }
 }
 
-data class TDFBedTile(override val starts: IntArray, override val ends: IntArray,
+data class TDFBedTile(val starts: IntArray, val ends: IntArray,
                       val data: Array<FloatArray>) : TDFTile {
     override val size: Int get() = starts.size
 
@@ -303,9 +300,7 @@ data class TDFBedTile(override val starts: IntArray, override val ends: IntArray
     override fun getData(trackNumber: Int) = data[trackNumber]
 
     companion object {
-        private val LOG = Logger.getLogger(TDFBedTile::class.java)
-
-        fun fill(input: OrderedDataInput, expectedTracks: Int, type: String) = with(input) {
+        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
             val size = readInt()
             val start = IntArray(size)
             for (i in 0 until size) {
@@ -328,19 +323,12 @@ data class TDFBedTile(override val starts: IntArray, override val ends: IntArray
                 acc
             }
 
-            // Optionally read feature names
-            if (type === "bedWithName") {
-                LOG.warn("bedWithName names not supported")
-            }
-
             TDFBedTile(start, end, data)
         }
     }
 }
 
 data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatArray>) : TDFTile {
-    override val starts: IntArray get() = throw UnsupportedOperationException()
-    override val ends: IntArray get() = throw UnsupportedOperationException()
 
     override val size: Int get() = data.first().size
 
@@ -377,17 +365,8 @@ data class TDFFixedTile(val start: Int, val span: Double, val data: Array<FloatA
     }
 }
 
-data class TDFVaryTile(val start: Int, override val starts: IntArray,
-                       val span: Int, val data: Array<FloatArray>) : TDFTile {
-
-    override val ends: IntArray get() {
-        val end = IntArray(starts.size)
-        for (i in end.indices) {
-            end[i] = (starts[i] + span).toInt()
-        }
-
-        return end
-    }
+data class TDFVaryTile(val starts: IntArray, val span: Int,
+                       val data: Array<FloatArray>) : TDFTile {
 
     override val size: Int get() = starts.size
 
@@ -401,6 +380,7 @@ data class TDFVaryTile(val start: Int, override val starts: IntArray,
 
     companion object {
         fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
+            // This is called 'tiledStart' in IGV sources and is unused.
             val start = readInt()
             val span = readFloat().toInt()  // Really?
             val size = readInt()
@@ -423,7 +403,7 @@ data class TDFVaryTile(val start: Int, override val starts: IntArray,
                 acc
             }
 
-            TDFVaryTile(start, step, span, data)
+            TDFVaryTile(step, span, data)
         }
     }
 }

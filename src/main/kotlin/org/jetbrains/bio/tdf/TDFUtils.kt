@@ -72,7 +72,7 @@ object TDFUtils {
             val nTracks = trackNames.size
             val tracksToShow = Math.min(4, nTracks)
 
-            for (i in 0 until ds.nTiles) {
+            for (i in 0 until ds.tileCount) {
                 val tile = reader.readTile(ds, i)
                 if (tile != null) {
                     print("  " + i)
