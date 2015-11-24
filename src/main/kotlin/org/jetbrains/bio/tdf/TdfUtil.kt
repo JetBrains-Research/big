@@ -25,23 +25,16 @@
 
 package org.jetbrains.bio.tdf
 
-import java.io.IOException
 import java.nio.file.Paths
+
 /**
  * A Tiled Data Format (TDF) dumper.
  * See https://www.broadinstitute.org/software/igv/TDF.
 */
-object TDFUtils {
+object TdfUtil {
 
-    @Throws(IOException::class)
-    @JvmStatic fun main(args: Array<String>) {
-        // Original URL for TDFReaderTest
-        // http://data.broadinstitute.org/igvdata/encode/hg18/broadHistone/SignalK562H3k4me3.tdf
-        dumpSummary("/home/oleg/work/big/src/test/resources/SignalK562H3k4me3.tdf", false)
-    }
-    @Throws(IOException::class)
-    fun dumpSummary(ibfFile: String, dumpTiles: Boolean) {
-        val reader = TdfFile.read(Paths.get(ibfFile))
+    fun dumpSummary(tdfFile: String, dumpTiles: Boolean) {
+        val reader = TdfFile.read(Paths.get(tdfFile))
 
         println("Version: " + reader.version)
         println("Window Functions")
