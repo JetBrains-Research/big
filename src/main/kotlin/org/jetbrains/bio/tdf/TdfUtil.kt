@@ -30,75 +30,75 @@ import java.nio.file.Paths
 /**
  * A Tiled Data Format (TDF) dumper.
  * See https://www.broadinstitute.org/software/igv/TDF.
-*/
+ */
 object TdfUtil {
 
     fun dumpSummary(tdfFile: String, dumpTiles: Boolean) {
-        val reader = TdfFile.read(Paths.get(tdfFile))
+        TdfFile.read(Paths.get(tdfFile)).use { reader ->
+            println("Version: " + reader.version)
+            println("Window Functions")
+            for (wf in reader.windowFunctions) {
+                println("\t" + wf.toString())
+            }
 
-        println("Version: " + reader.version)
-        println("Window Functions")
-        for (wf in reader.windowFunctions) {
-            println("\t" + wf.toString())
-        }
-
-        println("Tracks")
-        val trackNames = reader.trackNames
-        for (trackName in trackNames) {
-            println(trackName)
-        }
-        println()
-
-        println("DATASETS")
-        for (dsName in reader.dataSetNames) {
-            println(dsName)
-            val ds = reader.getDatasetInternal(dsName)
-
-            println("Attributes")
-            for (entry in ds.attributes.entries) {
-                println("\t" + entry.key + " = " + entry.value)
+            println("Tracks")
+            val trackNames = reader.trackNames
+            for (trackName in trackNames) {
+                println(trackName)
             }
             println()
 
-            println("Tiles")
+            println("DATASETS")
+            for (dsName in reader.dataSetNames) {
+                println(dsName)
+                val ds = reader.getDatasetInternal(dsName)
 
-            val nTracks = trackNames.size
-            val tracksToShow = Math.min(4, nTracks)
+                println("Attributes")
+                for (entry in ds.attributes.entries) {
+                    println("\t" + entry.key + " = " + entry.value)
+                }
+                println()
 
-            for (i in 0 until ds.tileCount) {
-                val tile = reader.getTile(ds, i)
-                if (tile != null) {
-                    print("  " + i)
-                    if (dumpTiles) {
-                        val nBins = tile.size
-                        val binsToShow = Math.min(4, nBins)
-                        for (b in 0 until binsToShow) {
-                            print(tile.getStartPosition(b))
-                            for (t in 0 until tracksToShow) {
-                                val value = tile.getValue(0, b)
-                                if (!value.isNaN()) {
-                                    print("\t" + tile.getValue(t, b))
+                println("Tiles")
+
+                val nTracks = trackNames.size
+                val tracksToShow = Math.min(4, nTracks)
+
+                for (i in 0 until ds.tileCount) {
+                    val tile = reader.getTile(ds, i)
+                    if (tile != null) {
+                        print("  " + i)
+                        if (dumpTiles) {
+                            val nBins = tile.size
+                            val binsToShow = Math.min(4, nBins)
+                            for (b in 0 until binsToShow) {
+                                print(tile.getStartPosition(b))
+                                for (t in 0 until tracksToShow) {
+                                    val value = tile.getValue(0, b)
+                                    if (!value.isNaN()) {
+                                        print("\t" + tile.getValue(t, b))
+                                    }
                                 }
+                                println()
                             }
-                            println()
                         }
                     }
                 }
+                println()
+                println()
             }
-            println()
-            println()
-        }
 
-        println("GROUPS")
-        for (name in reader.groupNames) {
-            println(name)
-            val group = reader.getGroup(name)
+            println("GROUPS")
+            for (name in reader.groupNames) {
+                println(name)
+                val group = reader.getGroup(name)
 
-            println("Attributes")
-            for (entry in group.attributes.entries) {
-                println("\t" + entry.key + " = " + entry.value)
+                println("Attributes")
+                for (entry in group.attributes.entries) {
+                    println("\t" + entry.key + " = " + entry.value)
+                }
+                println()
             }
-            println()
         }
     }
 }
