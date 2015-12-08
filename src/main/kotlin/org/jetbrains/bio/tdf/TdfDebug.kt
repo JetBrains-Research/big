@@ -25,8 +25,6 @@
 
 package org.jetbrains.bio.tdf
 
-import java.nio.file.Path
-
 /**
  * Outputs data from a [TdfFile] in a human-readable form.
  */
@@ -92,11 +90,5 @@ fun TdfFile.debug(includeTiles: Boolean = false) {
             println("\t$key = $value")
         }
         println()
-    }
-}
-
-object TdfUtil {
-    fun dumpSummary(path: Path, dumpTiles: Boolean) {
-        TdfFile.read(path).use { it.debug(dumpTiles) }
     }
 }
