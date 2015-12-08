@@ -1,7 +1,9 @@
 package org.jetbrains.bio.tdf
 
-import org.apache.log4j.Logger
-import org.jetbrains.bio.*
+import org.jetbrains.bio.OrderedDataInput
+import org.jetbrains.bio.SeekableDataInput
+import org.jetbrains.bio.divCeiling
+import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -20,6 +22,8 @@ import java.util.*
  *
  * See https://github.com/igvteam/igv/blob/master/src/org/broad/igv/tdf/notes.txt.
  * See https://www.broadinstitute.org/software/igv/TDF.
+ *
+ * @since 0.2.2
  */
 class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         Closeable, AutoCloseable {
@@ -65,8 +69,12 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
     }
 
     /**
+     * Returns a summary of the data within a given interval.
+     *
      * The implementation is thread safe, no additional synchronization
-     * is required.
+     * is required. However, this is to change. See #22 on GitHub.
+     *
+     * @since 0.2.3
      */
     fun summarize(chromosome: String, startOffset: Int, endOffset: Int,
                   zoom: Int = 0): TdfSummary {
@@ -182,8 +190,6 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
     override fun close() = input.close()
 
     companion object {
-        private val LOG = Logger.getLogger(TdfFile::class.java)
-
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path) = TdfFile(path)
     }
@@ -238,19 +244,6 @@ internal data class TdfMasterIndex private constructor(
     }
 }
 
-private fun <T> OrderedDataInput.readSequenceOf(
-        block: OrderedDataInput.() -> T): Sequence<T> {
-    return (0 until readInt()).mapUnboxed { block() }
-}
-
-private fun OrderedDataInput.readAttributes(): Map<String, String> {
-    return readSequenceOf {
-        val key = readCString()
-        val value = readCString()
-        key to value
-    }.toMap()
-}
-
 /**
  * Dataset wraps a number of tiles aka data-containers.
  *
@@ -288,176 +281,7 @@ data class TdfDataset private constructor(
 }
 
 /**
- * The data container.
- */
-interface TdfTile {
-    fun view(trackNumber: Int) = TdfTileView(this, trackNumber)
-
-    fun getValue(trackNumber: Int, idx: Int): Float
-
-    // TODO: position implies 1-based indexing, which isn't the case.
-    fun getStartPosition(idx: Int): Int
-
-    fun getEndPosition(idx: Int): Int
-
-    /** Number of data points in a tile. */
-    val size: Int
-
-    companion object {
-        private val LOG = Logger.getLogger(TdfTile::class.java)
-
-        internal fun read(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val type = readCString()
-            when (type) {
-                "fixedStep" -> TdfFixedTile.fill(this, expectedTracks)
-                "variableStep" -> TdfVaryTile.fill(this, expectedTracks)
-                "bed", "bedWithName" -> {
-                    if (type === "bedWithName") {
-                        LOG.warn("bedWithName is not supported, assuming bed")
-                    }
-
-                    TdfBedTile.fill(this, expectedTracks)
-                }
-                else -> error("unexpected type: $type")
-            }
-        }
-    }
-}
-
-class TdfTileView(private val tile: TdfTile,
-                  private val trackNumber: Int) : Iterable<ScoredInterval?> {
-    override fun iterator(): Iterator<ScoredInterval?> {
-        return (0 until tile.size).asSequence().map {
-            val value = tile.getValue(trackNumber, it)
-            if (value.isNaN()) {
-                null
-            } else {
-                val start = tile.getStartPosition(it)
-                val end = tile.getEndPosition(it)
-                ScoredInterval(start, end, value)
-            }
-        }.iterator()
-    }
-}
-
-data class TdfBedTile(val starts: IntArray, val ends: IntArray,
-                      val data: Array<FloatArray>) : TdfTile {
-    override val size: Int get() = starts.size
-
-    override fun getStartPosition(idx: Int) = starts[idx]
-
-    override fun getEndPosition(idx: Int) = ends[idx]
-
-    override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val size = readInt()
-            val start = IntArray(size)
-            for (i in 0 until size) {
-                start[i] = readInt()
-            }
-            val end = IntArray(size)
-            for (i in 0 until size) {
-                end[i] = readInt()
-            }
-
-            val trackCount = readInt()
-            check(trackCount == expectedTracks) {
-                "expected $expectedTracks tracks, got: $trackCount"
-            }
-            val data = Array(trackCount) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-                acc
-            }
-
-            TdfBedTile(start, end, data)
-        }
-    }
-}
-
-data class TdfFixedTile(val start: Int, val span: Double, val data: Array<FloatArray>) : TdfTile {
-
-    override val size: Int get() = data.first().size
-
-    override fun getStartPosition(idx: Int): Int {
-        return start + (idx * span).toInt()
-    }
-
-    override fun getEndPosition(idx: Int): Int {
-        return start + ((idx + 1) * span).toInt()
-    }
-
-    override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val size = readInt()
-            val start = readInt()
-            val span = readFloat().toDouble()
-
-            // vvv not part of the implementation, see igvteam/igv/#180.
-            // val trackCount = readInt()
-            val data = Array(expectedTracks) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-                acc
-            }
-
-            TdfFixedTile(start, span, data)
-        }
-    }
-}
-
-data class TdfVaryTile(val starts: IntArray, val span: Int,
-                       val data: Array<FloatArray>) : TdfTile {
-
-    override val size: Int get() = starts.size
-
-    override fun getStartPosition(idx: Int) = starts[idx]
-
-    override fun getEndPosition(idx: Int) = (starts[idx] + span).toInt()
-
-    override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
-
-    companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            // This is called 'tiledStart' in IGV sources and is unused.
-            val start = readInt()
-            val span = readFloat().toInt()  // Really?
-            val size = readInt()
-
-            val step = IntArray(size)
-            for (i in 0 until size) {
-                step[i] = readInt()
-            }
-
-            val trackCount = readInt()
-            check(trackCount == expectedTracks) {
-                "expected $expectedTracks tracks, got: $trackCount"
-            }
-            val data = Array(trackCount) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-
-                acc
-            }
-
-            TdfVaryTile(step, span, data)
-        }
-    }
-}
-
-
-/**
- * A group is just a container of key-value attributes.
+ * A container of key-value attributes.
  */
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
@@ -485,4 +309,17 @@ data class TrackType(val id: String) {
             TrackType(readCString())
         }
     }
+}
+
+private fun <T> OrderedDataInput.readSequenceOf(
+        block: OrderedDataInput.() -> T): Sequence<T> {
+    return (0 until readInt()).mapUnboxed { block() }
+}
+
+private fun OrderedDataInput.readAttributes(): Map<String, String> {
+    return readSequenceOf {
+        val key = readCString()
+        val value = readCString()
+        key to value
+    }.toMap()
 }

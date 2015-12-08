@@ -94,7 +94,7 @@ internal interface OrderedDataInput {
     fun readDouble() = java.lang.Double.longBitsToDouble(readLong())
 }
 
-class SeekableDataInput private constructor(
+internal class SeekableDataInput private constructor(
         private val path: Path,
         override var order: ByteOrder)
 :
@@ -231,7 +231,7 @@ private class CountingDataInput(private val input: InputStream,
 /**
  * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
-interface OrderedDataOutput {
+internal interface OrderedDataOutput {
     val order: ByteOrder
 
     fun skipBytes(count: Int) {
@@ -304,7 +304,7 @@ interface OrderedDataOutput {
     fun writeDouble(v: Double) = writeLong(java.lang.Double.doubleToLongBits(v))
 }
 
-open class CountingDataOutput(private val output: OutputStream,
+internal open class CountingDataOutput(private val output: OutputStream,
                               private val offset: Long,
                               override val order: ByteOrder)
 :
