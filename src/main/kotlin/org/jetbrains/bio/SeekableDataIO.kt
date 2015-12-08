@@ -231,7 +231,7 @@ private class CountingDataInput(private val input: InputStream,
 /**
  * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
-internal interface OrderedDataOutput {
+interface OrderedDataOutput {
     val order: ByteOrder
 
     fun skipBytes(count: Int) {
