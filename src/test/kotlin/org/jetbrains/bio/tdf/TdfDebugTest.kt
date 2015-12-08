@@ -3,19 +3,15 @@ package org.jetbrains.bio.tdf
 import org.jetbrains.bio.big.Examples
 import org.junit.Test
 import java.io.ByteArrayOutputStream
-import java.io.OutputStreamWriter
 import java.io.PrintStream
-import java.io.StringWriter
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
-class TdfUtilTest {
-
-    @Test fun testDumpSummary() {
+class TdfDebugTest {
+    @Test fun testDebug() {
         val stream = ByteArrayOutputStream()
         val so = System.out
         System.setOut(PrintStream(stream))
-        TdfUtil.dumpSummary(Examples["example.tdf"].toString(), false)
+        TdfFile.read(Examples["example.tdf"]).use { it.debug() }
         System.setOut(so)
         assertEquals("""Version: 4
 Window Functions
@@ -104,5 +100,4 @@ Attributes
 
 """, String(stream.toByteArray()))
     }
-
 }
