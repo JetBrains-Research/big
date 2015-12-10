@@ -71,9 +71,6 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
     /**
      * Returns a summary of the data within a given interval.
      *
-     * The implementation is thread safe, no additional synchronization
-     * is required. However, this is to change. See #22 on GitHub.
-     *
      * @since 0.2.3
      */
     fun summarize(chromosome: String, startOffset: Int, endOffset: Int,
@@ -102,11 +99,9 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
                 return null  // Indicates empty tile.
             }
 
-            synchronized(input) {
-                input.with(position, tileSizes[tileNumber].toLong(),
-                           compressed = compressed) {
-                    TdfTile.read(this, trackNames.size)
-                }
+            input.with(position, tileSizes[tileNumber].toLong(),
+                       compressed = compressed) {
+                TdfTile.read(this, trackNames.size)
             }
         }
     }
@@ -124,9 +119,7 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         }
 
         val (offset, size) = index.datasets[name]!!
-        synchronized(input) {
-            return input.with(offset, size.toLong()) { TdfDataset.read(this) }
-        }
+        return input.with(offset, size.toLong()) { TdfDataset.read(this) }
     }
 
     fun getGroup(name: String): TdfGroup {
@@ -135,9 +128,7 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         }
 
         val (offset, size) = index.groups[name]!!
-        synchronized(input) {
-            return input.with(offset, size.toLong()) { TdfGroup.read(this) }
-        }
+        return input.with(offset, size.toLong()) { TdfGroup.read(this) }
     }
 
     /**

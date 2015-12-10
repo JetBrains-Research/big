@@ -14,10 +14,9 @@ interface TdfTile {
 
     fun getValue(trackNumber: Int, idx: Int): Float
 
-    // TODO: position implies 1-based indexing, which isn't the case.
-    fun getStartPosition(idx: Int): Int
+    fun getStartOffset(idx: Int): Int
 
-    fun getEndPosition(idx: Int): Int
+    fun getEndOffset(idx: Int): Int
 
     /** Number of data points in a tile. */
     val size: Int
@@ -52,8 +51,8 @@ class TdfTileView(private val tile: TdfTile,
             if (value.isNaN()) {
                 null
             } else {
-                val start = tile.getStartPosition(it)
-                val end = tile.getEndPosition(it)
+                val start = tile.getStartOffset(it)
+                val end = tile.getEndOffset(it)
                 ScoredInterval(start, end, value)
             }
         }.iterator()
@@ -64,9 +63,9 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
                       val data: Array<FloatArray>) : TdfTile {
     override val size: Int get() = starts.size
 
-    override fun getStartPosition(idx: Int) = starts[idx]
+    override fun getStartOffset(idx: Int) = starts[idx]
 
-    override fun getEndPosition(idx: Int) = ends[idx]
+    override fun getEndOffset(idx: Int) = ends[idx]
 
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
@@ -104,11 +103,11 @@ data class TdfFixedTile(val start: Int, val span: Double,
 
     override val size: Int get() = data.first().size
 
-    override fun getStartPosition(idx: Int): Int {
+    override fun getStartOffset(idx: Int): Int {
         return start + (idx * span).toInt()
     }
 
-    override fun getEndPosition(idx: Int): Int {
+    override fun getEndOffset(idx: Int): Int {
         return start + ((idx + 1) * span).toInt()
     }
 
@@ -140,9 +139,9 @@ data class TdfVaryTile(val starts: IntArray, val span: Int,
 
     override val size: Int get() = starts.size
 
-    override fun getStartPosition(idx: Int) = starts[idx]
+    override fun getStartOffset(idx: Int) = starts[idx]
 
-    override fun getEndPosition(idx: Int) = (starts[idx] + span).toInt()
+    override fun getEndOffset(idx: Int) = (starts[idx] + span).toInt()
 
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 

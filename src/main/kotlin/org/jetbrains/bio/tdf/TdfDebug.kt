@@ -64,7 +64,7 @@ fun TdfFile.debug(includeTiles: Boolean = false) {
                     val nBins = tile.size
                     val binsToShow = Math.min(4, nBins)
                     for (b in 0 until binsToShow) {
-                        print(tile.getStartPosition(b))
+                        print(tile.getStartOffset(b))
                         for (t in 0 until tracksToShow) {
                             val value = tile.getValue(0, b)
                             if (!value.isNaN()) {
