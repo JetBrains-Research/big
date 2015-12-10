@@ -98,6 +98,6 @@ Attributes
 	2nd Percentile = 0.0
 	10th Percentile = 0.0
 
-""", String(stream.toByteArray()))
+""".trim(), String(stream.toByteArray()).trim())
     }
 }

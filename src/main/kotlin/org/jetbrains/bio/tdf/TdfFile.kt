@@ -30,7 +30,7 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
 
     private val input = SeekableDataInput.of(path)
     private val index: TdfMasterIndex
-    private val header: Header = Header.read(input)
+    private val header = Header.read(input)
 
     val windowFunctions = input.readSequenceOf { WindowFunction.read(this) }.toList()
     val trackType = TrackType.read(input)
