@@ -68,7 +68,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
             readByte()  // reserved.
             val count = readUnsignedShort()
 
-            val types = WigSection.Type.values
+            val types = WigSection.Type.values()
             check(type >= 1 && type <= types.size)
             when (types[type - 1]) {
                 WigSection.Type.BED_GRAPH -> {
