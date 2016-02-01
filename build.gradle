@@ -75,6 +75,7 @@ bintray {
     pkg {
         repo = 'maven'
         name = 'big'
+        userOrg = 'jetbrains-research'
         licenses = ['MIT']
         version {
             name = project.version.toString()
