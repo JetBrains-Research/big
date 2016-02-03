@@ -199,7 +199,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     val events = flatMap {
         listOf(AggregationEvent(it.start, START, it),
                AggregationEvent(it.end, END, it)).asSequence()
-    }.toArrayList()
+    }.toMutableList()
 
     Collections.sort(events)
 

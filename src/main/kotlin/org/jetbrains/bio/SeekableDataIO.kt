@@ -16,7 +16,7 @@ import kotlin.LazyThreadSafetyMode.NONE
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
  */
-internal interface OrderedDataInput {
+interface OrderedDataInput {
     var order: ByteOrder
 
     fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size)
