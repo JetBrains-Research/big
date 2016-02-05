@@ -7,17 +7,13 @@ import java.nio.file.Path
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 
-/**
- * Various test helpers.
- *
- * You shouldn't be using them outside of `big`.
- */
-
 internal fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
     val inputStream = Files.newInputStream(this, *options).buffered()
     return when (toFile().extension) {
         "gz"  -> GZIPInputStream(inputStream)
-        "zip" -> ZipInputStream(inputStream)
+        "zip" ->
+            // This only works for single-entry ZIP files.
+            ZipInputStream(inputStream).apply { getNextEntry() }
         else  -> inputStream
     }.bufferedReader()
 }

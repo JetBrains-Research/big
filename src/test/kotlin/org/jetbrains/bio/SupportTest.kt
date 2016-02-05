@@ -1,7 +1,5 @@
 package org.jetbrains.bio
 
-import org.jetbrains.bio.logCeiling
-import org.jetbrains.bio.pow
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
