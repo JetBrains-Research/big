@@ -2,6 +2,8 @@ package org.jetbrains.bio.big
 
 import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.getUnsignedByte
+import org.jetbrains.bio.getUnsignedShort
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -58,15 +60,15 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                                overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
         return sequenceOf(input.with(dataOffset, dataSize, compressed) {
-            val chromIx = readInt()
+            val chromIx = getInt()
             assert(chromIx == query.chromIx) { "section contains wrong chromosome" }
-            val start = readInt()
-            readInt()   // end.
-            val step = readInt()
-            val span = readInt()
-            val type = readUnsignedByte()
-            readByte()  // reserved.
-            val count = readUnsignedShort()
+            val start = getInt()
+            getInt()   // end.
+            val step = getInt()
+            val span = getInt()
+            val type = getUnsignedByte()
+            get()  // reserved.
+            val count = getUnsignedShort()
 
             val types = WigSection.Type.values()
             check(type >= 1 && type <= types.size)
@@ -74,9 +76,9 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 WigSection.Type.BED_GRAPH -> {
                     val section = BedGraphSection(chrom)
                     for (i in 0..count - 1) {
-                        val startOffset = readInt()
-                        val endOffset = readInt()
-                        val value = readFloat()
+                        val startOffset = getInt()
+                        val endOffset = getInt()
+                        val value = getFloat()
                         if (query.contains(startOffset, endOffset, overlaps)) {
                             section[startOffset, endOffset] = value
                         }
@@ -87,8 +89,8 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 WigSection.Type.VARIABLE_STEP -> {
                     val section = VariableStepSection(chrom, span)
                     for (i in 0..count - 1) {
-                        val pos = readInt()
-                        val value = readFloat()
+                        val pos = getInt()
+                        val value = getFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section[pos] = value
                         }
@@ -117,7 +119,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                     val section = FixedStepSection(chrom, realignedStart, step, span)
                     for (i in 0..count - 1) {
                         val pos = start + i * step
-                        val value = readFloat()
+                        val value = getFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section.add(value)
                         }

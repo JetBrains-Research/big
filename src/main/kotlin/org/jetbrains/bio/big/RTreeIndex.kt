@@ -6,6 +6,7 @@ import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 
@@ -113,23 +114,23 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ACE0
 
-            internal fun read(input: SeekableDataInput, offset: Long): Header = with(input) {
-                seek(offset)
+            internal fun read(input: ByteBuffer, offset: Long) = with(input) {
+                position(Ints.checkedCast(offset))
                 guess(MAGIC)
 
-                val blockSize = readInt()
-                val itemCount = readLong()
-                val startChromIx = readInt()
-                val startBase = readInt()
-                val endChromIx = readInt()
-                val endBase = readInt()
-                val endDataOffset = readLong()
-                val itemsPerSlot = readInt()
-                readInt()  // reserved.
-                val rootOffset = tell()
+                val blockSize = getInt()
+                val itemCount = getLong()
+                val startChromIx = getInt()
+                val startBase = getInt()
+                val endChromIx = getInt()
+                val endBase = getInt()
+                val endDataOffset = getLong()
+                val itemsPerSlot = getInt()
+                getInt()  // reserved.
+                val rootOffset = position().toLong()
 
-                return Header(order, blockSize, itemCount, startChromIx, startBase,
-                              endChromIx, endBase, endDataOffset, itemsPerSlot, rootOffset)
+                Header(order(), blockSize, itemCount, startChromIx, startBase,
+                       endChromIx, endBase, endDataOffset, itemsPerSlot, rootOffset)
             }
         }
     }
@@ -137,7 +138,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
     companion object {
         private val LOG = LogManager.getLogger(RTreeIndex::class.java)
 
-        internal fun read(input: SeekableDataInput, offset: Long): RTreeIndex {
+        internal fun read(input: ByteBuffer, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
         }
 
@@ -273,13 +274,13 @@ data class RTreeIndexLeaf(val interval: Interval,
     companion object {
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
 
-        internal fun read(input: OrderedDataInput) = with(input) {
-            val startChromIx = readInt()
-            val startOffset = readInt()
-            val endChromIx = readInt()
-            val endOffset = readInt()
+        internal fun read(input: ByteBuffer) = with(input) {
+            val startChromIx = getInt()
+            val startOffset = getInt()
+            val endChromIx = getInt()
+            val endOffset = getInt()
             val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
-            RTreeIndexLeaf(interval, dataOffset = readLong(), dataSize = readLong())
+            RTreeIndexLeaf(interval, dataOffset = getLong(), dataSize = getLong())
         }
     }
 }
@@ -297,13 +298,13 @@ private data class RTreeIndexNode(val interval: Interval,
     companion object {
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES
 
-        internal fun read(input: OrderedDataInput) = with(input) {
-            val startChromIx = readInt()
-            val startOffset = readInt()
-            val endChromIx = readInt()
-            val endOffset = readInt()
+        internal fun read(input: ByteBuffer) = with(input) {
+            val startChromIx = getInt()
+            val startOffset = getInt()
+            val endChromIx = getInt()
+            val endOffset = getInt()
             val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
-            RTreeIndexNode(interval, dataOffset = readLong())
+            RTreeIndexNode(interval, dataOffset = getLong())
         }
     }
 }

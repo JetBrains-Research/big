@@ -23,10 +23,10 @@ class BPlusTreeTest {
     
     @Test fun testFind() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
-            var leaf = bf.bPlusTree.find(bf.input, "chr1")
+            var leaf = bf.bPlusTree.find(bf.input.mapped, "chr1")
             assertNull(leaf)
 
-            leaf = bf.bPlusTree.find(bf.input, "chr21")
+            leaf = bf.bPlusTree.find(bf.input.mapped, "chr21")
             assertNotNull(leaf)
             assertEquals(0, leaf!!.id)
             assertEquals(48129895, leaf.size)
@@ -53,12 +53,12 @@ class BPlusTreeTest {
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
         SeekableDataInput.of(Examples[example]).use { input ->
-            val bpt = BPlusTree.read(input, offset)
+            val bpt = BPlusTree.read(input.mapped, offset)
             for (key in chromosomes) {
-                assertNotNull(bpt.find(input, key))
+                assertNotNull(bpt.find(input.mapped, key))
             }
 
-            assertNull(bpt.find(input, "chrV"))
+            assertNull(bpt.find(input.mapped, "chrV"))
         }
     }
 
@@ -119,14 +119,14 @@ class BPlusTreeTest {
             }
 
             SeekableDataInput.of(path).use { input ->
-                val bpt = BPlusTree.read(input, 0)
+                val bpt = BPlusTree.read(input.mapped, 0)
                 for (item in items) {
-                    val res = bpt.find(input, item.key)
+                    val res = bpt.find(input.mapped, item.key)
                     assertNotNull(res)
                     assertEquals(item, res)
                 }
 
-                assertEquals(items.toSet(), bpt.traverse(input).toSet())
+                assertEquals(items.toSet(), bpt.traverse(input.mapped).toSet())
             }
         }
     }

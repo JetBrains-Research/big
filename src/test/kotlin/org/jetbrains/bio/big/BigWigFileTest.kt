@@ -301,7 +301,7 @@ class BigWigFileTest {
 
     private fun testQueryConsistency(overlaps: Boolean) {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
-            val (name, chromIx, _size) = bwf.bPlusTree.traverse(bwf.input).first()
+            val (name, chromIx, _size) = bwf.bPlusTree.traverse(bwf.input.mapped).first()
             val wigItems = bwf.query(name).flatMap { it.query().asSequence() }.toList()
             val i = RANDOM.nextInt(wigItems.size)
             val j = RANDOM.nextInt(wigItems.size)

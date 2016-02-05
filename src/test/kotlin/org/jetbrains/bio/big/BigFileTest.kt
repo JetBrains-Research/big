@@ -22,19 +22,21 @@ class BigFileTest {
         // In theory we can use either WIG or BED, but WIG is just simpler.
         withTempFile("example2", ".bw") { path ->
             BigWigFile.read(Examples["example2.bw"]).use { bwf ->
-                val (name, _chromIx, size) = bwf.bPlusTree.traverse(bwf.input).first()
+                val (name, _chromIx, size) =
+                        bwf.bPlusTree.traverse(bwf.input.mapped).first()
                 BigWigFile.write(bwf.query(name).take(32).toList(), listOf(name to size), path)
             }
 
             BigWigFile.read(path).use { bwf ->
-                val (_name, chromIx, size) = bwf.bPlusTree.traverse(bwf.input).first()
+                val (_name, chromIx, size) =
+                        bwf.bPlusTree.traverse(bwf.input.mapped).first()
                 val query = Interval(chromIx, 0, size)
                 for ((reduction, _dataOffset, indexOffset) in bwf.zoomLevels) {
                     if (reduction == 0) {
                         break
                     }
 
-                    val zRTree = RTreeIndex.read(bwf.input, indexOffset)
+                    val zRTree = RTreeIndex.read(bwf.input.mapped, indexOffset)
                     val blocks = zRTree.findOverlappingBlocks(bwf.input, query).toList()
                     for (i in blocks.indices) {
                         for (j in i + 1..blocks.size - 1) {

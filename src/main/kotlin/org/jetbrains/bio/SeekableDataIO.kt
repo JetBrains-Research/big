@@ -1,21 +1,60 @@
 package org.jetbrains.bio
 
 import com.google.common.primitives.Ints
-import com.google.common.primitives.Longs
-import com.google.common.primitives.Shorts
-import com.google.common.primitives.UnsignedBytes
 import java.io.Closeable
-import java.io.EOFException
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.Channels
+import java.nio.channels.FileChannel.MapMode
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import kotlin.LazyThreadSafetyMode.NONE
+
+/** Guess byte order from a given big-endian `magic`. */
+fun ByteBuffer.guess(magic: Int): Boolean {
+    val b = ByteArray(4)
+    get(b)
+    val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
+    if (bigMagic != magic) {
+        val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
+        if (littleMagic != magic) {
+            return false
+        }
+
+        order(ByteOrder.LITTLE_ENDIAN)
+    } else {
+        order(ByteOrder.BIG_ENDIAN)
+    }
+
+    return true
+}
+
+fun ByteBuffer.getUnsignedByte(): Int {
+    return java.lang.Byte.toUnsignedInt(get())
+}
+
+fun ByteBuffer.getUnsignedShort(): Int {
+    return java.lang.Short.toUnsignedInt(getShort())
+}
+
+fun ByteBuffer.getCString(): String {
+    val sb = StringBuilder()
+    do {
+        val ch = get()
+        if (ch == 0.toByte()) {
+            break
+        }
+
+        sb.append(ch.toChar())
+    } while (true)
+
+    return sb.toString()
+}
 
 /**
  * A stripped-down byte order-aware complement to [java.io.DataInputStream].
@@ -23,37 +62,11 @@ import kotlin.LazyThreadSafetyMode.NONE
 interface OrderedDataInput {
     var order: ByteOrder
 
-    fun readFully(b: ByteArray, off: Int = 0, len: Int = b.size)
-
     fun readBoolean() = readUnsignedByte() != 0
 
     fun readByte() = readUnsignedByte().toByte()
 
     fun readUnsignedByte(): Int
-
-    fun readCString(): String {
-        val sb = StringBuilder()
-        do {
-            val ch = readUnsignedByte()
-            if (ch == 0) {
-                break
-            }
-
-            sb.append(ch.toChar())
-        } while (true)
-
-        return sb.toString()
-    }
-
-    fun readShort(): Short {
-        val b1 = readByte()
-        val b2 = readByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Shorts.fromBytes(b1, b2)
-        } else {
-            Shorts.fromBytes(b2, b1)
-        }
-    }
 
     fun readUnsignedShort(): Int {
         val b1 = readByte()
@@ -64,38 +77,6 @@ interface OrderedDataInput {
             Ints.fromBytes(0, 0, b2, b1)
         }
     }
-
-    fun readInt(): Int {
-        val b1 = readByte()
-        val b2 = readByte()
-        val b3 = readByte()
-        val b4 = readByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Ints.fromBytes(b1, b2, b3, b4)
-        } else {
-            Ints.fromBytes(b4, b3, b2, b1)
-        }
-    }
-
-    fun readLong(): Long {
-        val b1 = readByte()
-        val b2 = readByte()
-        val b3 = readByte()
-        val b4 = readByte()
-        val b5 = readByte()
-        val b6 = readByte()
-        val b7 = readByte()
-        val b8 = readByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Longs.fromBytes(b1, b2, b3, b4, b5, b6, b7, b8)
-        } else {
-            Longs.fromBytes(b8, b7, b6, b5, b4, b3, b2, b1)
-        }
-    }
-
-    fun readFloat() = java.lang.Float.intBitsToFloat(readInt())
-
-    fun readDouble() = java.lang.Double.longBitsToDouble(readLong())
 }
 
 internal class SeekableDataInput private constructor(
@@ -105,6 +86,10 @@ internal class SeekableDataInput private constructor(
         OrderedDataInput, Closeable, AutoCloseable {
 
     private val file = RandomAccessFile(path.toFile(), "r")
+
+    val mapped = file.channel.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
+        order(order)
+    }
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
@@ -124,11 +109,11 @@ internal class SeekableDataInput private constructor(
      */
     internal fun <T> with(offset: Long, size: Long,
                           compressed: Boolean = false,
-                          block: CountingOrderedDataInput.() -> T): T {
-        seek(offset)
+                          block: ByteBuffer.() -> T): T {
+        mapped.position(offset.toInt())
         val input = if (compressed) {
             compressedBuf = compressedBuf.ensureCapacity(size.toInt())
-            readFully(compressedBuf, 0, size.toInt())
+            mapped.get(compressedBuf, 0, size.toInt())
 
             // Decompression step is (unfortunately) mandatory, since
             // we need to know the *exact* length of the data before
@@ -143,38 +128,17 @@ internal class SeekableDataInput private constructor(
                 uncompressedSize += actual
             }
 
-            CountingDataInput(ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize),
-                              uncompressedSize.toLong(), order)
+            ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
         } else {
-            uncompressedBuf = uncompressedBuf.ensureCapacity(size.toInt())
-            readFully(uncompressedBuf, 0, size.toInt())
-            CountingDataInput(ByteBuffer.wrap(uncompressedBuf, 0, size.toInt()),
-                              size, order)
+            mapped.duplicate().apply { limit(Ints.checkedCast(offset + size)) }
         }
-        return with(input, block)
-    }
 
-    /** Guess byte order from a given big-endian `magic`. */
-    fun guess(magic: Int) {
-        val b = ByteArray(4)
-        readFully(b)
-        val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
-        order = if (bigMagic != magic) {
-            val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
-            check(littleMagic == magic) { "bad signature in $path" }
-            ByteOrder.LITTLE_ENDIAN
-        } else {
-            ByteOrder.BIG_ENDIAN
-        }
+        return with(input.order(order), block)
     }
 
     fun seek(pos: Long) = file.seek(pos)
 
     fun tell() = file.filePointer
-
-    override fun readFully(b: ByteArray, off: Int, len: Int) {
-        file.readFully(b, off, len)
-    }
 
     override fun readUnsignedByte() = file.readUnsignedByte()
 
@@ -193,43 +157,6 @@ private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
     } else {
         this
     }
-}
-
-internal interface CountingOrderedDataInput : OrderedDataInput {
-    /**
-     * Returns `true` if the input doesn't contain any more data and
-     * `false` otherwise.
-     * */
-    val finished: Boolean
-}
-
-private class CountingDataInput(private val input: ByteBuffer,
-                                private val size: Long,
-                                override var order: ByteOrder)
-:
-        CountingOrderedDataInput {
-
-    private var read = 0L
-
-    override fun readFully(b: ByteArray, off: Int, len: Int) {
-        check(!finished) { "no data" }
-        val available = Math.min(len, (size - read).toInt())
-        input.get(b, off, available)
-        read += available
-    }
-
-    override fun readUnsignedByte(): Int {
-        check(!finished) { "no data" }
-        val b = UnsignedBytes.toInt(input.get())
-        if (b < 0) {
-            throw EOFException()
-        }
-
-        read++
-        return b
-    }
-
-    override val finished: Boolean get() = read >= size
 }
 
 /**

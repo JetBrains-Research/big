@@ -1,11 +1,12 @@
 package org.jetbrains.bio.tdf
 
-import org.jetbrains.bio.OrderedDataInput
 import org.jetbrains.bio.SeekableDataInput
 import org.jetbrains.bio.divCeiling
+import org.jetbrains.bio.getCString
 import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
@@ -29,20 +30,21 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         Closeable, AutoCloseable {
 
     private val input = SeekableDataInput.of(path)
+    private val mapped = input.mapped
     private val index: TdfMasterIndex
-    private val header = Header.read(input)
+    private val header = Header.read(mapped)
 
-    val windowFunctions = input.readSequenceOf { WindowFunction.read(this) }.toList()
-    val trackType = TrackType.read(input)
-    val trackLine = input.readCString().trim()
-    val trackNames = input.readSequenceOf { readCString() }.toList()
-    val build = input.readCString()
-    val compressed = (input.readInt() and 0x1) != 0
+    val windowFunctions = mapped.getSequenceOf { WindowFunction.read(this) }.toList()
+    val trackType = TrackType.read(mapped)
+    val trackLine = mapped.getCString().trim()
+    val trackNames = mapped.getSequenceOf { getCString() }.toList()
+    val build = mapped.getCString()
+    val compressed = (mapped.getInt() and 0x1) != 0
     val version: Int get() = header.version
 
     init {
         // Make sure we haven't read anything extra.
-        check(input.tell() == header.headerSize.toLong() + Header.BYTES)
+        check(mapped.position() == header.headerSize + Header.BYTES)
         index = input.with(header.indexOffset, header.indexSize.toLong()) {
             TdfMasterIndex.read(this)
         }
@@ -159,19 +161,19 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
             /** Number of bytes used for this header. */
             val BYTES = 24
 
-            internal fun read(input: SeekableDataInput) = with(input) {
+            internal fun read(input: ByteBuffer) = with(input) {
                 val b = ByteArray(4)
-                readFully(b)
-                order = ByteOrder.LITTLE_ENDIAN
+                get(b)
+                order(ByteOrder.LITTLE_ENDIAN)
                 val magicString = String(b)
                 check (magicString.startsWith("TDF") || magicString.startsWith("IBF")) {
                     "bad signature in $input"
                 }
 
-                val version = readInt()
-                val indexOffset = readLong()
-                val indexSize = readInt()
-                val headerSize = readInt()
+                val version = getInt()
+                val indexOffset = getLong()
+                val indexSize = getInt()
+                val headerSize = getInt()
                 Header(version, indexOffset, indexSize, headerSize)
             }
         }
@@ -218,16 +220,16 @@ internal data class TdfMasterIndex private constructor(
         val groups: Map<String, IndexEntry>) {
 
     companion object {
-        private fun OrderedDataInput.readIndex(): Map<String, IndexEntry> {
-            return readSequenceOf {
-                val name = readCString()
-                val fPosition = readLong()
-                val n = readInt()
+        private fun ByteBuffer.readIndex(): Map<String, IndexEntry> {
+            return getSequenceOf {
+                val name = getCString()
+                val fPosition = getLong()
+                val n = getInt()
                 name to IndexEntry(fPosition, n)
             }.toMap()
         }
 
-        fun read(input: OrderedDataInput) = with(input) {
+        fun read(input: ByteBuffer) = with(input) {
             val datasets = readIndex()
             val groups = readIndex()
             TdfMasterIndex(datasets, groups)
@@ -248,22 +250,22 @@ data class TdfDataset private constructor(
         val tilePositions: LongArray, val tileSizes: IntArray) {
 
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
+        fun read(input: ByteBuffer) = with(input) {
             val attributes = readAttributes()
-            val dataType = readCString()
+            val dataType = getCString()
 
             check(dataType.toLowerCase() == "float") {
                 "unsupported data type: $dataType"
             }
 
-            val tileWidth = readFloat().toInt()
+            val tileWidth = getFloat().toInt()
 
-            val tileCount = readInt()
+            val tileCount = getInt()
             val tileOffsets = LongArray(tileCount)
             val tileSizes = IntArray(tileCount)
             for (i in 0 until tileCount) {
-                tileOffsets[i] = readLong()
-                tileSizes[i] = readInt()
+                tileOffsets[i] = getLong()
+                tileSizes[i] = getInt()
             }
 
             TdfDataset(attributes, tileWidth, tileCount, tileOffsets, tileSizes)
@@ -276,7 +278,7 @@ data class TdfDataset private constructor(
  */
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
+        fun read(input: ByteBuffer) = with(input) {
             TdfGroup(readAttributes())
         }
     }
@@ -288,29 +290,29 @@ enum class WindowFunction {
     MEAN;
 
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
-            valueOf(readCString().toUpperCase())
+        fun read(input: ByteBuffer) = with(input) {
+            valueOf(getCString().toUpperCase())
         }
     }
 }
 
 data class TrackType(val id: String) {
     companion object {
-        fun read(input: OrderedDataInput) = with(input) {
-            TrackType(readCString())
+        fun read(input: ByteBuffer) = with(input) {
+            TrackType(getCString())
         }
     }
 }
 
-private fun <T> OrderedDataInput.readSequenceOf(
-        block: OrderedDataInput.() -> T): Sequence<T> {
-    return (0 until readInt()).mapUnboxed { block() }
+private fun <T> ByteBuffer.getSequenceOf(
+        block: ByteBuffer.() -> T): Sequence<T> {
+    return (0 until getInt()).mapUnboxed { block() }
 }
 
-private fun OrderedDataInput.readAttributes(): Map<String, String> {
-    return readSequenceOf {
-        val key = readCString()
-        val value = readCString()
+private fun ByteBuffer.readAttributes(): Map<String, String> {
+    return getSequenceOf {
+        val key = getCString()
+        val value = getCString()
         key to value
     }.toMap()
 }

@@ -3,6 +3,7 @@ package org.jetbrains.bio.big
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.getCString
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -60,15 +61,15 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
         return input.with(dataOffset, dataSize, compressed) {
             val chunk = ArrayList<BedEntry>()
             do {
-                val chromIx = readInt()
+                val chromIx = getInt()
                 assert(chromIx == query.chromIx) { "interval contains wrong chromosome" }
-                val startOffset = readInt()
-                val endOffset = readInt()
-                val rest = readCString()
+                val startOffset = getInt()
+                val endOffset = getInt()
+                val rest = getCString()
                 if (query.contains(startOffset, endOffset, overlaps)) {
                     chunk.add(BedEntry(chrom, startOffset, endOffset, rest))
                 }
-            } while (!finished)
+            } while (hasRemaining())
 
             chunk.asSequence()
         }
@@ -79,7 +80,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
         internal val MAGIC: Int = 0x8789F2EB.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): BigBedFile = BigBedFile(path)
+        @JvmStatic fun read(path: Path) = BigBedFile(path)
 
         /**
          * Creates a BigBED file from given entries.

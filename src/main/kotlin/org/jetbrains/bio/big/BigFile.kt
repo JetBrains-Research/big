@@ -7,6 +7,7 @@ import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
 import java.io.Closeable
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,9 +21,13 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         Closeable, AutoCloseable {
 
     internal val input = SeekableDataInput.of(path)
-    internal val header = Header.read(input, magic)
+    internal val header = Header.read(input.mapped, magic)
+    init {  // HACK until everything uses ByteBuffer.
+        input.order = header.order
+    }
+
     internal val zoomLevels = (0..header.zoomLevelCount - 1)
-            .map { ZoomLevel.read(input) }
+            .map { ZoomLevel.read(input.mapped) }
     internal val bPlusTree: BPlusTree
     internal val rTree: RTreeIndex
 
@@ -35,14 +40,16 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             LOG.warn("Header extensions are unsupported")
         }
 
-        bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+        bPlusTree = BPlusTree.read(input.mapped, header.chromTreeOffset)
         check(bPlusTree.header.order == header.order)
-        rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+        rTree = RTreeIndex.read(input.mapped, header.unzoomedIndexOffset)
         check(rTree.header.order == header.order)
     }
 
     /** Whole-file summary. */
-    val totalSummary: BigSummary by lazy(NONE) { BigSummary.read(input) }
+    val totalSummary: BigSummary by lazy(NONE) {
+        BigSummary.read(input.mapped, header.totalSummaryOffset)
+    }
 
     /**
      * An in-memory mapping of chromosome IDs to chromosome names.
@@ -52,7 +59,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     val chromosomes: TIntObjectMap<String> by lazy(NONE) {
         with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
-            for (leaf in traverse(input)) {
+            for (leaf in traverse(input.mapped)) {
                 res.put(leaf.id, leaf.key)
             }
 
@@ -82,7 +89,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     @Throws(IOException::class)
     fun summarize(name: String, startOffset: Int = 0, endOffset: Int = 0,
                   numBins: Int = 1, index: Boolean = true): List<BigSummary> {
-        val chromosome = bPlusTree.find(input, name)
+        val chromosome = bPlusTree.find(input.mapped, name)
                          ?: throw NoSuchElementException(name)
 
         val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
@@ -119,7 +126,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
+        val zRTree = RTreeIndex.read(input.mapped, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
             assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
             input.with(block.dataOffset, block.dataSize, compressed) {
@@ -129,7 +136,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                     if (zoomData.interval intersects query) {
                         res.add(zoomData)
                     }
-                } while (!finished)
+                } while (hasRemaining())
 
                 res.asSequence()
             }
@@ -178,7 +185,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     @Throws(IOException::class)
     @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
                             overlaps: Boolean = false): Sequence<T> {
-        val res = bPlusTree.find(input, name)
+        val res = bPlusTree.find(input.mapped, name)
         return if (res == null) {
             emptySequence()
         } else {
@@ -229,21 +236,21 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             /** Number of bytes used for this header. */
             internal val BYTES = 64
 
-            internal fun read(input: SeekableDataInput, magic: Int): Header = with(input) {
+            internal fun read(input: ByteBuffer, magic: Int): Header = with(input) {
                 guess(magic)
 
-                val version = readUnsignedShort()
-                val zoomLevelCount = readUnsignedShort()
-                val chromTreeOffset = readLong()
-                val unzoomedDataOffset = readLong()
-                val unzoomedIndexOffset = readLong()
-                val fieldCount = readUnsignedShort()
-                val definedFieldCount = readUnsignedShort()
-                val asOffset = readLong()
-                val totalSummaryOffset = readLong()
-                val uncompressBufSize = readInt()
-                val extendedHeaderOffset = readLong()
-                return Header(order, magic, version, zoomLevelCount, chromTreeOffset,
+                val version = getUnsignedShort()
+                val zoomLevelCount = getUnsignedShort()
+                val chromTreeOffset = getLong()
+                val unzoomedDataOffset = getLong()
+                val unzoomedIndexOffset = getLong()
+                val fieldCount = getUnsignedShort()
+                val definedFieldCount = getUnsignedShort()
+                val asOffset = getLong()
+                val totalSummaryOffset = getLong()
+                val uncompressBufSize = getInt()
+                val extendedHeaderOffset = getLong()
+                return Header(order(), magic, version, zoomLevelCount, chromTreeOffset,
                               unzoomedDataOffset, unzoomedIndexOffset,
                               fieldCount, definedFieldCount, asOffset,
                               totalSummaryOffset, uncompressBufSize,
@@ -257,14 +264,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         /** Checks if a given `path` starts with a valid `magic`. */
         fun check(path: Path, magic: Int): Boolean {
-            return SeekableDataInput.of(path).use { input ->
-                try {
-                    input.guess(magic)
-                    true
-                } catch (e: IllegalStateException) {
-                    false
-                }
-            }
+            return SeekableDataInput.of(path).use { it.mapped.guess(magic) }
         }
 
         fun read(path: Path): BigFile<*> = when {
@@ -344,7 +344,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
-            for ((name, chromIx, size) in bf.bPlusTree.traverse(bf.input)) {
+            for ((name, chromIx, size) in bf.bPlusTree.traverse(bf.input.mapped)) {
                 val query = Interval(chromIx, 0, size)
                 val summaries = bf.summarizeInternal(query, numBins = size divCeiling reduction)
                 for (slot in summaries.partition(itemsPerSlot)) {

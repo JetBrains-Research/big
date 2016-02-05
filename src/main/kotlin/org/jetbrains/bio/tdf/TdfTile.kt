@@ -1,8 +1,10 @@
 package org.jetbrains.bio.tdf
 
+import com.google.common.primitives.Ints
 import org.apache.log4j.Logger
-import org.jetbrains.bio.OrderedDataInput
 import org.jetbrains.bio.ScoredInterval
+import org.jetbrains.bio.getCString
+import java.nio.ByteBuffer
 
 /**
  * Data container in [TdfFile].
@@ -24,8 +26,8 @@ interface TdfTile {
     companion object {
         private val LOG = Logger.getLogger(TdfTile::class.java)
 
-        internal fun read(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val type = readCString()
+        internal fun read(input: ByteBuffer, expectedTracks: Int) = with(input) {
+            val type = getCString()
             when (type) {
                 "fixedStep" -> TdfFixedTile.fill(this, expectedTracks)
                 "variableStep" -> TdfVaryTile.fill(this, expectedTracks)
@@ -70,27 +72,22 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val size = readInt()
-            val start = IntArray(size)
-            for (i in 0 until size) {
-                start[i] = readInt()
-            }
-            val end = IntArray(size)
-            for (i in 0 until size) {
-                end[i] = readInt()
-            }
+        fun fill(input: ByteBuffer, expectedTracks: Int) = with(input) {
+            val size = getInt()
+            val start = IntArray(size).apply { asIntBuffer().get(this) }
+            position(position() + Ints.BYTES * size)
 
-            val trackCount = readInt()
+            val end = IntArray(size).apply { asIntBuffer().get(this) }
+            position(position() + Ints.BYTES * size)
+
+            val trackCount = getInt()
             check(trackCount == expectedTracks) {
                 "expected $expectedTracks tracks, got: $trackCount"
             }
+
+            val floatInput = asFloatBuffer()
             val data = Array(trackCount) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-                acc
+                FloatArray(size).apply { floatInput.get(this) }
             }
 
             TdfBedTile(start, end, data)
@@ -114,19 +111,16 @@ data class TdfFixedTile(val start: Int, val span: Double,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
-            val size = readInt()
-            val start = readInt()
-            val span = readFloat().toDouble()
+        fun fill(input: ByteBuffer, expectedTracks: Int) = with(input) {
+            val size = getInt()
+            val start = getInt()
+            val span = getInt().toDouble()
 
             // vvv not part of the implementation, see igvteam/igv/#180.
             // val trackCount = readInt()
+            val floatInput = asFloatBuffer()
             val data = Array(expectedTracks) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-                acc
+                FloatArray(size).apply { floatInput.get(this) }
             }
 
             TdfFixedTile(start, span, data)
@@ -146,28 +140,25 @@ data class TdfVaryTile(val starts: IntArray, val span: Int,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: OrderedDataInput, expectedTracks: Int) = with(input) {
+        fun fill(input: ByteBuffer, expectedTracks: Int) = with(input) {
             // This is called 'tiledStart' in IGV sources and is unused.
-            val start = readInt()
-            val span = readFloat().toInt()  // Really?
-            val size = readInt()
+            val start = getInt()
+            val span = getFloat().toInt()  // Really?
+            val size = getInt()
 
             val step = IntArray(size)
             for (i in 0 until size) {
-                step[i] = readInt()
+                step[i] = getInt()
             }
 
-            val trackCount = readInt()
+            val trackCount = getInt()
             check(trackCount == expectedTracks) {
                 "expected $expectedTracks tracks, got: $trackCount"
             }
+            
+            val floatInput = asFloatBuffer()
             val data = Array(trackCount) {
-                val acc = FloatArray(size)
-                for (i in 0 until size) {
-                    acc[i] = readFloat()
-                }
-
-                acc
+                FloatArray(size).apply { floatInput.get(this) }
             }
 
             TdfVaryTile(step, span, data)

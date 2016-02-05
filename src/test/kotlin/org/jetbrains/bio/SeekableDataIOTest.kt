@@ -1,9 +1,5 @@
 package org.jetbrains.bio
 
-import org.jetbrains.bio.CountingDataOutput
-import org.jetbrains.bio.SeekableDataInput
-import org.jetbrains.bio.withTempFile
-import org.jetbrains.bio.trimZeros
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -23,19 +19,15 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         val l = r.nextLong()
         CountingDataOutput.of(path, order).use {
             it.writeByte(b.toInt())
-            it.writeByte(Math.abs(b.toInt()))
             it.writeShort(s)
-            it.writeShort(Math.abs(i) and 0xffff)
             it.writeInt(i)
             it.writeLong(l)
         }
         SeekableDataInput.of(path, order).use {
-            assertEquals(b, it.readByte())
-            assertEquals(Math.abs(b.toInt()), it.readUnsignedByte())
-            assertEquals(s.toShort(), it.readShort())
-            assertEquals(Math.abs(i) and 0xffff, it.readUnsignedShort())
-            assertEquals(i, it.readInt())
-            assertEquals(l, it.readLong())
+            assertEquals(b, it.mapped.get())
+            assertEquals(s.toShort(), it.mapped.getShort())
+            assertEquals(i, it.mapped.getInt())
+            assertEquals(l, it.mapped.getLong())
         }
     }
 
@@ -47,8 +39,8 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeDouble(d)
         }
         SeekableDataInput.of(path, order).use {
-            assertEquals(f, it.readFloat())
-            assertEquals(d, it.readDouble())
+            assertEquals(f, it.mapped.getFloat())
+            assertEquals(d, it.mapped.getDouble())
         }
     }
 
@@ -60,13 +52,13 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.skipBytes(16)
         }
         SeekableDataInput.of(path, order).use {
-            assertEquals(s, it.readCString())
+            assertEquals(s, it.mapped.getCString())
             var b = ByteArray(s.length + 8)
-            it.readFully(b)
+            it.mapped.get(b)
             assertEquals(s, String(b).trimZeros())
 
             for (i in 0 until 16) {
-                assertEquals(0.toByte(), it.readByte())
+                assertEquals(0.toByte(), it.mapped.get())
             }
         }
     }
@@ -79,8 +71,8 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         SeekableDataInput.of(path, order).use {
             for (i in 0 until b.size) {
                 it.seek(i.toLong())
-                assertEquals(b[i], it.readByte())
-                assertEquals(i + 1L, it.tell())
+                assertEquals(b[i], it.mapped.get())
+                assertEquals(i + 1, it.mapped.position())
             }
         }
     }
@@ -96,7 +88,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         SeekableDataInput.of(path, order).use {
             it.with(0L, Files.size(path), compressed = true) {
                 for (i in 0 until b.size) {
-                    assertEquals(b[i], readByte())
+                    assertEquals(b[i], get())
                 }
             }
         }

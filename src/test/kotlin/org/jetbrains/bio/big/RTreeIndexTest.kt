@@ -35,7 +35,7 @@ class RTreeIndexTest {
             }
 
             SeekableDataInput.of(path).use { input ->
-                val rti = RTreeIndex.read(input, 0L)
+                val rti = RTreeIndex.read(input.mapped, 0L)
                 val query = Interval(0, 100, 200)
                 assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
             }
@@ -77,7 +77,7 @@ class RTreeIndexTest {
 
             CountingDataOutput.of(path).use { RTreeIndex.write(it, leaves, blockSize) }
             SeekableDataInput.of(path).use { input ->
-                val rti = RTreeIndex.read(input, 0)
+                val rti = RTreeIndex.read(input.mapped, 0)
                 for (leaf in leaves) {
                     val overlaps = rti.findOverlappingBlocks(
                             input, leaf.interval as ChromosomeInterval).toList()
