@@ -63,20 +63,6 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
-    @Test fun testSeekTell() = withTempFileRandomized { path, r ->
-        val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
-        CountingDataOutput.of(path, order).use { output ->
-            b.forEach { output.writeByte(it.toInt()) }
-        }
-        SeekableDataInput.of(path, order).use {
-            for (i in 0 until b.size) {
-                it.seek(i.toLong())
-                assertEquals(b[i], it.mapped.get())
-                assertEquals(i + 1, it.mapped.position())
-            }
-        }
-    }
-
     @Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
         CountingDataOutput.of(path, order).use {

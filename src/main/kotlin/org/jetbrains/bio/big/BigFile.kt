@@ -22,10 +22,6 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     internal val input = SeekableDataInput.of(path)
     internal val header = Header.read(input.mapped, magic)
-    init {  // HACK until everything uses ByteBuffer.
-        input.order = header.order
-    }
-
     internal val zoomLevels = (0..header.zoomLevelCount - 1)
             .map { ZoomLevel.read(input.mapped) }
     internal val bPlusTree: BPlusTree

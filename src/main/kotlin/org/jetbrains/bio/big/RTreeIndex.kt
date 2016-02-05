@@ -49,21 +49,23 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    internal fun findOverlappingBlocksRecursively(input: SeekableDataInput,
+    internal fun findOverlappingBlocksRecursively(legacyInput: SeekableDataInput,
                                                   query: ChromosomeInterval,
                                                   offset: Long): Sequence<RTreeIndexLeaf> {
-        assert(input.order == header.order)
-        input.seek(offset)
+        val input = legacyInput.mapped
+        assert(input.order() == header.order)
+        input.position(Ints.checkedCast(offset))
 
-        val isLeaf = input.readBoolean()
-        input.readByte()  // reserved.
-        val childCount = input.readUnsignedShort()
+        val isLeaf = input.get() > 0
+        input.get()  // reserved.
+        val childCount = input.getUnsignedShort()
 
         // XXX we have to eagerly read the blocks because 'input' is
         // shared between calls.
         return if (isLeaf) {
             val acc = ArrayList<RTreeIndexLeaf>(childCount)
-            input.with(input.tell(), (childCount * RTreeIndexLeaf.BYTES).toLong()) {
+            legacyInput.with(input.position().toLong(),
+                             (childCount * RTreeIndexLeaf.BYTES).toLong()) {
                 for (i in 0..childCount - 1) {
                     val leaf = RTreeIndexLeaf.read(this)
                     if (leaf.interval intersects query) {
@@ -75,7 +77,8 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             acc.asSequence()
         } else {
             val acc = ArrayList<RTreeIndexNode>(childCount)
-            input.with(input.tell(), (childCount * RTreeIndexNode.BYTES).toLong()) {
+            legacyInput.with(input.position().toLong(),
+                             (childCount * RTreeIndexNode.BYTES).toLong()) {
                 for (i in 0..childCount - 1) {
                     val node = RTreeIndexNode.read(this)
                     if (node.interval intersects query) {
@@ -85,7 +88,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             acc.asSequence().flatMap { node ->
-                findOverlappingBlocksRecursively(input, query, node.dataOffset)
+                findOverlappingBlocksRecursively(legacyInput, query, node.dataOffset)
             }
         }
     }

@@ -7,9 +7,11 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.Channels
+import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
@@ -57,37 +59,16 @@ fun ByteBuffer.getCString(): String {
 }
 
 /**
- * A stripped-down byte order-aware complement to [java.io.DataInputStream].
+ * A stripped-down byte order-aware complement to [java.io.DataInput].
  */
-interface OrderedDataInput {
-    var order: ByteOrder
-
-    fun readBoolean() = readUnsignedByte() != 0
-
-    fun readByte() = readUnsignedByte().toByte()
-
-    fun readUnsignedByte(): Int
-
-    fun readUnsignedShort(): Int {
-        val b1 = readByte()
-        val b2 = readByte()
-        return if (order == ByteOrder.BIG_ENDIAN) {
-            Ints.fromBytes(0, 0, b1, b2)
-        } else {
-            Ints.fromBytes(0, 0, b2, b1)
-        }
-    }
-}
-
 internal class SeekableDataInput private constructor(
         private val path: Path,
-        override var order: ByteOrder)
+        order: ByteOrder)
 :
-        OrderedDataInput, Closeable, AutoCloseable {
+        Closeable, AutoCloseable {
 
-    private val file = RandomAccessFile(path.toFile(), "r")
-
-    val mapped = file.channel.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
+    private val channel = FileChannel.open(path, StandardOpenOption.READ)
+    val mapped = channel.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
         order(order)
     }
 
@@ -133,16 +114,10 @@ internal class SeekableDataInput private constructor(
             mapped.duplicate().apply { limit(Ints.checkedCast(offset + size)) }
         }
 
-        return with(input.order(order), block)
+        return with(input.order(mapped.order()), block)
     }
 
-    fun seek(pos: Long) = file.seek(pos)
-
-    fun tell() = file.filePointer
-
-    override fun readUnsignedByte() = file.readUnsignedByte()
-
-    override fun close() = file.close()
+    override fun close() = channel.close()
 
     companion object {
         fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
