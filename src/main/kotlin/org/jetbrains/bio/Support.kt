@@ -47,10 +47,6 @@ private class TransformingIntIterator<R>(private val it: IntIterator,
     override fun hasNext() = it.hasNext()
 }
 
-internal fun <R> IntRange.mapUnboxed(transform: (Int) -> R): Sequence<R> {
-    return TransformingIntIterator(iterator(), transform).asSequence()
-}
-
 internal fun <R> IntProgression.mapUnboxed(transform: (Int) -> R): Sequence<R> {
     return TransformingIntIterator(iterator(), transform).asSequence()
 }
@@ -59,10 +55,9 @@ internal fun String.trimZeros() = trimEnd { it == '\u0000' }
 
 internal fun <T> Sequence<T>.partition(n: Int): Sequence<List<T>> {
     require(n > 1) { "n must be >1" }
-    val that = this
     return object : Sequence<List<T>> {
         override fun iterator(): Iterator<List<T>> {
-            return Iterators.partition(that.iterator(), n)
+            return Iterators.partition(this@partition.iterator(), n)
         }
     }
 }
@@ -76,9 +71,6 @@ internal inline fun <T> Logger.time(message: String, block: () -> T): T {
     return res
 }
 
-// It's a false positive. Without the ? the code doesn't compile
-// at least on M12.
-@Suppress("base_with_nullable_upper_bound")
 internal abstract class CachingIterator<T>(reader: BufferedReader) : UnmodifiableIterator<T>() {
     protected var lines: PeekingIterator<String> =
             Iterators.peekingIterator(reader.lines().iterator())

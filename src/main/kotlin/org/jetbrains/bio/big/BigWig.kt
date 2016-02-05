@@ -150,12 +150,12 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
-        @JvmStatic fun write(wigSections: Iterable<WigSection>,
-                             chromSizes: Iterable<Pair<String, Int>>,
-                             outputPath: Path,
-                             zoomLevelCount: Int = 8,
-                             compressed: Boolean = true,
-                             order: ByteOrder = ByteOrder.nativeOrder()) {
+        @JvmStatic @JvmOverloads fun write(
+                wigSections: Iterable<WigSection>,
+                chromSizes: Iterable<Pair<String, Int>>,
+                outputPath: Path, zoomLevelCount: Int = 8,
+                compressed: Boolean = true,
+                order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
             val header = CountingDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)

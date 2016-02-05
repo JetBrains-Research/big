@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
+import org.jetbrains.bio.Examples
 import org.jetbrains.bio.chromosomes
 import org.jetbrains.bio.pow
 import org.jetbrains.bio.withTempFile

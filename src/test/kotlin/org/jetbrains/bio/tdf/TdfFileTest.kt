@@ -1,6 +1,6 @@
 package org.jetbrains.bio.tdf
 
-import org.jetbrains.bio.big.Examples
+import org.jetbrains.bio.Examples
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

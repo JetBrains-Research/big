@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.Examples
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

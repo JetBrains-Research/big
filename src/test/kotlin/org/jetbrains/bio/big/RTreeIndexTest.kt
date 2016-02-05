@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.Examples
 import org.jetbrains.bio.SeekableDataInput
 import org.jetbrains.bio.withTempFile
 import org.junit.Test

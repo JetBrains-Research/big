@@ -4,8 +4,18 @@ import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.OpenOption
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
+
+internal object Examples {
+    @JvmStatic operator fun get(name: String): Path {
+        val url = Examples.javaClass.classLoader.getResource(name)
+                  ?: throw IllegalStateException("resource not found")
+
+        return Paths.get(url.toURI()).toFile().toPath()
+    }
+}
 
 internal fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
     val inputStream = Files.newInputStream(this, *options).buffered()

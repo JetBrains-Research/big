@@ -1,10 +1,7 @@
 package org.jetbrains.bio.big
 
 import org.apache.commons.math3.util.Precision
-import org.jetbrains.bio.ScoredInterval
-import org.jetbrains.bio.bufferedReader
-import org.jetbrains.bio.chromosomes
-import org.jetbrains.bio.withTempFile
+import org.jetbrains.bio.*
 import org.junit.Test
 import java.nio.ByteOrder
 import java.nio.file.Path

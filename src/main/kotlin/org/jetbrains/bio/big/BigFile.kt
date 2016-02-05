@@ -176,8 +176,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      * @throws IOException if the underlying [SeekableDataInput] does so.
      */
     @Throws(IOException::class)
-    fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
-              overlaps: Boolean = false): Sequence<T> {
+    @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
+                            overlaps: Boolean = false): Sequence<T> {
         val res = bPlusTree.find(input, name)
         return if (res == null) {
             emptySequence()

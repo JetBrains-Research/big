@@ -164,9 +164,9 @@ internal class SeekableDataInput private constructor(
         }
     }
 
-    fun seek(pos: Long): Unit = file.seek(pos)
+    fun seek(pos: Long) = file.seek(pos)
 
-    fun tell(): Long = file.filePointer
+    fun tell() = file.filePointer
 
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         file.readFully(b, off, len)
@@ -305,8 +305,8 @@ interface OrderedDataOutput {
 }
 
 internal open class CountingDataOutput(private val output: OutputStream,
-                              private val offset: Long,
-                              override val order: ByteOrder)
+                                       private val offset: Long,
+                                       override val order: ByteOrder)
 :
         OrderedDataOutput, Closeable, AutoCloseable {
 
@@ -357,7 +357,7 @@ internal open class CountingDataOutput(private val output: OutputStream,
         ack(1)
     }
 
-    fun tell(): Long = offset + written
+    fun tell() = offset + written
 
     override fun close() = output.close()
 
