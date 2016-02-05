@@ -1,10 +1,14 @@
 package org.jetbrains.bio
 
-import com.google.common.io.ByteStreams
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
-import java.io.*
+import com.google.common.primitives.UnsignedBytes
+import java.io.Closeable
+import java.io.EOFException
+import java.io.OutputStream
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.Channels
 import java.nio.file.Path
@@ -139,13 +143,13 @@ internal class SeekableDataInput private constructor(
                 uncompressedSize += actual
             }
 
-            CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, uncompressedSize),
-                    uncompressedSize.toLong(), order)
+            CountingDataInput(ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize),
+                              uncompressedSize.toLong(), order)
         } else {
             uncompressedBuf = uncompressedBuf.ensureCapacity(size.toInt())
             readFully(uncompressedBuf, 0, size.toInt())
-            CountingDataInput(ByteArrayInputStream(uncompressedBuf, 0, size.toInt()),
-                    size, order)
+            CountingDataInput(ByteBuffer.wrap(uncompressedBuf, 0, size.toInt()),
+                              size, order)
         }
         return with(input, block)
     }
@@ -172,7 +176,7 @@ internal class SeekableDataInput private constructor(
         file.readFully(b, off, len)
     }
 
-    override fun readUnsignedByte(): Int = file.readUnsignedByte()
+    override fun readUnsignedByte() = file.readUnsignedByte()
 
     override fun close() = file.close()
 
@@ -199,7 +203,7 @@ internal interface CountingOrderedDataInput : OrderedDataInput {
     val finished: Boolean
 }
 
-private class CountingDataInput(private val input: InputStream,
+private class CountingDataInput(private val input: ByteBuffer,
                                 private val size: Long,
                                 override var order: ByteOrder)
 :
@@ -210,13 +214,13 @@ private class CountingDataInput(private val input: InputStream,
     override fun readFully(b: ByteArray, off: Int, len: Int) {
         check(!finished) { "no data" }
         val available = Math.min(len, (size - read).toInt())
-        ByteStreams.readFully(input, b, off, available)
+        input.get(b, off, available)
         read += available
     }
 
     override fun readUnsignedByte(): Int {
         check(!finished) { "no data" }
-        val b = input.read()
+        val b = UnsignedBytes.toInt(input.get())
         if (b < 0) {
             throw EOFException()
         }
