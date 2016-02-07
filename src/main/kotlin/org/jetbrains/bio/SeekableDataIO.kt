@@ -17,19 +17,16 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import kotlin.LazyThreadSafetyMode.NONE
 
-/** Guess byte order from a given big-endian `magic`. */
+/** Guess byte order from a given `magic`. */
 fun ByteBuffer.guess(magic: Int): Boolean {
-    val b = ByteArray(4)
-    get(b)
-    val bigMagic = Ints.fromBytes(b[0], b[1], b[2], b[3])
-    if (bigMagic != magic) {
-        val littleMagic = Ints.fromBytes(b[3], b[2], b[1], b[0])
-        if (littleMagic != magic) {
+    order(ByteOrder.LITTLE_ENDIAN)
+    val littleMagic = getInt()
+    if (littleMagic != magic) {
+        val bigMagic = java.lang.Integer.reverseBytes(littleMagic)
+        if (bigMagic != magic) {
             return false
         }
 
-        order(ByteOrder.LITTLE_ENDIAN)
-    } else {
         order(ByteOrder.BIG_ENDIAN)
     }
 
