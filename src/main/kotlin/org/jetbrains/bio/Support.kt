@@ -93,3 +93,6 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
 
     protected abstract fun cache(): T?
 }
+
+/** A function which simply ignores a given [value]. */
+internal fun ignore(value: Any?) {}

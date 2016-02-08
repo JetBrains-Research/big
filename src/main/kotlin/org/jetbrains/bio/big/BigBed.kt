@@ -3,7 +3,6 @@ package org.jetbrains.bio.big
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import org.jetbrains.bio.CountingDataOutput
-import org.jetbrains.bio.getCString
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path

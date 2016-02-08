@@ -6,9 +6,7 @@ import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.MappedByteBuffer
 
 /**
  * A B+ tree mapping chromosome names to (id, size) pairs.
@@ -25,7 +23,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      * Recursively goes across tree, calling callback on the leaves.
      */
     @Throws(IOException::class)
-    fun traverse(input: MappedByteBuffer): Sequence<BPlusLeaf> {
+    fun traverse(input: BigByteBuffer): Sequence<BPlusLeaf> {
         return if (header.itemCount == 0) {
             emptySequence()
         } else {
@@ -33,10 +31,10 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         }
     }
 
-    private fun traverseRecursively(input: MappedByteBuffer,
+    private fun traverseRecursively(input: BigByteBuffer,
                                     offset: Long): Sequence<BPlusLeaf> {
-        assert(input.order() == header.order)
-        input.position(Ints.checkedCast(offset))
+        assert(input.order == header.order)
+        input.position = Ints.checkedCast(offset)
 
         val isLeaf = input.get() > 0
         input.get()  // reserved.
@@ -59,7 +57,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      * to `query`.
      */
     @Throws(IOException::class)
-    fun find(input: MappedByteBuffer, query: String): BPlusLeaf? {
+    fun find(input: BigByteBuffer, query: String): BPlusLeaf? {
         if (header.itemCount == 0 || query.length > header.keySize) {
             return null
         }
@@ -70,10 +68,10 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
-    private fun findRecursively(input: MappedByteBuffer, blockStart: Long,
+    private fun findRecursively(input: BigByteBuffer, blockStart: Long,
                                 query: String): BPlusLeaf? {
-        assert(input.order() == header.order)
-        input.position(Ints.checkedCast(blockStart))
+        assert(input.order == header.order)
+        input.position = Ints.checkedCast(blockStart)
 
         val isLeaf = input.get() > 0
         input.get()  // reserved.
@@ -123,8 +121,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x78CA8C91
 
-            fun read(input: ByteBuffer, offset: Long): Header = with(input) {
-                position(Ints.checkedCast(offset))
+            fun read(input: BigByteBuffer, offset: Long): Header = with(input) {
+                position = Ints.checkedCast(offset)
                 guess(MAGIC)
                 val blockSize = getInt()
                 val keySize = getInt()
@@ -133,9 +131,9 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
                 val itemCount = getLong()
                 getLong()  // reserved.
-                val rootOffset = position().toLong()
+                val rootOffset = position.toLong()
 
-                return Header(order(), blockSize, keySize,
+                return Header(order, blockSize, keySize,
                               Ints.checkedCast(itemCount), rootOffset)
             }
         }
@@ -144,7 +142,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
     companion object {
         private val LOG = LogManager.getLogger(BPlusTree::class.java)
 
-        internal fun read(input: ByteBuffer, offset: Long): BPlusTree {
+        internal fun read(input: BigByteBuffer, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
         }
 
@@ -274,7 +272,7 @@ data class BPlusLeaf(
     override fun toString(): String = "$key => ($id; $size)"
 
     companion object {
-        internal fun read(input: ByteBuffer, keySize: Int) = with(input) {
+        internal fun read(input: BigByteBuffer, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             get(keyBuf)
             val chromId = getInt()
@@ -299,7 +297,7 @@ private class BPlusNode(
     }
 
     companion object {
-        internal fun read(input: ByteBuffer, keySize: Int) = with(input) {
+        internal fun read(input: BigByteBuffer, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             get(keyBuf)
             val childOffset = getLong()

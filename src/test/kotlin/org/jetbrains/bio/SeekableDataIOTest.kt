@@ -23,11 +23,11 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeInt(i)
             it.writeLong(l)
         }
-        SeekableDataInput.of(path, order).use {
-            assertEquals(b, it.mapped.get())
-            assertEquals(s.toShort(), it.mapped.getShort())
-            assertEquals(i, it.mapped.getInt())
-            assertEquals(l, it.mapped.getLong())
+        BigByteBuffer.of(path, order).use {
+            assertEquals(b, it.get())
+            assertEquals(s.toShort(), it.getShort())
+            assertEquals(i, it.getInt())
+            assertEquals(l, it.getLong())
         }
     }
 
@@ -38,9 +38,9 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeFloat(f)
             it.writeDouble(d)
         }
-        SeekableDataInput.of(path, order).use {
-            assertEquals(f, it.mapped.getFloat())
-            assertEquals(d, it.mapped.getDouble())
+        BigByteBuffer.of(path, order).use {
+            assertEquals(f, it.getFloat())
+            assertEquals(d, it.getDouble())
         }
     }
 
@@ -51,14 +51,14 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeCString(s, s.length + 8)
             it.skipBytes(16)
         }
-        SeekableDataInput.of(path, order).use {
-            assertEquals(s, it.mapped.getCString())
+        BigByteBuffer.of(path, order).use {
+            assertEquals(s, it.getCString())
             var b = ByteArray(s.length + 8)
-            it.mapped.get(b)
+            it.get(b)
             assertEquals(s, String(b).trimZeros())
 
             for (i in 0 until 16) {
-                assertEquals(0.toByte(), it.mapped.get())
+                assertEquals(0.toByte(), it.get())
             }
         }
     }
@@ -71,7 +71,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             }
         }
 
-        SeekableDataInput.of(path, order).use {
+        BigByteBuffer.of(path, order).use {
             it.with(0L, Files.size(path), compressed = true) {
                 for (i in 0 until b.size) {
                     assertEquals(b[i], get())

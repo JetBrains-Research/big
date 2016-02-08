@@ -105,7 +105,7 @@ class BigBedFileTest {
     private fun testQueryConsistency(overlaps: Boolean) {
         BigBedFile.read(Examples["example1.bb"]).use { bbf ->
             val (name, chromIx, _size) =
-                    bbf.bPlusTree.traverse(bbf.input.mapped).first()
+                    bbf.bPlusTree.traverse(bbf.input).first()
             val bedEntries = bbf.query(name).toList()
             val i = RANDOM.nextInt(bedEntries.size)
             val j = RANDOM.nextInt(bedEntries.size)

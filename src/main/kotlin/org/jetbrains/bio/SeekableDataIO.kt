@@ -17,57 +17,68 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import kotlin.LazyThreadSafetyMode.NONE
 
-/** Guess byte order from a given `magic`. */
-fun ByteBuffer.guess(magic: Int): Boolean {
-    order(ByteOrder.LITTLE_ENDIAN)
-    val littleMagic = getInt()
-    if (littleMagic != magic) {
-        val bigMagic = java.lang.Integer.reverseBytes(littleMagic)
-        if (bigMagic != magic) {
-            return false
-        }
-
-        order(ByteOrder.BIG_ENDIAN)
-    }
-
-    return true
-}
-
-fun ByteBuffer.getUnsignedByte(): Int {
-    return java.lang.Byte.toUnsignedInt(get())
-}
-
-fun ByteBuffer.getUnsignedShort(): Int {
-    return java.lang.Short.toUnsignedInt(getShort())
-}
-
-fun ByteBuffer.getCString(): String {
-    val sb = StringBuilder()
-    do {
-        val ch = get()
-        if (ch == 0.toByte()) {
-            break
-        }
-
-        sb.append(ch.toChar())
-    } while (true)
-
-    return sb.toString()
-}
-
-/**
- * A stripped-down byte order-aware complement to [java.io.DataInput].
- */
-internal class SeekableDataInput private constructor(
-        private val path: Path,
-        order: ByteOrder)
-:
+class BigByteBuffer private constructor(val mapped: ByteBuffer) :
         Closeable, AutoCloseable {
 
-    private val channel = FileChannel.open(path, StandardOpenOption.READ)
-    val mapped = channel.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
-        order(order)
+    var position: Int
+        get() = mapped.position()
+        set(value: Int) = ignore(mapped.position(value))
+
+    val order: ByteOrder get() = mapped.order()
+
+    /** Guess byte order from a given `magic`. */
+    fun guess(magic: Int): Boolean {
+        mapped.order(ByteOrder.LITTLE_ENDIAN)
+        val littleMagic = getInt()
+        if (littleMagic != magic) {
+            val bigMagic = java.lang.Integer.reverseBytes(littleMagic)
+            if (bigMagic != magic) {
+                return false
+            }
+
+            mapped.order(ByteOrder.BIG_ENDIAN)
+        }
+
+        return true
     }
+
+    fun asIntBuffer() = mapped.asIntBuffer()
+
+    fun asFloatBuffer() = mapped.asFloatBuffer()
+
+    fun get(dst: ByteArray) = mapped.get(dst)
+
+    fun get() = mapped.get()
+
+    fun getUnsignedByte() = java.lang.Byte.toUnsignedInt(get())
+
+    fun getShort() = mapped.getShort()
+
+    fun getUnsignedShort() = java.lang.Short.toUnsignedInt(getShort())
+
+    fun getInt() = mapped.getInt()
+
+    fun getLong() = mapped.getLong()
+
+    fun getFloat() = mapped.getFloat()
+
+    fun getDouble() = mapped.getDouble()
+
+    fun getCString(): String {
+        val sb = StringBuilder()
+        do {
+            val ch = get()
+            if (ch == 0.toByte()) {
+                break
+            }
+
+            sb.append(ch.toChar())
+        } while (true)
+
+        return sb.toString()
+    }
+
+    fun hasRemaining() = mapped.hasRemaining()
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
@@ -87,15 +98,12 @@ internal class SeekableDataInput private constructor(
      */
     internal fun <T> with(offset: Long, size: Long,
                           compressed: Boolean = false,
-                          block: ByteBuffer.() -> T): T {
+                          block: BigByteBuffer.() -> T): T {
         mapped.position(offset.toInt())
-        val input = if (compressed) {
+        return if (compressed) {
             compressedBuf = compressedBuf.ensureCapacity(size.toInt())
             mapped.get(compressedBuf, 0, size.toInt())
 
-            // Decompression step is (unfortunately) mandatory, since
-            // we need to know the *exact* length of the data before
-            // passing it to `block`.
             inf.reset()
             inf.setInput(compressedBuf, 0, size.toInt())
             var uncompressedSize = 0
@@ -106,19 +114,29 @@ internal class SeekableDataInput private constructor(
                 uncompressedSize += actual
             }
 
-            ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
+            with(BigByteBuffer(ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)), block)
         } else {
-            mapped.duplicate().apply { limit(Ints.checkedCast(offset + size)) }
+            // *Not* creating a new 'BigByteBuffer' here gives a 3x
+            // performance boost.
+            val backup = mapped.limit()
+            mapped.limit(Ints.checkedCast(offset + size))
+            val result = block()
+            mapped.limit(backup)
+            result
         }
-
-        return with(input.order(mapped.order()), block)
     }
 
-    override fun close() = channel.close()
+    override fun close() {}
 
     companion object {
-        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): SeekableDataInput {
-            return SeekableDataInput(path, order)
+        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): BigByteBuffer {
+            val mapped = FileChannel.open(path, StandardOpenOption.READ).use {
+                it.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
+                    order(order)
+                }
+            }
+
+            return BigByteBuffer(mapped)
         }
     }
 }

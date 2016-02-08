@@ -1,12 +1,10 @@
 package org.jetbrains.bio.tdf
 
-import org.jetbrains.bio.SeekableDataInput
+import org.jetbrains.bio.BigByteBuffer
 import org.jetbrains.bio.divCeiling
-import org.jetbrains.bio.getCString
 import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
@@ -29,22 +27,21 @@ import java.util.*
 class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         Closeable, AutoCloseable {
 
-    private val input = SeekableDataInput.of(path)
-    private val mapped = input.mapped
+    private val input = BigByteBuffer.of(path, ByteOrder.LITTLE_ENDIAN)
     private val index: TdfMasterIndex
-    private val header = Header.read(mapped)
+    private val header = Header.read(input)
 
-    val windowFunctions = mapped.getSequenceOf { WindowFunction.read(this) }.toList()
-    val trackType = TrackType.read(mapped)
-    val trackLine = mapped.getCString().trim()
-    val trackNames = mapped.getSequenceOf { getCString() }.toList()
-    val build = mapped.getCString()
-    val compressed = (mapped.getInt() and 0x1) != 0
+    val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
+    val trackType = TrackType.read(input)
+    val trackLine = input.getCString().trim()
+    val trackNames = input.getSequenceOf { getCString() }.toList()
+    val build = input.getCString()
+    val compressed = (input.getInt() and 0x1) != 0
     val version: Int get() = header.version
 
     init {
         // Make sure we haven't read anything extra.
-        check(mapped.position() == header.headerSize + Header.BYTES)
+        check(input.position == header.headerSize + Header.BYTES)
         index = input.with(header.indexOffset, header.indexSize.toLong()) {
             TdfMasterIndex.read(this)
         }
@@ -161,10 +158,9 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
             /** Number of bytes used for this header. */
             val BYTES = 24
 
-            internal fun read(input: ByteBuffer) = with(input) {
+            internal fun read(input: BigByteBuffer) = with(input) {
                 val b = ByteArray(4)
                 get(b)
-                order(ByteOrder.LITTLE_ENDIAN)
                 val magicString = String(b)
                 check (magicString.startsWith("TDF") || magicString.startsWith("IBF")) {
                     "bad signature in $input"
@@ -220,7 +216,7 @@ internal data class TdfMasterIndex private constructor(
         val groups: Map<String, IndexEntry>) {
 
     companion object {
-        private fun ByteBuffer.readIndex(): Map<String, IndexEntry> {
+        private fun BigByteBuffer.readIndex(): Map<String, IndexEntry> {
             return getSequenceOf {
                 val name = getCString()
                 val fPosition = getLong()
@@ -229,7 +225,7 @@ internal data class TdfMasterIndex private constructor(
             }.toMap()
         }
 
-        fun read(input: ByteBuffer) = with(input) {
+        fun read(input: BigByteBuffer) = with(input) {
             val datasets = readIndex()
             val groups = readIndex()
             TdfMasterIndex(datasets, groups)
@@ -250,7 +246,7 @@ data class TdfDataset private constructor(
         val tilePositions: LongArray, val tileSizes: IntArray) {
 
     companion object {
-        fun read(input: ByteBuffer) = with(input) {
+        fun read(input: BigByteBuffer) = with(input) {
             val attributes = readAttributes()
             val dataType = getCString()
 
@@ -278,7 +274,7 @@ data class TdfDataset private constructor(
  */
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
-        fun read(input: ByteBuffer) = with(input) {
+        fun read(input: BigByteBuffer) = with(input) {
             TdfGroup(readAttributes())
         }
     }
@@ -290,7 +286,7 @@ enum class WindowFunction {
     MEAN;
 
     companion object {
-        fun read(input: ByteBuffer) = with(input) {
+        fun read(input: BigByteBuffer) = with(input) {
             valueOf(getCString().toUpperCase())
         }
     }
@@ -298,18 +294,18 @@ enum class WindowFunction {
 
 data class TrackType(val id: String) {
     companion object {
-        fun read(input: ByteBuffer) = with(input) {
+        fun read(input: BigByteBuffer) = with(input) {
             TrackType(getCString())
         }
     }
 }
 
-private fun <T> ByteBuffer.getSequenceOf(
-        block: ByteBuffer.() -> T): Sequence<T> {
+private fun <T> BigByteBuffer.getSequenceOf(
+        block: BigByteBuffer.() -> T): Sequence<T> {
     return (0 until getInt()).mapUnboxed { block() }
 }
 
-private fun ByteBuffer.readAttributes(): Map<String, String> {
+private fun BigByteBuffer.readAttributes(): Map<String, String> {
     return getSequenceOf {
         val key = getCString()
         val value = getCString()
