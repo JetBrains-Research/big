@@ -6,7 +6,6 @@ sudo: required
 
 # Try reducing memory usage so Travis doesn't kill the test runner.
 before_script:
-- sudo service --list-all
 - sudo service postgresql stop || true
 - sudo service mysql stop || true
 - sudo service memcached stop || true
