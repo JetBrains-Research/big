@@ -175,8 +175,7 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         }
     }
 
-    @Throws(IOException::class)
-    override fun close() = input.close()
+    override fun close() {}
 
     companion object {
         @Throws(IOException::class)

@@ -200,8 +200,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                         query: ChromosomeInterval,
                                         overlaps: Boolean): Sequence<T>
 
-    @Throws(IOException::class)
-    override fun close() = input.close()
+    override fun close() {}
 
     internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,
                                val zoomLevelCount: Int = 0,
@@ -259,10 +258,10 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         /** Checks if a given `path` starts with a valid `magic`. */
         fun check(path: Path, magic: Int): Boolean {
-            return BigByteBuffer.of(path).use { it.guess(magic) }
+            return BigByteBuffer.of(path).guess(magic)
         }
 
-        fun read(path: Path): BigFile<*> = when {
+        fun read(path: Path) = when {
             check(path, BigBedFile.MAGIC) -> BigBedFile.read(path)
             check(path, BigWigFile.MAGIC) -> BigWigFile.read(path)
             else -> throw IllegalStateException()

@@ -52,7 +52,7 @@ class BPlusTreeTest {
 
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
-        BigByteBuffer.of(Examples[example]).use { input ->
+        BigByteBuffer.of(Examples[example]).let { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -118,7 +118,7 @@ class BPlusTreeTest {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            BigByteBuffer.of(path).use { input ->
+            BigByteBuffer.of(path).let { input ->
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)

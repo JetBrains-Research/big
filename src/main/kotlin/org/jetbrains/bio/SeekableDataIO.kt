@@ -18,9 +18,8 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import kotlin.LazyThreadSafetyMode.NONE
 
-class BigByteBuffer private constructor(val mapped: ByteBuffer) :
-        Closeable, AutoCloseable {
-
+/** A [MappedByteBuffer] extended to handle compressed blocks. */
+class BigByteBuffer private constructor(val mapped: ByteBuffer) {
     var position: Int
         get() = mapped.position()
         set(value: Int) = ignore(mapped.position(value))
@@ -120,8 +119,6 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) :
 
         return with(BigByteBuffer(input.order(mapped.order())), block)
     }
-
-    override fun close() {}
 
     companion object {
         fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): BigByteBuffer {

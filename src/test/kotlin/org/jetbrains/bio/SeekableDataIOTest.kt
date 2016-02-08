@@ -23,7 +23,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeInt(i)
             it.writeLong(l)
         }
-        BigByteBuffer.of(path, order).use {
+        BigByteBuffer.of(path, order).let {
             assertEquals(b, it.get())
             assertEquals(s.toShort(), it.getShort())
             assertEquals(i, it.getInt())
@@ -38,7 +38,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeFloat(f)
             it.writeDouble(d)
         }
-        BigByteBuffer.of(path, order).use {
+        BigByteBuffer.of(path, order).let {
             assertEquals(f, it.getFloat())
             assertEquals(d, it.getDouble())
         }
@@ -51,7 +51,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             it.writeCString(s, s.length + 8)
             it.skipBytes(16)
         }
-        BigByteBuffer.of(path, order).use {
+        BigByteBuffer.of(path, order).let {
             assertEquals(s, it.getCString())
             var b = ByteArray(s.length + 8)
             it.get(b)
@@ -71,7 +71,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
             }
         }
 
-        BigByteBuffer.of(path, order).use {
+        BigByteBuffer.of(path, order).let {
             it.with(0L, Files.size(path), compressed = true) {
                 for (i in 0 until b.size) {
                     assertEquals(b[i], get())
