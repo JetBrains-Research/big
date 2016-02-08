@@ -19,7 +19,7 @@ import kotlin.LazyThreadSafetyMode.NONE
 abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         Closeable, AutoCloseable {
 
-    internal val input = BigByteBuffer.of(path)
+    internal val input = RomBuffer(path)
     internal val header = Header.read(input, magic)
     internal val zoomLevels = (0..header.zoomLevelCount - 1)
             .map { ZoomLevel.read(input) }
@@ -175,7 +175,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
      *                 otherwise it also includes the items overlapping
      *                 the query.
      * @return a list of items.
-     * @throws IOException if the underlying [BigByteBuffer] does so.
+     * @throws IOException if the underlying [RomBuffer] does so.
      */
     @Throws(IOException::class)
     @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
@@ -230,7 +230,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             /** Number of bytes used for this header. */
             internal val BYTES = 64
 
-            internal fun read(input: BigByteBuffer, magic: Int): Header = with(input) {
+            internal fun read(input: RomBuffer, magic: Int): Header = with(input) {
                 guess(magic)
 
                 val version = getUnsignedShort()
@@ -258,7 +258,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
         /** Checks if a given `path` starts with a valid `magic`. */
         fun check(path: Path, magic: Int): Boolean {
-            return BigByteBuffer.of(path).guess(magic)
+            return RomBuffer(path).guess(magic)
         }
 
         fun read(path: Path) = when {

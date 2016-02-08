@@ -23,7 +23,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      * Recursively goes across tree, calling callback on the leaves.
      */
     @Throws(IOException::class)
-    fun traverse(input: BigByteBuffer): Sequence<BPlusLeaf> {
+    fun traverse(input: RomBuffer): Sequence<BPlusLeaf> {
         return if (header.itemCount == 0) {
             emptySequence()
         } else {
@@ -31,7 +31,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         }
     }
 
-    private fun traverseRecursively(input: BigByteBuffer,
+    private fun traverseRecursively(input: RomBuffer,
                                     offset: Long): Sequence<BPlusLeaf> {
         assert(input.order == header.order)
         input.position = Ints.checkedCast(offset)
@@ -57,7 +57,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
      * to `query`.
      */
     @Throws(IOException::class)
-    fun find(input: BigByteBuffer, query: String): BPlusLeaf? {
+    fun find(input: RomBuffer, query: String): BPlusLeaf? {
         if (header.itemCount == 0 || query.length > header.keySize) {
             return null
         }
@@ -68,7 +68,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
-    private fun findRecursively(input: BigByteBuffer, blockStart: Long,
+    private fun findRecursively(input: RomBuffer, blockStart: Long,
                                 query: String): BPlusLeaf? {
         assert(input.order == header.order)
         input.position = Ints.checkedCast(blockStart)
@@ -121,7 +121,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x78CA8C91
 
-            fun read(input: BigByteBuffer, offset: Long): Header = with(input) {
+            fun read(input: RomBuffer, offset: Long): Header = with(input) {
                 position = Ints.checkedCast(offset)
                 guess(MAGIC)
                 val blockSize = getInt()
@@ -142,7 +142,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
     companion object {
         private val LOG = LogManager.getLogger(BPlusTree::class.java)
 
-        internal fun read(input: BigByteBuffer, offset: Long): BPlusTree {
+        internal fun read(input: RomBuffer, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
         }
 
@@ -272,7 +272,7 @@ data class BPlusLeaf(
     override fun toString(): String = "$key => ($id; $size)"
 
     companion object {
-        internal fun read(input: BigByteBuffer, keySize: Int) = with(input) {
+        internal fun read(input: RomBuffer, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             get(keyBuf)
             val chromId = getInt()
@@ -297,7 +297,7 @@ private class BPlusNode(
     }
 
     companion object {
-        internal fun read(input: BigByteBuffer, keySize: Int) = with(input) {
+        internal fun read(input: RomBuffer, keySize: Int) = with(input) {
             val keyBuf = ByteArray(keySize)
             get(keyBuf)
             val childOffset = getLong()

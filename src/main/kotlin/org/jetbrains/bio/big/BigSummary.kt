@@ -4,7 +4,7 @@ import com.google.common.primitives.Doubles
 import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
-import org.jetbrains.bio.BigByteBuffer
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.OrderedDataOutput
 
 data class BigSummary(
@@ -62,7 +62,7 @@ data class BigSummary(
     companion object {
         internal val BYTES = Longs.BYTES + Doubles.BYTES * 4
 
-        internal fun read(input: BigByteBuffer, offset: Long) = with(input) {
+        internal fun read(input: RomBuffer, offset: Long) = with(input) {
             position = Ints.checkedCast(offset)
 
             val count = getLong()
@@ -89,7 +89,7 @@ data internal class ZoomLevel(val reduction: Int,
     companion object {
         internal val BYTES = Ints.BYTES * 2 + Longs.BYTES * 2
 
-        internal fun read(input: BigByteBuffer) = with(input) {
+        internal fun read(input: RomBuffer) = with(input) {
             val reduction = getInt()
             val reserved = getInt()
             check(reserved == 0)
@@ -151,7 +151,7 @@ internal data class ZoomData(
     companion object {
         internal val SIZE: Int = Ints.BYTES * 3 + Ints.BYTES + Floats.BYTES * 4
 
-        internal fun read(input: BigByteBuffer) = with(input) {
+        internal fun read(input: RomBuffer) = with(input) {
             val chromIx = getInt()
             val startOffset = getInt()
             val endOffset = getInt()

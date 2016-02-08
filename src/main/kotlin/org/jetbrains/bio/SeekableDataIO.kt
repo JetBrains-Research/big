@@ -16,10 +16,9 @@ import java.nio.file.StandardOpenOption
 import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
-import kotlin.LazyThreadSafetyMode.NONE
 
-/** A [MappedByteBuffer] extended to handle compressed blocks. */
-class BigByteBuffer private constructor(val mapped: ByteBuffer) {
+/** A read-only mapped buffer. */
+class RomBuffer private constructor(val mapped: ByteBuffer) {
     var position: Int
         get() = mapped.position()
         set(value: Int) = ignore(mapped.position(value))
@@ -92,7 +91,7 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) {
      */
     internal fun <T> with(offset: Long, size: Long,
                           compressed: Boolean = false,
-                          block: BigByteBuffer.() -> T): T {
+                          block: RomBuffer.() -> T): T {
         mapped.position(offset.toInt())
         val input = if (compressed) {
             val compressedBuf = ByteArray(size.toInt())
@@ -117,18 +116,18 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) {
             }
         }
 
-        return with(BigByteBuffer(input.order(mapped.order())), block)
+        return with(RomBuffer(input.order(mapped.order())), block)
     }
 
     companion object {
-        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): BigByteBuffer {
+        operator fun invoke(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): RomBuffer {
             val mapped = FileChannel.open(path, StandardOpenOption.READ).use {
                 it.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
                     order(order)
                 }
             }
 
-            return BigByteBuffer(mapped)
+            return RomBuffer(mapped)
         }
     }
 }
@@ -220,7 +219,7 @@ internal open class CountingDataOutput(private val output: OutputStream,
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
-    private val def by lazy(NONE) { Deflater() }
+    private val def by ThreadLocal.withInitial { Deflater() }
 
     private fun ack(size: Int) {
         written += size

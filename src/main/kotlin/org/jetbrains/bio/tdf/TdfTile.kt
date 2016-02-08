@@ -2,7 +2,7 @@ package org.jetbrains.bio.tdf
 
 import com.google.common.primitives.Ints
 import org.apache.log4j.Logger
-import org.jetbrains.bio.BigByteBuffer
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.ScoredInterval
 
 /**
@@ -25,7 +25,7 @@ interface TdfTile {
     companion object {
         private val LOG = Logger.getLogger(TdfTile::class.java)
 
-        internal fun read(input: BigByteBuffer, expectedTracks: Int) = with(input) {
+        internal fun read(input: RomBuffer, expectedTracks: Int) = with(input) {
             val type = getCString()
             when (type) {
                 "fixedStep" -> TdfFixedTile.fill(this, expectedTracks)
@@ -71,7 +71,7 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: BigByteBuffer, expectedTracks: Int) = with(input) {
+        fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             val size = getInt()
             val start = IntArray(size).apply { asIntBuffer().get(this) }
             position += Ints.BYTES * size
@@ -110,7 +110,7 @@ data class TdfFixedTile(val start: Int, val span: Double,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: BigByteBuffer, expectedTracks: Int) = with(input) {
+        fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             val size = getInt()
             val start = getInt()
             val span = getInt().toDouble()
@@ -139,7 +139,7 @@ data class TdfVaryTile(val starts: IntArray, val span: Int,
     override fun getValue(trackNumber: Int, idx: Int) = data[trackNumber][idx]
 
     companion object {
-        fun fill(input: BigByteBuffer, expectedTracks: Int) = with(input) {
+        fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             // This is called 'tiledStart' in IGV sources and is unused.
             val start = getInt()
             val span = getFloat().toInt()  // Really?

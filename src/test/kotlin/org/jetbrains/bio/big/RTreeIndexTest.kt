@@ -1,8 +1,8 @@
 package org.jetbrains.bio.big
 
-import org.jetbrains.bio.BigByteBuffer
 import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.Examples
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.util.*
@@ -34,7 +34,7 @@ class RTreeIndexTest {
                 RTreeIndex.write(output, emptyList())
             }
 
-            BigByteBuffer.of(path).let { input ->
+            RomBuffer(path).let { input ->
                 val rti = RTreeIndex.read(input, 0L)
                 val query = Interval(0, 100, 200)
                 assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
@@ -76,7 +76,7 @@ class RTreeIndexTest {
             }
 
             CountingDataOutput.of(path).use { RTreeIndex.write(it, leaves, blockSize) }
-            BigByteBuffer.of(path).let { input ->
+            RomBuffer(path).let { input ->
                 val rti = RTreeIndex.read(input, 0)
                 for (leaf in leaves) {
                     val overlaps = rti.findOverlappingBlocks(

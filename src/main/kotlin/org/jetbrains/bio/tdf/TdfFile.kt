@@ -1,6 +1,6 @@
 package org.jetbrains.bio.tdf
 
-import org.jetbrains.bio.BigByteBuffer
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
 import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable
@@ -27,7 +27,7 @@ import java.util.*
 class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
         Closeable, AutoCloseable {
 
-    private val input = BigByteBuffer.of(path, ByteOrder.LITTLE_ENDIAN)
+    private val input = RomBuffer(path, ByteOrder.LITTLE_ENDIAN)
     private val index: TdfMasterIndex
     private val header = Header.read(input)
 
@@ -158,7 +158,7 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
             /** Number of bytes used for this header. */
             val BYTES = 24
 
-            internal fun read(input: BigByteBuffer) = with(input) {
+            internal fun read(input: RomBuffer) = with(input) {
                 val b = ByteArray(4)
                 get(b)
                 val magicString = String(b)
@@ -215,7 +215,7 @@ internal data class TdfMasterIndex private constructor(
         val groups: Map<String, IndexEntry>) {
 
     companion object {
-        private fun BigByteBuffer.readIndex(): Map<String, IndexEntry> {
+        private fun RomBuffer.readIndex(): Map<String, IndexEntry> {
             return getSequenceOf {
                 val name = getCString()
                 val fPosition = getLong()
@@ -224,7 +224,7 @@ internal data class TdfMasterIndex private constructor(
             }.toMap()
         }
 
-        fun read(input: BigByteBuffer) = with(input) {
+        fun read(input: RomBuffer) = with(input) {
             val datasets = readIndex()
             val groups = readIndex()
             TdfMasterIndex(datasets, groups)
@@ -245,7 +245,7 @@ data class TdfDataset private constructor(
         val tilePositions: LongArray, val tileSizes: IntArray) {
 
     companion object {
-        fun read(input: BigByteBuffer) = with(input) {
+        fun read(input: RomBuffer) = with(input) {
             val attributes = readAttributes()
             val dataType = getCString()
 
@@ -273,7 +273,7 @@ data class TdfDataset private constructor(
  */
 data class TdfGroup(val attributes: Map<String, String>) {
     companion object {
-        fun read(input: BigByteBuffer) = with(input) {
+        fun read(input: RomBuffer) = with(input) {
             TdfGroup(readAttributes())
         }
     }
@@ -285,7 +285,7 @@ enum class WindowFunction {
     MEAN;
 
     companion object {
-        fun read(input: BigByteBuffer) = with(input) {
+        fun read(input: RomBuffer) = with(input) {
             valueOf(getCString().toUpperCase())
         }
     }
@@ -293,18 +293,18 @@ enum class WindowFunction {
 
 data class TrackType(val id: String) {
     companion object {
-        fun read(input: BigByteBuffer) = with(input) {
+        fun read(input: RomBuffer) = with(input) {
             TrackType(getCString())
         }
     }
 }
 
-private fun <T> BigByteBuffer.getSequenceOf(
-        block: BigByteBuffer.() -> T): Sequence<T> {
+private fun <T> RomBuffer.getSequenceOf(
+        block: RomBuffer.() -> T): Sequence<T> {
     return (0 until getInt()).mapUnboxed { block() }
 }
 
-private fun BigByteBuffer.readAttributes(): Map<String, String> {
+private fun RomBuffer.readAttributes(): Map<String, String> {
     return getSequenceOf {
         val key = getCString()
         val value = getCString()

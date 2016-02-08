@@ -4,7 +4,7 @@ import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.apache.log4j.LogManager
-import org.jetbrains.bio.BigByteBuffer
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.divCeiling
@@ -42,7 +42,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     @Throws(IOException::class)
-    fun findOverlappingBlocks(input: BigByteBuffer,
+    fun findOverlappingBlocks(input: RomBuffer,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return if (header.itemCount == 0L) {
             emptySequence()
@@ -51,7 +51,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    internal fun findOverlappingBlocksRecursively(input: BigByteBuffer,
+    internal fun findOverlappingBlocksRecursively(input: RomBuffer,
                                                   query: ChromosomeInterval,
                                                   offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
@@ -118,7 +118,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x2468ACE0
 
-            internal fun read(input: BigByteBuffer, offset: Long) = with(input) {
+            internal fun read(input: RomBuffer, offset: Long) = with(input) {
                 position = Ints.checkedCast(offset)
                 guess(MAGIC)
 
@@ -142,7 +142,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
     companion object {
         private val LOG = LogManager.getLogger(RTreeIndex::class.java)
 
-        internal fun read(input: BigByteBuffer, offset: Long): RTreeIndex {
+        internal fun read(input: RomBuffer, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
         }
 
@@ -278,7 +278,7 @@ data class RTreeIndexLeaf(val interval: Interval,
     companion object {
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
 
-        internal fun read(input: BigByteBuffer) = with(input) {
+        internal fun read(input: RomBuffer) = with(input) {
             val startChromIx = getInt()
             val startOffset = getInt()
             val endChromIx = getInt()
@@ -302,7 +302,7 @@ private data class RTreeIndexNode(val interval: Interval,
     companion object {
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES
 
-        internal fun read(input: BigByteBuffer) = with(input) {
+        internal fun read(input: RomBuffer) = with(input) {
             val startChromIx = getInt()
             val startOffset = getInt()
             val endChromIx = getInt()
