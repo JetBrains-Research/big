@@ -1,5 +1,6 @@
 package org.jetbrains.bio
 
+import com.google.common.primitives.Bytes
 import com.google.common.primitives.Ints
 import java.io.Closeable
 import java.io.OutputStream
@@ -84,12 +85,6 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) :
     // by a zillion of pending finalizers.
     private val inf by ThreadLocal.withInitial { Inflater() }
 
-    // For performance reasons we use fixed-size buffers for both
-    // compressed and uncompressed inputs. Unfortunately this makes
-    // the class non-thread safe.
-    private var compressedBuf = ByteArray(1024)
-    private var uncompressedBuf = ByteArray(4096)
-
     /**
      * Executes a `block` on a fixed-size possibly compressed input.
      *
@@ -100,30 +95,30 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) :
                           compressed: Boolean = false,
                           block: BigByteBuffer.() -> T): T {
         mapped.position(offset.toInt())
-        return if (compressed) {
-            compressedBuf = compressedBuf.ensureCapacity(size.toInt())
+        val input = if (compressed) {
+            val compressedBuf = ByteArray(size.toInt())
             mapped.get(compressedBuf, 0, size.toInt())
 
             inf.reset()
             inf.setInput(compressedBuf, 0, size.toInt())
-            var uncompressedSize = 0
             var step = size.toInt()
+            var uncompressedSize = 0
+            var uncompressedBuf = ByteArray(2 * step)
             while (!inf.finished()) {
-                uncompressedBuf = uncompressedBuf.ensureCapacity(uncompressedSize + step)
+                uncompressedBuf = Bytes.ensureCapacity(  // 1.5x
+                        uncompressedBuf, uncompressedSize + step, step / 2)
                 val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
                 uncompressedSize += actual
             }
 
-            with(BigByteBuffer(ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)), block)
+            ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
         } else {
-            // *Not* creating a new 'BigByteBuffer' here gives a 3x
-            // performance boost.
-            val backup = mapped.limit()
-            mapped.limit(Ints.checkedCast(offset + size))
-            val result = block()
-            mapped.limit(backup)
-            result
+            mapped.duplicate().apply {
+                limit(Ints.checkedCast(offset + size))
+            }
         }
+
+        return with(BigByteBuffer(input.order(mapped.order())), block)
     }
 
     override fun close() {}
@@ -138,14 +133,6 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) :
 
             return BigByteBuffer(mapped)
         }
-    }
-}
-
-private fun ByteArray.ensureCapacity(requested: Int): ByteArray {
-    return if (size < requested) {
-        copyOf((requested + requested shr 1).toInt())  // 1.5x
-    } else {
-        this
     }
 }
 
