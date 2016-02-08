@@ -4,12 +4,12 @@ import com.google.common.primitives.Doubles
 import com.google.common.primitives.Floats
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
-import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.RomBuffer
 
 data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
-        var count: Long = 0L,
+        var count: Long = 0,
         /** Minimum item value. */
         var minValue: Double = java.lang.Double.POSITIVE_INFINITY,
         /** Maximum item value. */
@@ -31,17 +31,17 @@ data class BigSummary(
         maxValue = Math.max(maxValue, value);
     }
 
-    internal fun update(other: ZoomData, intersection: Int, total: Int) {
+    internal fun update(zoomData: ZoomData, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
-        count += Math.round(other.count * weight)
-        sum += other.sum * weight;
-        sumSquares += other.sumSquares * weight
-        minValue = Math.min(minValue, other.minValue.toDouble());
-        maxValue = Math.max(maxValue, other.maxValue.toDouble());
+        count += Math.round(zoomData.count * weight)
+        sum += zoomData.sum * weight;
+        sumSquares += zoomData.sumSquares * weight
+        minValue = Math.min(minValue, zoomData.minValue.toDouble());
+        maxValue = Math.max(maxValue, zoomData.maxValue.toDouble());
     }
 
     /** Because monoids rock. */
-    internal operator fun plus(other: BigSummary): BigSummary = when {
+    internal operator fun plus(other: BigSummary) = when {
         isEmpty()       -> other
         other.isEmpty() -> this
         else -> BigSummary(count + other.count,

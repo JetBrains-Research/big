@@ -39,29 +39,19 @@ internal infix fun Int.logCeiling(base: Int): Int {
 }
 
 // XXX calling the 'Iterable<T>#map' leads to boxing.
-private class TransformingIntIterator<R>(private val it: IntIterator,
-                                         private val transform: (Int) -> R) :
-        Iterator<R> {
+internal inline fun <R> IntProgression.mapUnboxed(
+        crossinline transform: (Int) -> R): Sequence<R> {
+    val it = iterator()
+    return object : Iterator<R> {
+        override fun next() = transform(it.nextInt())
 
-    override fun next() = transform(it.nextInt())
-
-    override fun hasNext() = it.hasNext()
-}
-
-internal fun <R> IntProgression.mapUnboxed(transform: (Int) -> R): Sequence<R> {
-    return TransformingIntIterator(iterator(), transform).asSequence()
+        override fun hasNext() = it.hasNext()
+    }.asSequence()
 }
 
 internal fun String.trimZeros() = trimEnd { it == '\u0000' }
 
-internal fun <T> Sequence<T>.partition(n: Int): Sequence<List<T>> {
-    require(n > 1) { "n must be >1" }
-    return object : Sequence<List<T>> {
-        override fun iterator(): Iterator<List<T>> {
-            return Iterators.partition(this@partition.iterator(), n)
-        }
-    }
-}
+internal fun <T> Sequence<T>.partition(n: Int) = Iterators.partition(iterator(), n).asSequence()
 
 internal inline fun <T> Logger.time(message: String, block: () -> T): T {
     debug(message)

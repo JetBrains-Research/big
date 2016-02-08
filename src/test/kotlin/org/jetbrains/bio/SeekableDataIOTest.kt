@@ -17,7 +17,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         val s = r.nextInt(Short.MAX_VALUE.toInt())
         val i = r.nextInt()
         val l = r.nextLong()
-        CountingDataOutput.of(path, order).use {
+        OrderedDataOutput.of(path, order).use {
             it.writeByte(b.toInt())
             it.writeShort(s)
             it.writeInt(i)
@@ -34,7 +34,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
     @Test fun testWriteReadFloating() = withTempFileRandomized() { path, r ->
         val f = r.nextFloat()
         val d = r.nextDouble()
-        CountingDataOutput.of(path, order).use {
+        OrderedDataOutput.of(path, order).use {
             it.writeFloat(f)
             it.writeDouble(d)
         }
@@ -46,7 +46,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
 
     @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.joinToString("")
-        CountingDataOutput.of(path, order).use {
+        OrderedDataOutput.of(path, order).use {
             it.writeCString(s)
             it.writeCString(s, s.length + 8)
             it.skipBytes(16)
@@ -65,7 +65,7 @@ class SeekableDataIOTest(private val order: ByteOrder) {
 
     @Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
-        CountingDataOutput.of(path, order).use {
+        OrderedDataOutput.of(path, order).use {
             it.with(compressed = true) {
                 b.forEach { writeByte(it.toInt()) }
             }

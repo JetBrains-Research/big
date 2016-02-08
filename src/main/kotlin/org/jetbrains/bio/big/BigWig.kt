@@ -1,6 +1,5 @@
 package org.jetbrains.bio.big
 
-import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.OrderedDataOutput
 import java.io.IOException
 import java.nio.ByteOrder
@@ -31,7 +30,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 val interval = Interval(query.chromIx, wigItem.start, wigItem.end)
                 if (interval intersects bin) {
                     summary.update(wigItem.score.toDouble(),
-                                   (interval intersection bin).length(),
+                                   interval.intersectionLength(bin),
                                    interval.length())
                 }
             }
@@ -157,7 +156,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 compressed: Boolean = true,
                 order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
-            val header = CountingDataOutput.of(outputPath, order).use { output ->
+            val header = OrderedDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
@@ -205,7 +204,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
             }
 
-            CountingDataOutput.of(outputPath, order).use { header.write(it) }
+            OrderedDataOutput.of(outputPath, order).use { header.write(it) }
 
             var count = 0
             var sum = 0L

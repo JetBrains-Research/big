@@ -15,7 +15,6 @@ class BPlusTreeTest {
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
-            assertEquals(8, bpt.header.valSize)
             assertEquals(1, bpt.header.itemCount)
             assertEquals(216L, bpt.header.rootOffset)
         }
@@ -114,7 +113,7 @@ class BPlusTreeTest {
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
         withTempFile("bpt", ".bb") { path ->
-            CountingDataOutput.of(path).use { output ->
+            OrderedDataOutput.of(path).use { output ->
                 BPlusTree.write(output, items, blockSize)
             }
 

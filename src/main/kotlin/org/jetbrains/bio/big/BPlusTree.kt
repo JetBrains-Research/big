@@ -68,8 +68,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
 
-    private fun findRecursively(input: RomBuffer, blockStart: Long,
-                                query: String): BPlusLeaf? {
+    private tailrec fun findRecursively(input: RomBuffer, blockStart: Long,
+                                        query: String): BPlusLeaf? {
         assert(input.order == header.order)
         input.position = Ints.checkedCast(blockStart)
 
@@ -104,15 +104,13 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
     internal class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
                           val itemCount: Int, val rootOffset: Long) {
-        internal val valSize: Int = Ints.BYTES * 2  // (ID, Size)
-
         fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)
             writeInt(keySize)
-            writeInt(valSize)
+            writeInt(Ints.BYTES * 2)  // (ID, Size)
             writeLong(itemCount.toLong())
-            writeLong(0L)  // reserved
+            writeLong(0L)             // reserved.
         }
 
         companion object {
@@ -146,57 +144,66 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             return BPlusTree(Header.read(input, offset))
         }
 
-        /**
-         * Counts the number of levels in a B+ tree for a given number
-         * of items with fixed block size.
-         *
-         * Given block size (4 in the example) a B+ tree is laid out as:
-         *
-         *   [01|05]                          index level 1
-         *   [01|02|03|04]   [05|06|07|08]    leaf  level 0
-         *     ^               ^
-         *    these are called blocks
-         *
-         * Conceptually, each B+ tree node consists of a number of
-         * slots each holding `blockSize^level` items. So the
-         * total number of items in a node can be calculated as
-         * `blockSize^level * blockSize`.
-         *
-         * @param blockSize number of slots in a B+ tree node.
-         * @param itemCount total number of leaves in a B+ tree
-         * @return required number of levels.
-         */
-        internal fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
-
-        internal fun write(output: CountingDataOutput, unsortedItems: List<BPlusLeaf>,
+        internal fun write(output: OrderedDataOutput, unsortedItems: List<BPlusLeaf>,
                            blockSize: Int = 256) {
             require(blockSize > 1) { "blockSize must be >1" }
 
             val items = unsortedItems.sortedBy { it.key }
-            val itemCount = items.size
             val keySize = (items.map { it.key.length }.max() ?: 0) + 1
             // ^^^ the +1 is to account for the trailing null.
 
-            val header = Header(output.order, blockSize, keySize, itemCount,
+            val header = Header(output.order, blockSize, keySize, items.size,
                                 output.tell() + Header.BYTES)
             header.write(output)
 
-            if (itemCount == 0) {
+            if (items.isEmpty()) {
                 return
             }
 
-            LOG.debug("Creating a B+ tree for $itemCount items ($blockSize slots/node)")
+            LOG.debug("Creating a B+ tree for ${items.size} items ($blockSize slots/node)")
+            writeLevels(output, items, blockSize, keySize)
+            writeLeaves(output, items, blockSize, keySize)
+            LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
+        }
 
-            // HEAVY COMPUTER SCIENCE CALCULATION!
+        /** Writes out final leaf level in a B+ tree. */
+        private fun writeLeaves(output: OrderedDataOutput, items: List<BPlusLeaf>,
+                                blockSize: Int, keySize: Int) {
+            val bytesInLeafSlot = keySize + Ints.BYTES * 2
+
+            // Now just write the leaves.
+            val itemCount = items.size
+            val levelOffset = output.tell()
+            for (i in 0..itemCount - 1 step blockSize) {
+                val leafCount = Math.min(itemCount - i, blockSize)
+                with(output) {
+                    writeBoolean(true)  // isLeaf.
+                    writeByte(0)        // reserved.
+                    writeShort(leafCount)
+                    for (j in 0..leafCount - 1) {
+                        items[i + j].write(output, keySize)
+                    }
+
+                    skipBytes(bytesInLeafSlot * (blockSize - leafCount))
+                }
+            }
+
+            LOG.trace("Wrote ${items.size} leaves at leaf level " +
+                      "(offset: $levelOffset)")
+        }
+
+        /** Writes out intermediate levels in a B+ tree. */
+        private fun writeLevels(output: OrderedDataOutput, items: List<BPlusLeaf>,
+                                blockSize: Int, keySize: Int) {
             val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
             val bytesInIndexSlot = keySize + Longs.BYTES
             val bytesInIndexBlock = (bytesInNodeHeader + blockSize * bytesInIndexSlot).toLong()
-            val bytesInLeafSlot = keySize + header.valSize
+            val bytesInLeafSlot = keySize + Ints.BYTES * 2
             val bytesInLeafBlock = (bytesInNodeHeader + blockSize * bytesInLeafSlot).toLong()
 
             // Write B+ tree levels top to bottom.
-            val levels = countLevels(blockSize, items.size)
-            for (d in levels - 1 downTo 1) {
+            val itemCount = items.size
+            for (d in countLevels(blockSize, itemCount) - 1 downTo 1) {
                 val levelOffset = output.tell()
                 val itemsPerSlot = blockSize pow d
                 val itemsPerNode = itemsPerSlot * blockSize
@@ -224,27 +231,29 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
                 LOG.trace("Wrote $nodeCount nodes at level $d (offset: $levelOffset)")
             }
-
-            // Now just write the leaves.
-            val levelOffset = output.tell()
-            for (i in 0..itemCount - 1 step blockSize) {
-                val leafCount = Math.min(itemCount - i, blockSize)
-                with(output) {
-                    writeBoolean(true)  // isLeaf.
-                    writeByte(0)        // reserved.
-                    writeShort(leafCount)
-                    for (j in 0..leafCount - 1) {
-                        items[i + j].write(output, keySize)
-                    }
-
-                    skipBytes(bytesInLeafSlot * (blockSize - leafCount))
-                }
-            }
-
-            LOG.trace("Wrote ${items.size} leaves at level $levels " +
-                      "(offset: $levelOffset)")
-            LOG.debug("Saved B+ tree using ${output.tell() - header.rootOffset} bytes")
         }
+
+        /**
+         * Counts the number of levels in a B+ tree for a given number
+         * of items with fixed block size.
+         *
+         * Given block size (4 in the example) a B+ tree is laid out as:
+         *
+         *   [01|05]                          index level 1
+         *   [01|02|03|04]   [05|06|07|08]    leaf  level 0
+         *     ^               ^
+         *    these are called blocks
+         *
+         * Conceptually, each B+ tree node consists of a number of
+         * slots each holding `blockSize^level` items. So the
+         * total number of items in a node can be calculated as
+         * `blockSize^level * blockSize`.
+         *
+         * @param blockSize number of slots in a B+ tree node.
+         * @param itemCount total number of leaves in a B+ tree
+         * @return required number of levels.
+         */
+        internal fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
     }
 }
 

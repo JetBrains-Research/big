@@ -2,7 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
-import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.OrderedDataOutput
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -32,7 +32,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                 val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
                     summary.update(bedEntry.score.toDouble(),
-                                   (interval intersection bin).length(),
+                                   interval.intersectionLength(bin),
                                    interval.length())
                 }
             }
@@ -106,7 +106,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                              compressed: Boolean = true,
                              order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedEntries = bedEntries.groupBy { it.chrom }
-            val header = CountingDataOutput.of(outputPath, order).use { output ->
+            val header = OrderedDataOutput.of(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
@@ -162,7 +162,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                         uncompressBufSize = if (compressed) uncompressBufSize else 0)
             }
 
-            CountingDataOutput.of(outputPath, order).use { header.write(it) }
+            OrderedDataOutput.of(outputPath, order).use { header.write(it) }
 
             var sum = 0L
             var count = 0

@@ -3,10 +3,10 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
+import org.apache.log4j.Level
 import org.apache.log4j.LogManager
-import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.CountingDataOutput
 import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
 import java.io.IOException
 import java.nio.ByteOrder
@@ -146,16 +146,16 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             return RTreeIndex(Header.read(input, offset))
         }
 
-        internal fun write(output: CountingDataOutput, leaves: List<RTreeIndexLeaf>,
+        internal fun write(output: OrderedDataOutput, leaves: List<RTreeIndexLeaf>,
                            blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
             require(blockSize > 1) { "blockSize must be >1" }
 
             if (leaves.isEmpty()) {
                 Header(output.order, blockSize,
-                        leaves.size.toLong(),
-                        0, 0, 0, 0,
-                        output.tell(), itemsPerSlot,
-                        output.tell() + Header.BYTES).write(output)
+                       leaves.size.toLong(),
+                       0, 0, 0, 0,
+                       output.tell(), itemsPerSlot,
+                       output.tell() + Header.BYTES).write(output)
 
                 return
             }
@@ -173,13 +173,43 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
 
             LOG.debug("Creating R+ tree for ${leaves.size} items " +
                       "($blockSize slots/node, $itemsPerSlot items/slot)")
+            writeLevels(output, computeLevels(leaves, blockSize), blockSize)
+            writeLeaves(output, leaves, blockSize)
+            LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
+        }
 
-            // HEAVY COMPUTER SCIENCE CALCULATION!
+        /** Writes out final leaf level in an R+ tree. */
+        private fun writeLeaves(output: OrderedDataOutput, leaves: List<RTreeIndexLeaf>,
+                                blockSize: Int) {
+            val levelOffset = output.tell()
+            var i = 0
+            while (i < leaves.size) {
+                val leafCount = Math.min(blockSize, leaves.size - i)
+                with(output) {
+                    writeBoolean(true)  // isLeaf.
+                    writeByte(0)        // reserved.
+                    writeShort(leafCount)
+                    for (j in 0..leafCount - 1) {
+                        leaves[i + j].write(this)
+                    }
+
+                    // Write out zeroes for empty slots in node.
+                    skipBytes(RTreeIndexLeaf.BYTES * (blockSize - leafCount))
+                }
+
+                i += blockSize
+            }
+
+            LOG.trace("Wrote ${leaves.size} slots at leaf level " +
+                      "(offset: $levelOffset)")
+        }
+
+        /** Writes out intermediate levels in an R+ tree. */
+        private fun writeLevels(output: OrderedDataOutput, levels: List<List<Interval>>,
+                                blockSize: Int) {
             val bytesInNodeHeader = 1 + 1 + Shorts.BYTES
             val bytesInIndexBlock = bytesInNodeHeader + blockSize * RTreeIndexNode.BYTES
             val bytesInLeafBlock = bytesInNodeHeader + blockSize * RTreeIndexLeaf.BYTES
-
-            val levels = compute(leaves, blockSize)
             for ((d, level) in levels.withIndex()) {
                 val bytesInCurrentBlock = bytesInIndexBlock
                 val bytesInNextLevelBlock =
@@ -188,7 +218,8 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                 val levelOffset = output.tell()
                 val nodeCount = level.size divCeiling blockSize
                 var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
-                for (i in 0..level.size - 1 step blockSize) {
+                var i = 0
+                while (i < level.size) {
                     val childCount = Math.min(blockSize, level.size - i)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
@@ -202,51 +233,37 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                         // Write out zeroes for empty slots in node.
                         skipBytes(RTreeIndexNode.BYTES * (blockSize - childCount))
                     }
+
+                    i += blockSize
                 }
 
                 LOG.trace("Wrote ${level.size} slots at level $d (offset: $levelOffset)")
             }
-
-            val levelOffset = output.tell()
-            for (i in 0..leaves.size - 1 step blockSize) {
-                val leafCount = Math.min(blockSize, leaves.size - i)
-                with(output) {
-                    writeBoolean(true)  // isLeaf.
-                    writeByte(0)        // reserved.
-                    writeShort(leafCount)
-                    for (j in 0..leafCount - 1) {
-                        leaves[i + j].write(this)
-                    }
-
-                    // Write out zeroes for empty slots in node.
-                    skipBytes(RTreeIndexLeaf.BYTES * (blockSize - leafCount))
-                }
-            }
-
-            LOG.trace("Wrote ${leaves.size} slots at level ${levels.size} " +
-                      "(offset: $levelOffset)")
-            LOG.debug("Saved R+ tree using ${output.tell() - header.rootOffset} bytes")
         }
 
-        private fun compute(leaves: List<RTreeIndexLeaf>,
-                            blockSize: Int): List<List<Interval>> {
-            var intervals: List<Interval> = leaves.map { it.interval }
-            for (i in 1..intervals.size - 1) {
-                if (intervals[i] intersects intervals[i - 1]) {
-                    LOG.warn("R+ tree leaves are overlapping: " +
-                             "${intervals[i]} ^ ${intervals[i - 1]}")
+        private fun computeLevels(leaves: List<RTreeIndexLeaf>,
+                                  blockSize: Int): List<List<Interval>> {
+            var intervals = leaves.map { it.interval }
+            if (LOG.isEnabledFor(Level.WARN)) {
+                for (i in 1..intervals.size - 1) {
+                    if (intervals[i] intersects intervals[i - 1]) {
+                        LOG.warn("R+ tree leaves are overlapping: " +
+                                 "${intervals[i]} ^ ${intervals[i - 1]}")
+                    }
                 }
             }
 
             val levels = arrayListOf(intervals)
             while (intervals.size > 1) {
                 val level = ArrayList<Interval>(intervals.size divCeiling blockSize)
-                for (i in 0..intervals.size - 1 step blockSize) {
+                var i = 0
+                while (i < intervals.size) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
                     val links = intervals.subList(i, Math.min(intervals.size, i + blockSize))
                     level.add(links.reduce(Interval::union))
+                    i += blockSize
                 }
 
                 levels.add(level)

@@ -35,7 +35,8 @@ interface Interval {
     fun write(output: OrderedDataOutput): Unit
 
     companion object {
-        internal operator fun invoke(chromIx: Int, startOffset: Int, endOffset: Int): ChromosomeInterval {
+        internal operator fun invoke(chromIx: Int, startOffset: Int,
+                                     endOffset: Int): ChromosomeInterval {
             require(startOffset < endOffset) {
                 "start must be <end, got [$startOffset, $endOffset)"
             }
@@ -51,7 +52,6 @@ interface Interval {
                 MultiInterval(Offset(startChromIx, startOffset),
                               Offset(endChromIx, endOffset))
             }
-
         }
     }
 }
@@ -64,7 +64,7 @@ internal data class ChromosomeInterval(val chromIx: Int,
     override val left: Offset get() = Offset(chromIx, startOffset)
     override val right: Offset get() = Offset(chromIx, endOffset)
 
-    override infix fun intersects(other: Interval): Boolean = when (other) {
+    override infix fun intersects(other: Interval) = when (other) {
         is ChromosomeInterval -> {
             // Specialized, because allocating offsets in '#left' and
             // '#right' only for checking for intersection is expensive.
@@ -77,21 +77,21 @@ internal data class ChromosomeInterval(val chromIx: Int,
         else -> other.intersects(this)
     }
 
+    /**
+     * Returns *the length* of an intersection of the two intervals,
+     * i.e. length of the interval which is completely contained in
+     * both of them.
+     */
+    fun intersectionLength(other: ChromosomeInterval): Int {
+        return (Math.min(endOffset, other.endOffset)
+                - Math.max(startOffset, other.startOffset))
+    }
+
     /** Checks if a given interval is contained in this interval. */
     operator fun contains(other: ChromosomeInterval): Boolean {
         return other.chromIx == chromIx &&
                other.startOffset >= startOffset &&
                other.endOffset <= endOffset
-    }
-
-    /**
-     * Returns an intersection of the two intervals, i.e. an interval which
-     * is completely contained in both of them.
-     */
-    infix fun intersection(other: ChromosomeInterval): ChromosomeInterval {
-        return Interval(chromIx,
-                        Math.max(startOffset, other.startOffset),
-                        Math.min(endOffset, other.endOffset))
     }
 
     /**
@@ -116,7 +116,7 @@ internal data class ChromosomeInterval(val chromIx: Int,
         }
     }
 
-    fun length(): Int = endOffset - startOffset
+    fun length() = endOffset - startOffset
 
     override fun write(output: OrderedDataOutput) = with(output) {
         writeInt(chromIx)
@@ -125,7 +125,7 @@ internal data class ChromosomeInterval(val chromIx: Int,
         writeInt(endOffset)
     }
 
-    override fun toString(): String = "$chromIx:[$startOffset; $endOffset)"
+    override fun toString() = "$chromIx:[$startOffset; $endOffset)"
 }
 
 /** An interval spanning multiple chromosomes. */
@@ -143,7 +143,7 @@ internal data class MultiInterval(override val left: Offset,
         writeInt(right.offset)
     }
 
-    override fun toString(): String = "[$left; $right)"
+    override fun toString() = "[$left; $right)"
 }
 
 /**
@@ -155,10 +155,10 @@ data class Offset(
         /** 0-based genomic offset.  */
         val offset: Int) : Comparable<Offset> {
 
-    override fun compareTo(other: Offset): Int = ComparisonChain.start()
+    override fun compareTo(other: Offset) = ComparisonChain.start()
             .compare(chromIx, other.chromIx)
             .compare(offset, other.offset)
             .result()
 
-    override fun toString(): String = "$chromIx:$offset"
+    override fun toString() = "$chromIx:$offset"
 }

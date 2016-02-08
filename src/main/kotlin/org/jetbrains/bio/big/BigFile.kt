@@ -154,7 +154,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
                 if (interval intersects bin) {
                     summary.update(zoomData[j],
-                                   (interval intersection bin).length(),
+                                   interval.intersectionLength(bin),
                                    interval.length())
                 }
             }
@@ -210,7 +210,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
                                val extendedHeaderOffset: Long = 0) {
 
-        internal fun write(output: CountingDataOutput) = with(output) {
+        internal fun write(output: OrderedDataOutput) = with(output) {
             check(output.tell() == 0L)  // a header is always first.
             writeInt(magic)
             writeShort(version)
@@ -272,11 +272,11 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
     protected object Post {
         private val LOG = LogManager.getLogger(javaClass)
 
-        private inline fun modify(path: Path, offset: Long = 0L,
-                                  block: (BigFile<*>, CountingDataOutput) -> Unit) {
+        private inline fun <T>  modify(path: Path, offset: Long = 0L,
+                                       block: (BigFile<*>, OrderedDataOutput) -> T): T {
             val bf = read(path)
-            try {
-                CountingDataOutput.of(path, bf.header.order, offset).use { output ->
+            return try {
+                OrderedDataOutput.of(path, bf.header.order, offset).use { output ->
                     block(bf, output)
                 }
             } finally {
@@ -322,31 +322,32 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                         reduction *= step
                     }
                 }
-
-                modify(path, offset = Header.BYTES.toLong()) { bf, output ->
-                    for (zoomLevel in zoomLevels) {
-                        val zoomHeaderOffset = output.tell()
-                        zoomLevel.write(output)
-                        assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
-                    }
-                }
             }
         }
 
-        private fun Int.zoomAt(bf: BigFile<*>, output: CountingDataOutput,
+        private fun Int.zoomAt(bf: BigFile<*>, output: OrderedDataOutput,
                                itemsPerSlot: Int): ZoomLevel? {
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
             for ((name, chromIx, size) in bf.bPlusTree.traverse(bf.input)) {
                 val query = Interval(chromIx, 0, size)
-                val summaries = bf.summarizeInternal(query, numBins = size divCeiling reduction)
+
+                // We can re-use pre-computed zooms, but preliminary
+                // results suggest it doesn't give a considerable speedup.
+                val summaries = bf.summarizeInternal(
+                        query, numBins = size divCeiling reduction)
                 for (slot in summaries.partition(itemsPerSlot)) {
                     val dataOffset = output.tell()
                     output.with(bf.compressed) {
                         for ((i, summary) in slot) {
-                            val bin = Interval(chromIx, i * reduction, (i + 1) * reduction)
-                            (bin to summary).toZoomData().write(this)
+                            val startOffset = i * reduction
+                            val endOffset = (i + 1) * reduction
+                            val (count, minValue, maxValue, sum, sumSquares) = summary
+                            ZoomData(chromIx, startOffset, endOffset,
+                                     count.toInt(),
+                                     minValue.toFloat(), maxValue.toFloat(),
+                                     sum.toFloat(), sumSquares.toFloat()).write(this)
                         }
                     }
 

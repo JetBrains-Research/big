@@ -1,6 +1,6 @@
 package org.jetbrains.bio.big
 
-import org.jetbrains.bio.CountingDataOutput
+import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.withTempFile
@@ -30,7 +30,7 @@ class RTreeIndexTest {
 
     @Test fun testWriteEmpty() {
         withTempFile("empty", ".rti") { path ->
-            CountingDataOutput.of(path).use { output ->
+            OrderedDataOutput.of(path).use { output ->
                 RTreeIndex.write(output, emptyList())
             }
 
@@ -75,7 +75,7 @@ class RTreeIndexTest {
                 offset = next
             }
 
-            CountingDataOutput.of(path).use { RTreeIndex.write(it, leaves, blockSize) }
+            OrderedDataOutput.of(path).use { RTreeIndex.write(it, leaves, blockSize) }
             RomBuffer(path).let { input ->
                 val rti = RTreeIndex.read(input, 0)
                 for (leaf in leaves) {

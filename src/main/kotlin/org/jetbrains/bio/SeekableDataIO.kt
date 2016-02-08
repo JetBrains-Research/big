@@ -2,6 +2,8 @@ package org.jetbrains.bio
 
 import com.google.common.primitives.Bytes
 import com.google.common.primitives.Ints
+import com.google.common.primitives.Longs
+import com.google.common.primitives.Shorts
 import java.io.Closeable
 import java.io.OutputStream
 import java.io.RandomAccessFile
@@ -92,13 +94,15 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
     internal fun <T> with(offset: Long, size: Long,
                           compressed: Boolean = false,
                           block: RomBuffer.() -> T): T {
-        mapped.position(offset.toInt())
         val input = if (compressed) {
             val compressedBuf = ByteArray(size.toInt())
-            mapped.get(compressedBuf, 0, size.toInt())
+            mapped.duplicate().apply {
+                position(offset.toInt())
+                get(compressedBuf)
+            }
 
             inf.reset()
-            inf.setInput(compressedBuf, 0, size.toInt())
+            inf.setInput(compressedBuf)
             var step = size.toInt()
             var uncompressedSize = 0
             var uncompressedBuf = ByteArray(2 * step)
@@ -112,6 +116,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
             ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
         } else {
             mapped.duplicate().apply {
+                position(offset.toInt())
                 limit(Ints.checkedCast(offset + size))
             }
         }
@@ -135,84 +140,88 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
 /**
  * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
-interface OrderedDataOutput {
-    val order: ByteOrder
+class OrderedDataOutput(private val output: OutputStream,
+                        private val offset: Long,
+                        val order: ByteOrder)
+:
+        Closeable, AutoCloseable {
 
     fun skipBytes(count: Int) {
         assert(count >= 0) { "count must be >=0" }
-        for (i in 0..count - 1) {
-            writeByte(0)
-        }
+        output.write(ByteArray(count))
+        ack(count)
     }
 
-    fun writeCString(s: String)
-
-    fun writeCString(s: String, length: Int) {
-        assert(length >= s.length + 1)
-        writeCString(s)
-        skipBytes(length - (s.length + 1))
+    fun writeByte(v: Int) {
+        output.write(v)
+        ack(1)
     }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
 
-    fun writeByte(v: Int)
-
     fun writeShort(v: Int) {
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte((v ushr 8) and 0xff)
-            writeByte((v ushr 0) and 0xff)
+            output.write((v ushr 8) and 0xff)
+            output.write((v ushr 0) and 0xff)
         } else {
-            writeByte((v ushr 0) and 0xff)
-            writeByte((v ushr 8) and 0xff)
+            output.write((v ushr 0) and 0xff)
+            output.write((v ushr 8) and 0xff)
         }
+        
+        ack(Shorts.BYTES)
     }
 
     fun writeInt(v: Int) {
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte((v ushr 24) and 0xff)
-            writeByte((v ushr 16) and 0xff)
-            writeByte((v ushr  8) and 0xff)
-            writeByte((v ushr  0) and 0xff)
+            output.write((v ushr 24) and 0xff)
+            output.write((v ushr 16) and 0xff)
+            output.write((v ushr  8) and 0xff)
+            output.write((v ushr  0) and 0xff)
         } else {
-            writeByte((v ushr  0) and 0xff)
-            writeByte((v ushr  8) and 0xff)
-            writeByte((v ushr 16) and 0xff)
-            writeByte((v ushr 24) and 0xff)
+            output.write((v ushr  0) and 0xff)
+            output.write((v ushr  8) and 0xff)
+            output.write((v ushr 16) and 0xff)
+            output.write((v ushr 24) and 0xff)
         }
+
+        ack(Ints.BYTES)
     }
 
     fun writeLong(v: Long) {
         if (order == ByteOrder.BIG_ENDIAN) {
-            writeByte((v ushr 56).toInt() and 0xff)
-            writeByte((v ushr 48).toInt() and 0xff)
-            writeByte((v ushr 40).toInt() and 0xff)
-            writeByte((v ushr 32).toInt() and 0xff)
-            writeByte((v ushr 24).toInt() and 0xff)
-            writeByte((v ushr 16).toInt() and 0xff)
-            writeByte((v ushr  8).toInt() and 0xff)
-            writeByte((v ushr  0).toInt() and 0xff)
+            output.write((v ushr 56).toInt() and 0xff)
+            output.write((v ushr 48).toInt() and 0xff)
+            output.write((v ushr 40).toInt() and 0xff)
+            output.write((v ushr 32).toInt() and 0xff)
+            output.write((v ushr 24).toInt() and 0xff)
+            output.write((v ushr 16).toInt() and 0xff)
+            output.write((v ushr  8).toInt() and 0xff)
+            output.write((v ushr  0).toInt() and 0xff)
         } else {
-            writeByte((v ushr  0).toInt() and 0xff)
-            writeByte((v ushr  8).toInt() and 0xff)
-            writeByte((v ushr 16).toInt() and 0xff)
-            writeByte((v ushr 24).toInt() and 0xff)
-            writeByte((v ushr 32).toInt() and 0xff)
-            writeByte((v ushr 40).toInt() and 0xff)
-            writeByte((v ushr 48).toInt() and 0xff)
-            writeByte((v ushr 56).toInt() and 0xff)
+            output.write((v ushr  0).toInt() and 0xff)
+            output.write((v ushr  8).toInt() and 0xff)
+            output.write((v ushr 16).toInt() and 0xff)
+            output.write((v ushr 24).toInt() and 0xff)
+            output.write((v ushr 32).toInt() and 0xff)
+            output.write((v ushr 40).toInt() and 0xff)
+            output.write((v ushr 48).toInt() and 0xff)
+            output.write((v ushr 56).toInt() and 0xff)
         }
+
+        ack(Longs.BYTES)
     }
 
     fun writeFloat(v: Float) = writeInt(java.lang.Float.floatToIntBits(v))
 
     fun writeDouble(v: Double) = writeLong(java.lang.Double.doubleToLongBits(v))
-}
 
-internal open class CountingDataOutput(private val output: OutputStream,
-                                       private val offset: Long,
-                                       override val order: ByteOrder)
-:
-        OrderedDataOutput, Closeable, AutoCloseable {
+    fun writeCString(s: String, length: Int = s.length + 1) {
+        assert(s.length < length)
+        output.write(s.toByteArray(Charsets.US_ASCII))
+        val padding = length - s.length
+        output.write(ByteArray(padding))
+        ack(length)
+    }
 
     /** Total number of bytes written. */
     private var written = 0L
@@ -235,30 +244,16 @@ internal open class CountingDataOutput(private val output: OutputStream,
             // our input stream and report the number of uncompressed
             // bytes fed into the deflater.
             def.reset()
-            val inner = DeflaterOutputStream(output, def)
-            with(CountingDataOutput(inner, offset, order), block)
+            val inner = DeflaterOutputStream(output, def, 4096)
+            OrderedDataOutput(inner, offset, order).block()
             inner.finish()
             ack(def.bytesWritten.toInt())
             def.bytesRead
         } else {
             val snapshot = written
-            with(this, block)
+            block()
             written - snapshot
         }.toInt()
-    }
-
-    override fun writeCString(s: String) {
-        for (ch in s) {
-            output.write(ch.toInt())
-        }
-
-        output.write(0)  // null-terminated.
-        ack(s.length + 1)
-    }
-
-    override fun writeByte(v: Int) {
-        output.write(v)
-        ack(1)
     }
 
     fun tell() = offset + written
@@ -267,11 +262,11 @@ internal open class CountingDataOutput(private val output: OutputStream,
 
     companion object {
         fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
-               offset: Long = 0): CountingDataOutput {
+               offset: Long = 0): OrderedDataOutput {
             val file = RandomAccessFile(path.toFile(), "rw")
             file.seek(offset)
             val output = Channels.newOutputStream(file.channel).buffered()
-            return CountingDataOutput(output, offset, order)
+            return OrderedDataOutput(output, offset, order)
         }
     }
 }
