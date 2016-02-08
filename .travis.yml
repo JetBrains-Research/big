@@ -1,3 +1,19 @@
 language: java
 jdk:
   - oraclejdk8
+
+sudo: required
+
+# Try reducing memory usage so Travis doesn't kill the test runner.
+before_script:
+- sudo service --list-all
+- sudo service postgresql stop || true
+- sudo service mysql stop || true
+- sudo service memcached stop || true
+- sudo service elasticsearch stop || true
+- sudo service mongodb stop || true
+- sudo service neo4j stop || true
+- sudo service cassandra stop || true
+- sudo service riak stop || true
+- sudo service rsync stop || true
+- sudo service x11-common stop || true
