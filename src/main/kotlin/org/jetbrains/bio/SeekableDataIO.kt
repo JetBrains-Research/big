@@ -82,7 +82,7 @@ class BigByteBuffer private constructor(val mapped: ByteBuffer) :
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
-    private val inf by lazy(NONE) { Inflater() }
+    private val inf by ThreadLocal.withInitial { Inflater() }
 
     // For performance reasons we use fixed-size buffers for both
     // compressed and uncompressed inputs. Unfortunately this makes

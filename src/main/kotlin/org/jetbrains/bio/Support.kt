@@ -8,6 +8,7 @@ import com.google.common.math.IntMath
 import org.apache.log4j.Logger
 import java.io.BufferedReader
 import java.math.RoundingMode
+import kotlin.reflect.KProperty
 
 /**
  * Various internal helpers.
@@ -96,3 +97,7 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
 
 /** A function which simply ignores a given [value]. */
 internal fun ignore(value: Any?) {}
+
+operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
+
+operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) = set(value)
