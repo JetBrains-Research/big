@@ -11,6 +11,8 @@ Version 0.2.6
   DEFLATE for data block compression.
 - Added 'BigFile#duplicate' and 'TdfFile#duplicate' for creating an
   independent view of the file data for parallel access.
+- Fixed a bug in 'BedGraphTrack#span' which was always zero, see issue
+  #25 on GitHub for details.
 
 Version 0.2.5
 -------------
