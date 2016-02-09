@@ -25,27 +25,24 @@ import java.util.*
  *
  * @since 0.2.2
  */
-class TdfFile @Throws(IOException::class) private constructor(
-        private val input: RomBuffer) : Closeable, AutoCloseable {
+data class TdfFile private constructor(
+        private val input: RomBuffer,
+        private val header: Header,
+        private val index: TdfMasterIndex,
+        /** Window functions supported by the data, e.g. `"mean"`. */
+        val windowFunctions: List<WindowFunction>,
+        /** Data type, e.g. `"GENE_EXPRESSION"`. */
+        val trackType: TrackType,
+        /** Track description, see BED format spec for details. */
+        val trackLine: String,
+        /** Human-readable track names. */
+        val trackNames: List<String>,
+        /** Genome build, e.g. `"hg38"`. */
+        val build: String,
+        /** Whether the data sections are compressed with DEFLATE. */
+        val compressed: Boolean) : Closeable, AutoCloseable {
 
-    private val index: TdfMasterIndex
-    private val header = Header.read(input)
-
-    val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
-    val trackType = TrackType.read(input)
-    val trackLine = input.getCString().trim()
-    val trackNames = input.getSequenceOf { getCString() }.toList()
-    val build = input.getCString()
-    val compressed = (input.getInt() and 0x1) != 0
     val version: Int get() = header.version
-
-    init {
-        // Make sure we haven't read anything extra.
-        check(input.position == header.headerSize + Header.BYTES)
-        index = input.with(header.indexOffset, header.indexSize.toLong()) {
-            TdfMasterIndex.read(this)
-        }
-    }
 
     val dataSetNames: Set<String> get() = index.datasets.keys
 
@@ -59,7 +56,7 @@ class TdfFile @Throws(IOException::class) private constructor(
      *
      * @since 0.2.6
      */
-    fun duplicate() = TdfFile(input.duplicate())
+    fun duplicate() = copy(input = input.duplicate())
 
     /**
      * Returns a list of dataset tiles overlapping a given interval.
@@ -196,7 +193,23 @@ class TdfFile @Throws(IOException::class) private constructor(
     companion object {
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): TdfFile {
-            return TdfFile(RomBuffer(path, ByteOrder.LITTLE_ENDIAN))
+            return with(RomBuffer(path, ByteOrder.LITTLE_ENDIAN)) {
+                val header = Header.read(this)
+                val windowFunctions = getSequenceOf { WindowFunction.read(this) }.toList()
+                val trackType: TrackType = TrackType.read(this)
+                val trackLine: String = getCString().trim()
+                val trackNames: List<String> = getSequenceOf { getCString() }.toList()
+                val build: String = getCString()
+                val compressed: Boolean = (getInt() and 0x1) != 0
+                // Make sure we haven't read anything extra.
+                check(position == header.headerSize + Header.BYTES)
+                val index = with(header.indexOffset, header.indexSize.toLong()) {
+                    TdfMasterIndex.read(this)
+                }
+
+                TdfFile(this, header, index, windowFunctions, trackType,
+                        trackLine, trackNames, build, compressed)
+            }
         }
     }
 }
