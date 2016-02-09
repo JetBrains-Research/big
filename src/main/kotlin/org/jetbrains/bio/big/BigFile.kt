@@ -15,6 +15,13 @@ import kotlin.LazyThreadSafetyMode.NONE
 
 /**
  * A common superclass for Big files.
+ *
+ * Supported format versions
+ *
+ *   3  full support
+ *   4  partial support, specifically, extra indices aren't supported
+ *   5  custom version, requires Snappy instead of DEFLATE for
+ *      compressed data blocks
  */
 abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         Closeable, AutoCloseable {

@@ -275,11 +275,11 @@ class OrderedDataOutput(private val output: OutputStream,
                     val inner = FastByteArrayOutputStream()
                     OrderedDataOutput(inner, offset, order).block()
 
-                    // TODO: encode chunkwise?
                     val uncompressedBuf = inner.toByteArray()
                     val compressedBuf = ByteArray(Snappy.maxCompressedLength(uncompressedBuf.size))
-                    val compressedSize = Snappy.compress(uncompressedBuf, 0, uncompressedBuf.size,
-                                                         compressedBuf, 0)
+                    val compressedSize = Snappy.compress(
+                            uncompressedBuf, 0, uncompressedBuf.size,
+                            compressedBuf, 0)
                     output.write(compressedBuf, 0, compressedSize)
                     ack(compressedSize)
                     uncompressedBuf.size
