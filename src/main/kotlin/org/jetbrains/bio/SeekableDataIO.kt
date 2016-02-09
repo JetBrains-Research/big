@@ -5,7 +5,6 @@ import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.iq80.snappy.Snappy
-import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.OutputStream
 import java.io.RandomAccessFile
@@ -273,14 +272,16 @@ class OrderedDataOutput(private val output: OutputStream,
                     def.bytesRead.toInt()
                 }
                 CompressionType.SNAPPY -> {
-                    val inner = ByteArrayOutputStream() //FastByteArrayOutputStream()
+                    val inner = FastByteArrayOutputStream()
                     OrderedDataOutput(inner, offset, order).block()
 
                     // TODO: encode chunkwise?
                     val uncompressedBuf = inner.toByteArray()
-                    val compressedBuf = Snappy.compress(uncompressedBuf)
-                    output.write(compressedBuf)
-                    ack(compressedBuf.size)
+                    val compressedBuf = ByteArray(Snappy.maxCompressedLength(uncompressedBuf.size))
+                    val compressedSize = Snappy.compress(uncompressedBuf, 0, uncompressedBuf.size,
+                                                         compressedBuf, 0)
+                    output.write(compressedBuf, 0, compressedSize)
+                    ack(compressedSize)
                     uncompressedBuf.size
                 }
                 else -> impossible()

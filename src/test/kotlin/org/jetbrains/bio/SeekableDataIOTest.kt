@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 class SeekableDataIOTest(private val order: ByteOrder,
                          private val compression: CompressionType) {
     @Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
-        val b = r.nextByte()
+        val b = r.nextInt().toByte()
         val s = r.nextInt(Short.MAX_VALUE.toInt())
         val i = r.nextInt()
         val l = r.nextLong()
@@ -64,39 +64,28 @@ class SeekableDataIOTest(private val order: ByteOrder,
         }
     }
 
-    init {
-        RANDOM.setSeed(42)
-    }
-
     @Test fun testCompression() = withTempFileRandomized { path, r ->
-        val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
+        val values = (0..r.nextInt(4096)).map { r.nextInt() }.toIntArray()
         OrderedDataOutput.of(path, order).use {
             it.with(compression) {
-                b.forEach { writeByte(it.toInt()) }
+                values.forEach { writeInt(it) }
             }
         }
 
         RomBuffer(path, order).let {
             it.with(0, Files.size(path), compression) {
-                for (i in 0 until b.size) {
-                    assertEquals(b[i], get())
+                for (i in 0 until values.size) {
+                    assertEquals(values[i], getInt())
                 }
             }
         }
     }
 
     private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {
-        withTempFile(order.toString(), ".bb") { path ->
-            val attempts = RANDOM.nextInt(100) + 1
-            for (i in 0 until attempts) {
-                block(path, RANDOM)
-            }
+        val attempts = RANDOM.nextInt(100) + 1
+        for (i in 0 until attempts) {
+            withTempFile(order.toString(), ".bb") { block(it, RANDOM) }
         }
-    }
-
-    private fun Random.nextByte(): Byte {
-        val b = nextInt(Byte.MAX_VALUE - Byte.MIN_VALUE)
-        return (b + Byte.MIN_VALUE).toByte()
     }
 
     companion object {

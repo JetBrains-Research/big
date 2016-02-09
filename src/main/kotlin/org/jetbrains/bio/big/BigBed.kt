@@ -153,7 +153,9 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
 
                 BigFile.Header(
-                        output.order, MAGIC, zoomLevelCount = zoomLevelCount,
+                        output.order, MAGIC,
+                        version = if (compression == CompressionType.SNAPPY) 5 else 4,
+                        zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,

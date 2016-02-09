@@ -195,7 +195,9 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = 1)
                 BigFile.Header(
-                        output.order, MAGIC, zoomLevelCount = zoomLevelCount,
+                        output.order, MAGIC,
+                        version = if (compression == CompressionType.SNAPPY) 5 else 4,
+                        zoomLevelCount = zoomLevelCount,
                         chromTreeOffset = chromTreeOffset,
                         unzoomedDataOffset = unzoomedDataOffset,
                         unzoomedIndexOffset = unzoomedIndexOffset,

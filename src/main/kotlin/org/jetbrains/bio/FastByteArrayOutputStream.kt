@@ -3,8 +3,15 @@ package org.jetbrains.bio
 import java.io.OutputStream
 import java.util.*
 
-class FastByteArrayOutputStream(private val capacity: Int = 8192)
-:
+/**
+ * A faster version of [java.io.ByteArraOutputStream].
+ *
+ * Key differences:
+ *
+ *   * uses an unrolled list for storing internal buffer,
+ *   * non-synchronized.
+ */
+internal class FastByteArrayOutputStream(private val capacity: Int = 8192) :
         OutputStream() {
 
     private var pos = 0
@@ -21,22 +28,22 @@ class FastByteArrayOutputStream(private val capacity: Int = 8192)
 
     override fun write(src: ByteArray, offset: Int, length: Int) {
         assert(!closed)
-        assert(offset > 0 && length > 0 && offset + length < src.size)
+        assert(offset >= 0 && length > 0 && offset + length <= src.size)
 
-        var offset = offset
-        var length = length
-        while (length > 0) {
+        var offset = offset  // :(
+        var remaining = length
+        while (remaining > 0) {
             tryComplete()
-            val available = Math.min(length, capacity - pos)
-            System.arraycopy(src, pos, buf, offset, available)
+            val available = Math.min(remaining, capacity - pos)
+            System.arraycopy(src, offset, buf, pos, available)
             offset += available
             pos += available
-            length -= available
+            remaining -= available
         }
     }
 
     fun toByteArray(): ByteArray {
-        var size = buf.size
+        var size = pos
         for (other in completed) {
             size += other.size
         }

@@ -315,7 +315,8 @@ class BigWigReadWriteTest(private val order: ByteOrder,
     @Test fun testWriteReadEmpty() {
         withTempFile("empty", ".bw") { path ->
             BigWigFile.write(emptyList<WigSection>(),
-                             Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
             BigWigFile.read(path).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }

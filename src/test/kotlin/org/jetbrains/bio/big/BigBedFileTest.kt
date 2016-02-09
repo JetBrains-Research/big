@@ -183,7 +183,8 @@ class BigBedReadWriteTest(private val order: ByteOrder,
     @Test fun testWriteReadSmall() {
         withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
-            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
             BigBedFile.read(path).use { bbf ->
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
@@ -194,7 +195,8 @@ class BigBedReadWriteTest(private val order: ByteOrder,
     @Test fun testWriteReadEmpty() {
         withTempFile("empty", ".bb") { path ->
             BigBedFile.write(emptyList<BedEntry>(),
-                             Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
             BigBedFile.read(path).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
