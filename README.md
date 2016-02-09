@@ -2,7 +2,7 @@
 
 `big` implements high performance classes for reading and writing BigWIG,
 BigBED and TDF. You can use `big` in any programming language running on the
-JVM, but the API is in part Kotlin-specific.
+JVM, but the public API is in part Kotlin-specific.
 
 Installation
 ------------
@@ -78,7 +78,7 @@ Useful links
 * UCSC documentation on [WIG] [wig], [BED] [bed], [BigWIG] [bigwig] and [BigBED] [bigbed]
 * Reference C [implementation](http://hgdownload.cse.ucsc.edu/admin/exe) of both
   big formats by UCSC
-* Sketch of [TDF spec.] [tdf] in IGV repository.
+* Sketch of [TDF spec.] [tdf] in IGV repository
 
 [paper]: http://bioinformatics.oxfordjournals.org/content/26/17/2204.abstract
 [wig]: http://genome.ucsc.edu/goldenpath/help/wiggle.html
