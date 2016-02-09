@@ -1,8 +1,12 @@
 package org.jetbrains.bio.big
 
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.MoreExecutors
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
@@ -15,6 +19,30 @@ class BigFileTest {
             assertEquals(3, header.fieldCount)
             assertEquals(3, header.definedFieldCount)
             assertEquals(0, header.uncompressBufSize)
+        }
+    }
+
+    @Test fun testConcurrentQuery() {
+        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+            val (name, _chromIx, size) =
+                    bwf.bPlusTree.traverse(bwf.input).first()
+
+            val executor = MoreExecutors.listeningDecorator(
+                    Executors.newFixedThreadPool(8))
+            val latch = CountDownLatch(8)
+            val futures = (0..7).map {
+                executor.submit {
+                    latch.countDown()
+                    assertEquals(6857, bwf.duplicate().query(name).count())
+                    latch.await()
+                }
+            }
+            
+            for (future in Futures.inCompletionOrder(futures)) {
+                future.get()
+            }
+
+            executor.shutdownNow()
         }
     }
 

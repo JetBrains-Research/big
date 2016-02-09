@@ -20,13 +20,23 @@ import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
-/** A read-only mapped buffer. */
+/** A read-only mapped buffer.*/
 class RomBuffer private constructor(val mapped: ByteBuffer) {
     var position: Int
         get() = mapped.position()
         set(value: Int) = ignore(mapped.position(value))
 
     val order: ByteOrder get() = mapped.order()
+
+    /**
+     * Returns a new buffer sharing the data with its parent.
+     *
+     * @see ByteBuffer.duplicate for details.
+     */
+    fun duplicate() = RomBuffer(mapped.duplicate().apply {
+        order(mapped.order())
+        position(0)
+    })
 
     /** Guess byte order from a given `magic`. */
     fun guess(magic: Int): Boolean {

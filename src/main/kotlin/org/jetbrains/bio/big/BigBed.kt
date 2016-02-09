@@ -4,6 +4,7 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.RomBuffer
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -12,8 +13,10 @@ import java.util.*
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
-        BigFile<BedEntry>(path, magic = BigBedFile.MAGIC) {
+class BigBedFile @Throws(IOException::class) protected constructor(input: RomBuffer) :
+        BigFile<BedEntry>(input, magic = BigBedFile.MAGIC) {
+
+    override fun duplicate() = BigBedFile(input)
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -77,10 +80,10 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        internal val MAGIC: Int = 0x8789F2EB.toInt()
+        internal val MAGIC = 0x8789F2EB.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = BigBedFile(path)
+        @JvmStatic fun read(path: Path) = BigBedFile(RomBuffer(path))
 
         /**
          * Creates a BigBED file from given entries.

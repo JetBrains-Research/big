@@ -23,10 +23,9 @@ import kotlin.LazyThreadSafetyMode.NONE
  *   5  custom version, requires Snappy instead of DEFLATE for
  *      compressed data blocks
  */
-abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
+abstract class BigFile<T> protected constructor(internal val input: RomBuffer, magic: Int) :
         Closeable, AutoCloseable {
 
-    internal val input = RomBuffer(path)
     internal val header = Header.read(input, magic)
     internal val zoomLevels = (0..header.zoomLevelCount - 1)
             .map { ZoomLevel.read(input) }
@@ -69,6 +68,11 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         }
     }
 
+    /**
+     * File compression type.
+     *
+     * @since 0.2.6
+     */
     val compression: CompressionType get() = with(header) {
         when {
             // Compression was introduced in version 3 of the format. See
@@ -79,6 +83,16 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             else -> error("unsupported version: $version")
         }
     }
+
+    /**
+     * Returns an independent view of this [BigFile] data.
+     *
+     * This is useful if you wan't to work with the same file from
+     * multiple threads.
+     *
+     * @since 0.2.6
+     */
+    abstract fun duplicate(): BigFile<T>
 
     /**
      * Splits the interval `[startOffset, endOffset)` into `numBins`

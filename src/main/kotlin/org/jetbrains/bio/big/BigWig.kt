@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.RomBuffer
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -10,8 +11,10 @@ import java.util.*
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
-        BigFile<WigSection>(path, magic = BigWigFile.MAGIC) {
+class BigWigFile @Throws(IOException::class) protected constructor(input: RomBuffer) :
+        BigFile<WigSection>(input, magic = BigWigFile.MAGIC) {
+
+    override fun duplicate() = BigWigFile(input.duplicate())
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -134,7 +137,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
         internal val MAGIC: Int = 0x888FFC26.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = BigWigFile(path)
+        @JvmStatic fun read(path: Path) = BigWigFile(RomBuffer(path))
 
         /**
          * Creates a BigWIG file from given sections.
