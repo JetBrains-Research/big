@@ -119,9 +119,12 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             /** Magic number used for determining [ByteOrder]. */
             private val MAGIC = 0x78CA8C91
 
-            fun read(input: RomBuffer, offset: Long): Header = with(input) {
+            fun read(input: RomBuffer, offset: Long) = with(input) {
+                val expectedOrder = order
                 position = Ints.checkedCast(offset)
-                guess(MAGIC)
+                check(guess(MAGIC)) { "bad magic" }
+                check(order == expectedOrder)
+
                 val blockSize = getInt()
                 val keySize = getInt()
                 val valSize = getInt()
@@ -131,8 +134,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
                 getLong()  // reserved.
                 val rootOffset = position.toLong()
 
-                return Header(order, blockSize, keySize,
-                              Ints.checkedCast(itemCount), rootOffset)
+                Header(order, blockSize, keySize, Ints.checkedCast(itemCount),
+                       rootOffset)
             }
         }
     }

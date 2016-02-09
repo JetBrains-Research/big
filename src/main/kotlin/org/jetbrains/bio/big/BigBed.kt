@@ -14,10 +14,17 @@ import java.util.*
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile @Throws(IOException::class) protected constructor(input: RomBuffer) :
-        BigFile<BedEntry>(input, magic = BigBedFile.MAGIC) {
+class BigBedFile private constructor(input: RomBuffer,
+                                     header: BigFile.Header,
+                                     zoomLevels: List<ZoomLevel>,
+                                     bPlusTree: BPlusTree,
+                                     rTree: RTreeIndex)
+:
+        BigFile<BedEntry>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun duplicate() = BigBedFile(input)
+    override fun duplicate(): BigBedFile {
+        return BigBedFile(input, header, zoomLevels, bPlusTree, rTree)
+    }
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -84,7 +91,15 @@ class BigBedFile @Throws(IOException::class) protected constructor(input: RomBuf
         internal val MAGIC = 0x8789F2EB.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = BigBedFile(RomBuffer(path))
+        @JvmStatic fun read(path: Path): BigBedFile {
+            val input = RomBuffer(path)
+            val header = Header.read(input, MAGIC)
+            val zoomLevels = (0..header.zoomLevelCount - 1)
+                    .map { ZoomLevel.read(input) }
+            val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+            val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+            return BigBedFile(input, header, zoomLevels, bPlusTree, rTree)
+        }
 
         /**
          * Creates a BigBED file from given entries.

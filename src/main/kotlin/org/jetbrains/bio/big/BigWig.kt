@@ -11,10 +11,17 @@ import java.util.*
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile @Throws(IOException::class) protected constructor(input: RomBuffer) :
-        BigFile<WigSection>(input, magic = BigWigFile.MAGIC) {
+class BigWigFile private constructor(input: RomBuffer,
+                                     header: Header,
+                                     zoomLevels: List<ZoomLevel>,
+                                     bPlusTree: BPlusTree,
+                                     rTree: RTreeIndex)
+:
+        BigFile<WigSection>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun duplicate() = BigWigFile(input.duplicate())
+    override fun duplicate(): BigWigFile {
+        return BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
+    }
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -137,7 +144,15 @@ class BigWigFile @Throws(IOException::class) protected constructor(input: RomBuf
         internal val MAGIC: Int = 0x888FFC26.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = BigWigFile(RomBuffer(path))
+        @JvmStatic fun read(path: Path): BigWigFile {
+            val input = RomBuffer(path)
+            val header = Header.read(input, MAGIC)
+            val zoomLevels = (0..header.zoomLevelCount - 1)
+                    .map { ZoomLevel.read(input) }
+            val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+            val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+            return BigWigFile(input, header, zoomLevels, bPlusTree, rTree)
+        }
 
         /**
          * Creates a BigWIG file from given sections.

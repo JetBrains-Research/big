@@ -23,29 +23,12 @@ import kotlin.LazyThreadSafetyMode.NONE
  *   5  custom version, requires Snappy instead of DEFLATE for
  *      compressed data blocks
  */
-abstract class BigFile<T> protected constructor(internal val input: RomBuffer, magic: Int) :
-        Closeable, AutoCloseable {
-
-    internal val header = Header.read(input, magic)
-    internal val zoomLevels = (0..header.zoomLevelCount - 1)
-            .map { ZoomLevel.read(input) }
-    internal val bPlusTree: BPlusTree
-    internal val rTree: RTreeIndex
-
-    init {
-        if (header.asOffset > 0) {
-            LOG.warn("AutoSQL queries are unsupported")
-        }
-
-        if (header.extendedHeaderOffset > 0) {
-            LOG.warn("Header extensions are unsupported")
-        }
-
-        bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
-        check(bPlusTree.header.order == header.order)
-        rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-        check(rTree.header.order == header.order)
-    }
+abstract class BigFile<T> internal constructor(
+        internal val input: RomBuffer,
+        internal val header: Header,
+        internal val zoomLevels: List<ZoomLevel>,
+        internal val bPlusTree: BPlusTree,
+        internal val rTree: RTreeIndex) : Closeable, AutoCloseable {
 
     /** Whole-file summary. */
     val totalSummary: BigSummary by lazy(NONE) {
@@ -257,7 +240,7 @@ abstract class BigFile<T> protected constructor(internal val input: RomBuffer, m
             internal val BYTES = 64
 
             internal fun read(input: RomBuffer, magic: Int) = with(input) {
-                guess(magic)
+                check(guess(magic)) { "bad magic" }
 
                 val version = getUnsignedShort()
                 val zoomLevelCount = getUnsignedShort()
@@ -270,6 +253,12 @@ abstract class BigFile<T> protected constructor(internal val input: RomBuffer, m
                 val totalSummaryOffset = getLong()
                 val uncompressBufSize = getInt()
                 val extendedHeaderOffset = getLong()
+
+                when {
+                    asOffset > 0 -> LOG.warn("AutoSQL queries are unsupported")
+                    extendedHeaderOffset > 0 -> LOG.warn("Header extensions are unsupported")
+                }
+
                 Header(order, magic, version, zoomLevelCount, chromTreeOffset,
                        unzoomedDataOffset, unzoomedIndexOffset,
                        fieldCount, definedFieldCount, asOffset,

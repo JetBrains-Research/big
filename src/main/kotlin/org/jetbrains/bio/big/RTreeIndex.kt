@@ -119,8 +119,10 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             private val MAGIC = 0x2468ACE0
 
             internal fun read(input: RomBuffer, offset: Long) = with(input) {
+                val expectedOrder = order
                 position = Ints.checkedCast(offset)
-                guess(MAGIC)
+                check(guess(MAGIC)) { "bad magic" }
+                check(order == expectedOrder)
 
                 val blockSize = getInt()
                 val itemCount = getLong()
