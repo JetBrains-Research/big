@@ -62,10 +62,15 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
         }
     }
 
-    val compressed: Boolean get() {
-        // Compression was introduced in version 3 of the format. See
-        // bbiFile.h in UCSC sources.
-        return header.version >= 3 && header.uncompressBufSize > 0
+    val compression: CompressionType get() = with(header) {
+        when {
+            // Compression was introduced in version 3 of the format. See
+            // bbiFile.h in UCSC sources.
+            version < 3 || uncompressBufSize == 0 -> CompressionType.NO_COMPRESSION
+            version <= 4 -> CompressionType.DEFLATE
+            version == 5 -> CompressionType.SNAPPY
+            else -> error("unsupported version: $version")
+        }
     }
 
     /**
@@ -123,8 +128,8 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
-            assert(compressed || block.dataSize % ZoomData.SIZE == 0L)
-            input.with(block.dataOffset, block.dataSize, compressed) {
+            assert(!compression.absent || block.dataSize % ZoomData.SIZE == 0L)
+            input.with(block.dataOffset, block.dataSize, compression) {
                 val res = ArrayList<ZoomData>()
                 do {
                     val zoomData = ZoomData.read(this)
@@ -202,7 +207,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
 
     override fun close() {}
 
-    internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 4,
+    internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 5,
                                val zoomLevelCount: Int = 0,
                                val chromTreeOffset: Long, val unzoomedDataOffset: Long,
                                val unzoomedIndexOffset: Long, val fieldCount: Int,
@@ -230,7 +235,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
             /** Number of bytes used for this header. */
             internal val BYTES = 64
 
-            internal fun read(input: RomBuffer, magic: Int): Header = with(input) {
+            internal fun read(input: RomBuffer, magic: Int) = with(input) {
                 guess(magic)
 
                 val version = getUnsignedShort()
@@ -244,11 +249,11 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                 val totalSummaryOffset = getLong()
                 val uncompressBufSize = getInt()
                 val extendedHeaderOffset = getLong()
-                return Header(order, magic, version, zoomLevelCount, chromTreeOffset,
-                              unzoomedDataOffset, unzoomedIndexOffset,
-                              fieldCount, definedFieldCount, asOffset,
-                              totalSummaryOffset, uncompressBufSize,
-                              extendedHeaderOffset)
+                Header(order, magic, version, zoomLevelCount, chromTreeOffset,
+                       unzoomedDataOffset, unzoomedIndexOffset,
+                       fieldCount, definedFieldCount, asOffset,
+                       totalSummaryOffset, uncompressBufSize,
+                       extendedHeaderOffset)
             }
         }
     }
@@ -339,7 +344,7 @@ abstract class BigFile<T> protected constructor(path: Path, magic: Int) :
                         query, numBins = size divCeiling reduction)
                 for (slot in summaries.partition(itemsPerSlot)) {
                     val dataOffset = output.tell()
-                    output.with(bf.compressed) {
+                    output.with(bf.compression) {
                         for ((i, summary) in slot) {
                             val startOffset = i * reduction
                             val endOffset = (i + 1) * reduction

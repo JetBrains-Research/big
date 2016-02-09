@@ -1,5 +1,6 @@
 package org.jetbrains.bio.tdf
 
+import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
 import org.jetbrains.bio.mapUnboxed
@@ -98,8 +99,14 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
                 return null  // Indicates empty tile.
             }
 
+            val compression = if (compressed) {
+                CompressionType.DEFLATE
+            } else {
+                CompressionType.NO_COMPRESSION
+            }
+
             input.with(position, tileSizes[tileNumber].toLong(),
-                       compressed = compressed) {
+                       compression = compression) {
                 TdfTile.read(this, trackNames.size)
             }
         }

@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
 import java.io.IOException
 import java.nio.ByteOrder
@@ -56,7 +57,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
-        return sequenceOf(input.with(dataOffset, dataSize, compressed) {
+        return sequenceOf(input.with(dataOffset, dataSize, compression) {
             val chromIx = getInt()
             assert(chromIx == query.chromIx) { "section contains wrong chromosome" }
             val start = getInt()
@@ -144,8 +145,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
          * @param zoomLevelCount number of zoom levels to pre-compute.
          *                       Defaults to `8`.
          * @param outputPath BigWIG file path.
-         * @param compressed compress BigWIG data sections with gzip.
-         *                   Defaults to `true`.
+         * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
@@ -153,7 +153,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                 wigSections: Iterable<WigSection>,
                 chromSizes: Iterable<Pair<String, Int>>,
                 outputPath: Path, zoomLevelCount: Int = 8,
-                compressed: Boolean = true,
+                compression: CompressionType = CompressionType.SNAPPY,
                 order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
             val header = OrderedDataOutput.of(outputPath, order).use { output ->
@@ -178,7 +178,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                     val chromId = resolver[name]!!
                     for (section in sections.asSequence().flatMap { it.splice() }) {
                         val dataOffset = output.tell()
-                        val current = output.with(compressed) {
+                        val current = output.with(compression) {
                             when (section) {
                                 is BedGraphSection -> section.write(this, resolver)
                                 is FixedStepSection -> section.write(this, resolver)
@@ -201,7 +201,7 @@ class BigWigFile @Throws(IOException::class) protected constructor(path: Path) :
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 0, definedFieldCount = 0,
                         totalSummaryOffset = totalSummaryOffset,
-                        uncompressBufSize = if (compressed) uncompressBufSize else 0)
+                        uncompressBufSize = if (compression.absent) 0 else uncompressBufSize)
             }
 
             OrderedDataOutput.of(outputPath, order).use { header.write(it) }

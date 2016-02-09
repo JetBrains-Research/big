@@ -88,6 +88,10 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
 /** A function which simply ignores a given [value]. */
 internal fun ignore(value: Any?) {}
 
+/** A marker function for "impossible" `when` branches. */
+@Suppress("nothing_to_inline")
+inline fun impossible(): Nothing = throw IllegalStateException()
+
 operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
 
 operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) = set(value)

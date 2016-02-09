@@ -3,6 +3,8 @@ package org.jetbrains.bio.big
 import org.apache.commons.math3.util.Precision
 import org.jetbrains.bio.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
@@ -11,35 +13,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BigWigFileTest {
-    @Test fun testWriteReadEmpty() {
-        withTempFile("empty", ".bw") { path ->
-            BigWigFile.write(emptyList<WigSection>(), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
-            BigWigFile.read(path).use { bbf ->
-                assertEquals(0, bbf.query("chr21", 0, 0).count())
-            }
-        }
-    }
-
-    @Test fun testWriteReadCompressedBE() = testWriteRead(true, ByteOrder.BIG_ENDIAN)
-
-    @Test fun testWriteReadUncompressedBE() = testWriteRead(false, ByteOrder.BIG_ENDIAN)
-
-    @Test fun testWriteReadCompressedLE() = testWriteRead(true, ByteOrder.LITTLE_ENDIAN)
-
-    @Test fun testWriteReadUncompressedLE() = testWriteRead(false, ByteOrder.LITTLE_ENDIAN)
-
-    private fun testWriteRead(compressed: Boolean, order: ByteOrder) {
-        withTempFile("example", ".bw") { path ->
-            val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
-            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
-                             path, compressed = compressed, order = order)
-            BigWigFile.read(path).use { bwf ->
-                assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
-                assertFalse(bwf.totalSummary.isEmpty())
-            }
-        }
-    }
-
     @Test fun testCompressedExample2() {
         assertVariableStep(Examples["example2.bw"],
                            "chr21", 9411191, 50f, 48119895, 60f)
@@ -331,6 +304,45 @@ class BigWigFileTest {
             }
 
             return surrogate
+        }
+    }
+}
+
+@RunWith(Parameterized::class)
+class BigWigReadWriteTest(private val order: ByteOrder,
+                          private val compression: CompressionType) {
+
+    @Test fun testWriteReadEmpty() {
+        withTempFile("empty", ".bw") { path ->
+            BigWigFile.write(emptyList<WigSection>(),
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+            BigWigFile.read(path).use { bbf ->
+                assertEquals(0, bbf.query("chr21", 0, 0).count())
+            }
+        }
+    }
+
+    @Test fun testWriteRead() {
+        withTempFile("example", ".bw") { path ->
+            val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
+            BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+            BigWigFile.read(path).use { bwf ->
+                assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
+                assertFalse(bwf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    companion object {
+        @Parameterized.Parameters(name = "{0}:{1}")
+        @JvmStatic fun data(): Iterable<Array<Any>> {
+            return listOf(arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
+                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
+                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY))
         }
     }
 }

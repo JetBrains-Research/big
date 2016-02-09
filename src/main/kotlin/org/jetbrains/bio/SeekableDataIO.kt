@@ -4,6 +4,8 @@ import com.google.common.primitives.Bytes
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
+import org.iq80.snappy.Snappy
+import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.OutputStream
 import java.io.RandomAccessFile
@@ -92,33 +94,47 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
      * See for example [RTreeIndex.findOverlappingBlocks].
      */
     internal fun <T> with(offset: Long, size: Long,
-                          compressed: Boolean = false,
+                          compression: CompressionType = CompressionType.NO_COMPRESSION,
                           block: RomBuffer.() -> T): T {
-        val input = if (compressed) {
+        val input = if (compression.absent) {
+            mapped.duplicate().apply {
+                position(offset.toInt())
+                limit(Ints.checkedCast(offset + size))
+            }
+        } else {
             val compressedBuf = ByteArray(size.toInt())
             mapped.duplicate().apply {
                 position(offset.toInt())
                 get(compressedBuf)
             }
 
-            inf.reset()
-            inf.setInput(compressedBuf)
-            var step = size.toInt()
-            var uncompressedSize = 0
-            var uncompressedBuf = ByteArray(2 * step)
-            while (!inf.finished()) {
-                uncompressedBuf = Bytes.ensureCapacity(  // 1.5x
-                        uncompressedBuf, uncompressedSize + step, step / 2)
-                val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
-                uncompressedSize += actual
+            var uncompressedSize: Int
+            var uncompressedBuf: ByteArray
+            when (compression) {
+                CompressionType.DEFLATE -> {
+                    uncompressedSize = 0
+                    uncompressedBuf = ByteArray(2 * size.toInt())
+
+                    inf.reset()
+                    inf.setInput(compressedBuf)
+                    var step = size.toInt()
+                    while (!inf.finished()) {
+                        uncompressedBuf = Bytes.ensureCapacity(  // 1.5x
+                                uncompressedBuf, uncompressedSize + step, step / 2)
+                        val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
+                        uncompressedSize += actual
+                    }
+                }
+                CompressionType.SNAPPY -> {
+                    uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
+                    uncompressedBuf = ByteArray(uncompressedSize)
+                    Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
+                                      uncompressedBuf, 0)
+                }
+                else -> impossible()
             }
 
             ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
-        } else {
-            mapped.duplicate().apply {
-                position(offset.toInt())
-                limit(Ints.checkedCast(offset + size))
-            }
         }
 
         return with(RomBuffer(input.order(mapped.order())), block)
@@ -167,7 +183,7 @@ class OrderedDataOutput(private val output: OutputStream,
             output.write((v ushr 0) and 0xff)
             output.write((v ushr 8) and 0xff)
         }
-        
+
         ack(Shorts.BYTES)
     }
 
@@ -238,22 +254,38 @@ class OrderedDataOutput(private val output: OutputStream,
      * Executes a `block` (compressing the output) and returns the
      * total number of *uncompressed* bytes written.
      */
-    fun with(compressed: Boolean, block: OrderedDataOutput.() -> Unit): Int {
-        return if (compressed) {
-            // This is slightly involved. We stack deflater on top of
-            // our input stream and report the number of uncompressed
-            // bytes fed into the deflater.
-            def.reset()
-            val inner = DeflaterOutputStream(output, def, 4096)
-            OrderedDataOutput(inner, offset, order).block()
-            inner.finish()
-            ack(def.bytesWritten.toInt())
-            def.bytesRead
-        } else {
+    fun with(compression: CompressionType, block: OrderedDataOutput.() -> Unit): Int {
+        return if (compression.absent) {
             val snapshot = written
             block()
-            written - snapshot
-        }.toInt()
+            (written - snapshot).toInt()
+        } else {
+            when (compression) {
+                CompressionType.DEFLATE -> {
+                    // This is slightly involved. We stack deflater on top of
+                    // our input stream and report the number of uncompressed
+                    // bytes fed into the deflater.
+                    def.reset()
+                    val inner = DeflaterOutputStream(output, def, 4096)
+                    OrderedDataOutput(inner, offset, order).block()
+                    inner.finish()
+                    ack(def.bytesWritten.toInt())
+                    def.bytesRead.toInt()
+                }
+                CompressionType.SNAPPY -> {
+                    val inner = ByteArrayOutputStream() //FastByteArrayOutputStream()
+                    OrderedDataOutput(inner, offset, order).block()
+
+                    // TODO: encode chunkwise?
+                    val uncompressedBuf = inner.toByteArray()
+                    val compressedBuf = Snappy.compress(uncompressedBuf)
+                    output.write(compressedBuf)
+                    ack(compressedBuf.size)
+                    uncompressedBuf.size
+                }
+                else -> impossible()
+            }
+        }
     }
 
     fun tell() = offset + written

@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
+import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
 import java.io.IOException
 import java.nio.ByteOrder
@@ -57,7 +58,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<BedEntry> {
         val chrom = chromosomes[query.chromIx]
-        return input.with(dataOffset, dataSize, compressed) {
+        return input.with(dataOffset, dataSize, compression) {
             val chunk = ArrayList<BedEntry>()
             do {
                 val chromIx = getInt()
@@ -92,8 +93,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
          *                     R+ tree index node. Defaults to `1024`.
          * @param zoomLevelCount number of zoom levels to pre-compute.
          *                       Defaults to `8`.
-         * @param compressed compress BigBED data sections with gzip.
-         *                   Defaults to `true`.
+         * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
          * @@throws IOException if any of the read or write operations failed.
          */
@@ -103,7 +103,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                              outputPath: Path,
                              itemsPerSlot: Int = 1024,
                              zoomLevelCount: Int = 8,
-                             compressed: Boolean = true,
+                             compression: CompressionType = CompressionType.SNAPPY,
                              order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedEntries = bedEntries.groupBy { it.chrom }
             val header = OrderedDataOutput.of(outputPath, order).use { output ->
@@ -130,7 +130,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                         val dataOffset = output.tell()
                         val start = items[i].start
                         var end = 0
-                        val current = output.with(compressed) {
+                        val current = output.with(compression) {
                             for (j in 0..Math.min(items.size - i, itemsPerSlot) - 1) {
                                 val item = items[i + j]
                                 writeInt(chromIx)
@@ -159,7 +159,7 @@ class BigBedFile @Throws(IOException::class) protected constructor(path: Path) :
                         unzoomedIndexOffset = unzoomedIndexOffset,
                         fieldCount = 3, definedFieldCount = 3,
                         totalSummaryOffset = totalSummaryOffset,
-                        uncompressBufSize = if (compressed) uncompressBufSize else 0)
+                        uncompressBufSize = if (compression.absent) 0 else uncompressBufSize)
             }
 
             OrderedDataOutput.of(outputPath, order).use { header.write(it) }

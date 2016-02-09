@@ -11,7 +11,8 @@ import java.util.*
 import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
-class SeekableDataIOTest(private val order: ByteOrder) {
+class SeekableDataIOTest(private val order: ByteOrder,
+                         private val compression: CompressionType) {
     @Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
         val b = r.nextByte()
         val s = r.nextInt(Short.MAX_VALUE.toInt())
@@ -63,16 +64,20 @@ class SeekableDataIOTest(private val order: ByteOrder) {
         }
     }
 
+    init {
+        RANDOM.setSeed(42)
+    }
+
     @Test fun testCompression() = withTempFileRandomized { path, r ->
         val b = (0..r.nextInt(100)).map { r.nextByte() }.toByteArray()
         OrderedDataOutput.of(path, order).use {
-            it.with(compressed = true) {
+            it.with(compression) {
                 b.forEach { writeByte(it.toInt()) }
             }
         }
 
         RomBuffer(path, order).let {
-            it.with(0L, Files.size(path), compressed = true) {
+            it.with(0, Files.size(path), compression) {
                 for (i in 0 until b.size) {
                     assertEquals(b[i], get())
                 }
@@ -95,11 +100,16 @@ class SeekableDataIOTest(private val order: ByteOrder) {
     }
 
     companion object {
-        val RANDOM: Random = Random()  // private causes compiler crash.
+        private val RANDOM = Random()
 
-        @Parameters(name = "{0}")
-        @JvmStatic fun data(): Iterable<ByteOrder> {
-            return listOf(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)
+        @Parameters(name = "{0}:{1}")
+        @JvmStatic fun data(): Iterable<Array<Any>> {
+            return listOf(arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
+                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
+                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
+                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY))
         }
     }
 }
