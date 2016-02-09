@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
 import com.google.common.collect.Lists
+import com.google.common.primitives.Shorts
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
@@ -202,8 +203,8 @@ private val START = 1
 /** Computes intervals of uniform coverage. */
 internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     val events = flatMap {
-        listOf(AggregationEvent(it.start, START, it),
-               AggregationEvent(it.end, END, it)).asSequence()
+        sequenceOf(AggregationEvent(it.start, START, it),
+                   AggregationEvent(it.end, END, it))
     }.toMutableList()
 
     Collections.sort(events)
@@ -211,7 +212,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
     var current = 0
     var left = 0
     val res = ArrayList<BedEntry>()
-    events.forEachIndexed { i, event ->
+    for ((i, event) in events.withIndex()) {
         when {
             event.type == START -> {
                 if (current == 0) {
@@ -228,8 +229,8 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
                 if (event.offset > left) {
                     val item = event.item
                     res.add(BedEntry(item.chrom, left, event.offset,
-                                     item.name, current.toShort(), item.strand,
-                                     item.rest))
+                                     item.name, Shorts.checkedCast(current.toLong()),
+                                     item.strand, item.rest))
 
                     left = event.offset
                 }

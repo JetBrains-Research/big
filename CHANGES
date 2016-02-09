@@ -9,8 +9,8 @@ Version 0.2.6
 - Switched to mmapped files for reading 'Big*' and 'Tdf*' data.
 - Introduced a custom Big format version using Snappy instead of
   DEFLATE for data block compression.
-- Added 'BigFile#duplicate' for creating an independent view of
-  the file data.
+- Added 'BigFile#duplicate' and 'TdfFile#duplicate' for creating an
+  independent view of the file data for parallel access.
 
 Version 0.2.5
 -------------

@@ -37,7 +37,7 @@ class BigFileTest {
                     latch.await()
                 }
             }
-            
+
             for (future in Futures.inCompletionOrder(futures)) {
                 future.get()
             }

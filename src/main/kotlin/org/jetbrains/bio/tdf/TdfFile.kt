@@ -25,10 +25,9 @@ import java.util.*
  *
  * @since 0.2.2
  */
-class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
-        Closeable, AutoCloseable {
+class TdfFile @Throws(IOException::class) private constructor(
+        private val input: RomBuffer) : Closeable, AutoCloseable {
 
-    private val input = RomBuffer(path, ByteOrder.LITTLE_ENDIAN)
     private val index: TdfMasterIndex
     private val header = Header.read(input)
 
@@ -51,6 +50,16 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
     val dataSetNames: Set<String> get() = index.datasets.keys
 
     val groupNames: Set<String> get() = index.groups.keys
+
+    /**
+     * Returns an independent view of this [TdfFile] data.
+     *
+     * This is useful if you wan't to work with the same file from
+     * multiple threads.
+     *
+     * @since 0.2.6
+     */
+    fun duplicate() = TdfFile(input.duplicate())
 
     /**
      * Returns a list of dataset tiles overlapping a given interval.
@@ -186,7 +195,9 @@ class TdfFile @Throws(IOException::class) private constructor(val path: Path) :
 
     companion object {
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = TdfFile(path)
+        @JvmStatic fun read(path: Path): TdfFile {
+            return TdfFile(RomBuffer(path, ByteOrder.LITTLE_ENDIAN))
+        }
     }
 }
 
