@@ -91,7 +91,7 @@ data class BedGraphSection(
     override val span: Int get() {
         val mean = Mean()
         for (i in 0..size() - 1) {
-            mean.increment((endOffsets[i] - endOffsets[i]).toDouble())
+            mean.increment((endOffsets[i] - startOffsets[i]).toDouble())
         }
 
         return Ints.saturatedCast(Math.round(mean.result))
