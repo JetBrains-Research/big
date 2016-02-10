@@ -42,6 +42,6 @@ internal fun withTempFile(prefix: String, suffix: String,
     try {
         block(path)
     } finally {
-        Files.delete(path)
+        Files.deleteIfExists(path)
     }
 }
