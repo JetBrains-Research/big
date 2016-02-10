@@ -1,6 +1,7 @@
 package org.jetbrains.bio
 
 import java.io.BufferedReader
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.OpenOption
 import java.nio.file.Path
@@ -42,6 +43,12 @@ internal fun withTempFile(prefix: String, suffix: String,
     try {
         block(path)
     } finally {
-        Files.deleteIfExists(path)
+        do {
+            try {
+                Files.delete(path)
+            } catch (e: IOException) {
+                System.gc()  // Clean up the mmaped buffer, please!
+            }
+        } while (Files.exists(path))
     }
 }
