@@ -53,7 +53,7 @@ Version 0.2.1
 
 Bugfix release, released on November 2nd 2015
 
-- Allowed creating creating empty 'BigWigFile' and 'BigBedFile'.
+- Allowed creating empty 'BigWigFile' and 'BigBedFile'.
 
 Version 0.2.0
 --------------

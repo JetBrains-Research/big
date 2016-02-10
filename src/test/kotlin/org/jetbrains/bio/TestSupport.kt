@@ -43,14 +43,12 @@ internal inline fun withTempFile(prefix: String, suffix: String,
     try {
         block(path)
     } finally {
-        // The loop is here to make sure the mmaped buffer is gced.
-        // Otherwise the file cannot be deleted.
-        do {
-            try {
-                Files.delete(path)
-            } catch (e: IOException) {
-                System.gc()  // Clean up the mmaped buffer, please!
-            }
-        } while (Files.exists(path))
+        try {
+            Files.delete(path)
+        } catch (e: IOException) {
+            // Mmaped buffer not yet garbage collected. Leave it to
+            // the VM.
+            path.toFile().deleteOnExit()
+        }
     }
 }
