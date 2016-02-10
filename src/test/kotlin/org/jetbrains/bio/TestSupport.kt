@@ -37,12 +37,14 @@ internal fun Path.chromosomes(): List<Pair<String, Int>> {
     }.toList()
 }
 
-internal fun withTempFile(prefix: String, suffix: String,
-                          block: (Path) -> Unit) {
+internal inline fun withTempFile(prefix: String, suffix: String,
+                                 block: (Path) -> Unit) {
     val path = Files.createTempFile(prefix, suffix)
     try {
         block(path)
     } finally {
+        // The loop is here to make sure the mmaped buffer is gced.
+        // Otherwise the file cannot be deleted.
         do {
             try {
                 Files.delete(path)

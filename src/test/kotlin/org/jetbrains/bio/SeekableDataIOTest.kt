@@ -82,7 +82,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
         }
     }
 
-    private fun withTempFileRandomized(block: (Path, Random) -> Unit) {
+    private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {
         val attempts = RANDOM.nextInt(100) + 1
         for (i in 0 until attempts) {
             withTempFile(order.toString(), ".bb") { block(it, RANDOM) }
