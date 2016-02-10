@@ -174,7 +174,7 @@ class BigWigFile private constructor(input: RomBuffer,
                 compression: CompressionType = CompressionType.SNAPPY,
                 order: ByteOrder = ByteOrder.nativeOrder()) {
             val groupedSections = wigSections.groupBy { it.chrom }
-            val header = OrderedDataOutput.of(outputPath, order).use { output ->
+            val header = OrderedDataOutput(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
@@ -224,7 +224,7 @@ class BigWigFile private constructor(input: RomBuffer,
                         uncompressBufSize = if (compression.absent) 0 else uncompressBufSize)
             }
 
-            OrderedDataOutput.of(outputPath, order).use { header.write(it) }
+            OrderedDataOutput(outputPath, order, create = false).use { header.write(it) }
 
             var count = 0
             var sum = 0L

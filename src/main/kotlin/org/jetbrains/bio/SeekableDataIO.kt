@@ -146,7 +146,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
             ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
         }
 
-        return with(RomBuffer(input.order(mapped.order())), block)
+        return RomBuffer(input.order(mapped.order())).block()
     }
 
     companion object {
@@ -304,10 +304,16 @@ class OrderedDataOutput(private val output: OutputStream,
     override fun close() = output.close()
 
     companion object {
-        fun of(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
-               offset: Long = 0): OrderedDataOutput {
+        operator fun invoke(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
+                            offset: Long = 0, create: Boolean = true): OrderedDataOutput {
+            require(offset == 0L || !create)
             val file = RandomAccessFile(path.toFile(), "rw")
-            file.seek(offset)
+            if (create) {
+                file.setLength(0)
+            } else {
+                file.seek(offset)
+            }
+
             val output = Channels.newOutputStream(file.channel).buffered()
             return OrderedDataOutput(output, offset, order)
         }

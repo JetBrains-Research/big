@@ -291,8 +291,8 @@ abstract class BigFile<T> internal constructor(
                                        block: (BigFile<*>, OrderedDataOutput) -> T): T {
             val bf = read(path)
             return try {
-                OrderedDataOutput.of(path, bf.header.order, offset).use { output ->
-                    block(bf, output)
+                OrderedDataOutput(path, bf.header.order, offset, create = false).use {
+                    block(bf, it)
                 }
             } finally {
                 bf.close()

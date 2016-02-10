@@ -19,7 +19,7 @@ class BPlusTreeTest {
             assertEquals(216L, bpt.header.rootOffset)
         }
     }
-    
+
     @Test fun testFind() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
             var leaf = bf.bPlusTree.find(bf.input, "chr1")
@@ -113,7 +113,7 @@ class BPlusTreeTest {
 
     private fun testWriteRead(blockSize: Int, items: List<BPlusLeaf>) {
         withTempFile("bpt", ".bb") { path ->
-            OrderedDataOutput.of(path).use { output ->
+            OrderedDataOutput(path).use { output ->
                 BPlusTree.write(output, items, blockSize)
             }
 
