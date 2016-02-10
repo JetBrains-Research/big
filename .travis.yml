@@ -4,6 +4,13 @@ jdk:
 
 sudo: required
 
+before_cache:
+  - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
 # Try reducing memory usage so Travis doesn't kill the test runner.
 before_script:
 - sudo service postgresql stop || true

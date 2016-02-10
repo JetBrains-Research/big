@@ -1,4 +1,4 @@
-version: "{build}"
+version: "{branch} {build}"
 clone_depth: 10
 environment:
   matrix:
@@ -16,6 +16,9 @@ build_script:
 
 test_script:
   - gradlew.bat -u -i -S check
+
+cache:
+  - C:\Users\appveyor\.gradle
 
 matrix:
   fast_finish: true
