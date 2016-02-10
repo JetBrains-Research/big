@@ -173,7 +173,7 @@ class BigWigFile private constructor(input: RomBuffer,
                 outputPath: Path, zoomLevelCount: Int = 8,
                 compression: CompressionType = CompressionType.SNAPPY,
                 order: ByteOrder = ByteOrder.nativeOrder()) {
-            val groupedSections = wigSections.groupBy { it.chrom }
+            val groupedSections = wigSections.groupByTo(TreeMap()) { it.chrom }
             val header = OrderedDataOutput(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)

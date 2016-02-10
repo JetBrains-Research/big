@@ -94,10 +94,12 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    internal class Header(val order: ByteOrder, val blockSize: Int, val itemCount: Long,
-                          val startChromIx: Int, val startBase: Int,
-                          val endChromIx: Int, val endBase: Int,
-                          val endDataOffset: Long, val itemsPerSlot: Int, val rootOffset: Long) {
+    internal data class Header(val order: ByteOrder, val blockSize: Int,
+                               val itemCount: Long,
+                               val startChromIx: Int, val startBase: Int,
+                               val endChromIx: Int, val endBase: Int,
+                               val endDataOffset: Long, val itemsPerSlot: Int,
+                               val rootOffset: Long) {
 
         internal fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)

@@ -124,7 +124,7 @@ class BigBedFile private constructor(input: RomBuffer,
                              zoomLevelCount: Int = 8,
                              compression: CompressionType = CompressionType.SNAPPY,
                              order: ByteOrder = ByteOrder.nativeOrder()) {
-            val groupedEntries = bedEntries.groupBy { it.chrom }
+            val groupedEntries = bedEntries.groupByTo(TreeMap()) { it.chrom }
             val header = OrderedDataOutput(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)

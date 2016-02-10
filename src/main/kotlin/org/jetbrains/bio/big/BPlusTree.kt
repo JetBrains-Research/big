@@ -102,8 +102,9 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         }
     }
 
-    internal class Header(val order: ByteOrder, val blockSize: Int, val keySize: Int,
-                          val itemCount: Int, val rootOffset: Long) {
+    internal data class Header(val order: ByteOrder,
+                               val blockSize: Int, val keySize: Int,
+                               val itemCount: Int, val rootOffset: Long) {
         fun write(output: OrderedDataOutput) = with(output) {
             writeInt(MAGIC)
             writeInt(blockSize)
