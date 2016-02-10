@@ -15,6 +15,8 @@ Version 0.2.6
   #25 on GitHub for details.
 - B+ tree keys should be byte arrays and *not* NUL-terminated strings.
   See 'bPlusTree.c' in UCSC sources for complete spec.
+- Changed 'BPlusTree#write' to use a smaller block size if a B+ tree
+  fits in a single block.
 
 Version 0.2.5
 -------------

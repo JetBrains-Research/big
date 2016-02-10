@@ -146,7 +146,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         }
 
         internal fun write(output: OrderedDataOutput, unsortedItems: List<BPlusLeaf>,
-                           blockSize: Int = 256) {
+                           blockSize: Int = Math.min(unsortedItems.size, 256)) {
             require(blockSize > 1) { "blockSize must be >1" }
 
             val items = unsortedItems.sortedBy { it.key }
