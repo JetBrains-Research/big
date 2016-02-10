@@ -5,6 +5,7 @@ import com.google.common.collect.Iterators
 import com.google.common.collect.PeekingIterator
 import com.google.common.collect.UnmodifiableIterator
 import com.google.common.math.IntMath
+import com.google.common.math.LongMath
 import org.apache.log4j.Logger
 import java.io.BufferedReader
 import java.math.RoundingMode
@@ -16,7 +17,13 @@ import kotlin.reflect.KProperty
  * You shouldn't be using them outside of `big`.
  */
 
-internal infix fun Int.divCeiling(other: Int) = IntMath.divide(this, other, RoundingMode.CEILING)
+internal infix fun Int.divCeiling(other: Int): Int {
+    return IntMath.divide(this, other, RoundingMode.CEILING)
+}
+
+internal infix fun Long.divCeiling(other: Long): Long {
+    return LongMath.divide(this, other, RoundingMode.CEILING)
+}
 
 // Remove once KT-8248 is done.
 internal infix fun Int.pow(other: Int) = IntMath.pow(this, other)

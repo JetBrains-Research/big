@@ -3,6 +3,7 @@ package org.jetbrains.bio.big
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
+import org.jetbrains.bio.divCeiling
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -226,17 +227,20 @@ class BigWigFile private constructor(input: RomBuffer,
 
             OrderedDataOutput(outputPath, order, create = false).use { header.write(it) }
 
-            var count = 0
-            var sum = 0L
-            for (section in groupedSections.values.flatten()) {
-                sum += section.span
-                count++
+            if (groupedSections.isNotEmpty()) {
+                var count = 0
+                var sum = 0L
+                for (section in groupedSections.values.flatten()) {
+                    sum += section.span
+                    count++
+                }
+
+                // XXX this can be precomputed with a single pass along with the
+                // chromosomes used in the source WIG.
+                val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
+                BigFile.Post.zoom(outputPath, initial = initial)
             }
 
-            // XXX this can be precomputed with a single pass along with the
-            // chromosomes used in the source WIG.
-            val initial = Math.max((sum.toDouble() / count).toInt(), 1) * 8
-            BigFile.Post.zoom(outputPath, initial = initial)
             BigFile.Post.totalSummary(outputPath)
         }
     }

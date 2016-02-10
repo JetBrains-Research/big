@@ -6,6 +6,7 @@ import com.google.common.primitives.Shorts
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
+import org.jetbrains.bio.divCeiling
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -186,17 +187,20 @@ class BigBedFile private constructor(input: RomBuffer,
 
             OrderedDataOutput(outputPath, order, create = false).use { header.write(it) }
 
-            var sum = 0L
-            var count = 0
-            for (section in groupedEntries.values.flatten()) {
-                sum += section.end - section.start
-                count++
+            if (groupedEntries.isNotEmpty()) {
+                var sum = 0L
+                var count = 0
+                for (section in groupedEntries.values.flatten()) {
+                    sum += section.end - section.start
+                    count++
+                }
+
+                // XXX this can be precomputed with a single pass along with the
+                // chromosomes used in the source BED.
+                val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
+                BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
             }
 
-            // XXX this can be precomputed with a single pass along with the
-            // chromosomes used in the source BED.
-            val initial = Math.max((sum.toDouble() / count).toInt(), 1) * 8
-            BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
             BigFile.Post.totalSummary(outputPath)
         }
     }
