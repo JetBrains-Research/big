@@ -337,6 +337,14 @@ abstract class BigFile<T> internal constructor(
                         reduction *= step
                     }
                 }
+
+                modify(path, offset = Header.BYTES.toLong()) { bf, output ->
+                    for (zoomLevel in zoomLevels) {
+                        val zoomHeaderOffset = output.tell()
+                        zoomLevel.write(output)
+                        assert((output.tell() - zoomHeaderOffset).toInt() == ZoomLevel.BYTES)
+                    }
+                }
             }
         }
 
