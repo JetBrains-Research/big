@@ -155,7 +155,8 @@ class BigBedFile private constructor(input: RomBuffer,
                                 writeInt(chromIx)
                                 writeInt(item.start)
                                 writeInt(item.end)
-                                writeCString("${item.name},${item.score},${item.strand},${item.rest}")
+                                writeString("${item.name},${item.score},${item.strand},${item.rest}")
+                                writeByte(0)  // NUL-terminated.
 
                                 end = Math.max(end, item.end)
                             }

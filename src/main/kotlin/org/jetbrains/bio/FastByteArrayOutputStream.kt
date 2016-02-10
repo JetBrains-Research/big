@@ -28,7 +28,11 @@ internal class FastByteArrayOutputStream(private val capacity: Int = 8192) :
 
     override fun write(src: ByteArray, offset: Int, length: Int) {
         assert(!closed)
-        assert(offset >= 0 && length > 0 && offset + length <= src.size)
+        if (length == 0) {
+            return
+        }
+
+        assert(offset >= 0 && length >= 0 && offset + length <= src.size) { "oops" }
 
         var offset = offset  // :(
         var remaining = length

@@ -64,6 +64,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
         // Trim query to 'keySize' because the spec. guarantees us
         // that all B+ tree nodes have a fixed-size key.
+        // TODO: do we need this?
         val trimmedQuery = query.substring(0, Math.min(query.length, header.keySize))
         return findRecursively(input, header.rootOffset, trimmedQuery)
     }
@@ -153,7 +154,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             require(blockSize > 1) { "blockSize must be >1" }
 
             val items = unsortedItems.sortedBy { it.key }
-            val keySize = (items.map { it.key.length }.max() ?: 0) + 1
+            val keySize = (items.map { it.key.length }.max() ?: 0)
             // ^^^ the +1 is to account for the trailing null.
 
             val header = Header(output.order, blockSize, keySize, items.size,
@@ -277,7 +278,7 @@ data class BPlusLeaf(
     }
 
     internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
-        writeCString(key, keySize)
+        writeString(key, keySize)
         writeInt(id)
         writeInt(size)
     }
@@ -305,7 +306,7 @@ private class BPlusNode(
         val childOffset: Long) {
 
     internal fun write(output: OrderedDataOutput, keySize: Int) = with(output) {
-        writeCString(key, keySize)
+        writeString(key, keySize)
         writeLong(childOffset)
     }
 

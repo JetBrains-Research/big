@@ -240,8 +240,8 @@ class OrderedDataOutput(private val output: OutputStream,
 
     fun writeDouble(v: Double) = writeLong(java.lang.Double.doubleToLongBits(v))
 
-    fun writeCString(s: String, length: Int = s.length + 1) {
-        assert(s.length < length)
+    fun writeString(s: String, length: Int = s.length) {
+        assert(s.length <= length)
         output.write(s.toByteArray(Charsets.US_ASCII))
         val padding = length - s.length
         output.write(ByteArray(padding))

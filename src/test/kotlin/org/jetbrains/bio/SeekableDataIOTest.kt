@@ -48,8 +48,9 @@ class SeekableDataIOTest(private val order: ByteOrder,
     @Test fun testWriteReadChars() = withTempFileRandomized() { path, r ->
         val s = (0..r.nextInt(100)).map { (r.nextInt(64) + 32).toString() }.joinToString("")
         OrderedDataOutput(path, order).use {
-            it.writeCString(s)
-            it.writeCString(s, s.length + 8)
+            it.writeString(s)
+            it.writeByte(0)
+            it.writeString(s, s.length + 8)
             it.skipBytes(16)
         }
         RomBuffer(path, order).let {

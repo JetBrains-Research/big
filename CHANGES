@@ -13,6 +13,8 @@ Version 0.2.6
   independent view of the file data for parallel access.
 - Fixed a bug in 'BedGraphTrack#span' which was always zero, see issue
   #25 on GitHub for details.
+- B+ tree keys should be byte arrays and *not* NUL-terminated strings.
+  See 'bPlusTree.c' in UCSC sources for complete spec.
 
 Version 0.2.5
 -------------
