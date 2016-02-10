@@ -7,7 +7,6 @@ import com.google.common.primitives.Shorts
 import org.iq80.snappy.Snappy
 import java.io.Closeable
 import java.io.OutputStream
-import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.Channels
@@ -306,15 +305,18 @@ class OrderedDataOutput(private val output: OutputStream,
     companion object {
         operator fun invoke(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
                             offset: Long = 0, create: Boolean = true): OrderedDataOutput {
-            require(offset == 0L || !create)
-            val file = RandomAccessFile(path.toFile(), "rw")
-            if (create) {
-                file.setLength(0)
+            assert(offset == 0L || !create)
+            val fc = if (create) {
+                FileChannel.open(path,
+                                 StandardOpenOption.CREATE,
+                                 StandardOpenOption.TRUNCATE_EXISTING,
+                                 StandardOpenOption.READ,
+                                 StandardOpenOption.WRITE)
             } else {
-                file.seek(offset)
+                FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)
             }
 
-            val output = Channels.newOutputStream(file.channel).buffered()
+            val output = Channels.newOutputStream(fc.position(offset)).buffered()
             return OrderedDataOutput(output, offset, order)
         }
     }
