@@ -62,11 +62,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             return null
         }
 
-        // Trim query to 'keySize' because the spec. guarantees us
-        // that all B+ tree nodes have a fixed-size key.
-        // TODO: do we need this?
-        val trimmedQuery = query.substring(0, Math.min(query.length, header.keySize))
-        return findRecursively(input, header.rootOffset, trimmedQuery)
+        return findRecursively(input, header.rootOffset, query)
     }
 
     private tailrec fun findRecursively(input: RomBuffer, blockStart: Long,
@@ -89,7 +85,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             return null
         } else {
             var node = BPlusNode.read(input, header.keySize)
-            // vvv we loop from 1 because we've read the first child above.
+            // vvv loop from 1 because we've read the first child above.
             for (i in 1..childCount - 1) {
                 val next = BPlusNode.read(input, header.keySize)
                 if (query < next.key) {
