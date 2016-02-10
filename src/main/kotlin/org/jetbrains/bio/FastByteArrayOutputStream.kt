@@ -46,22 +46,26 @@ internal class FastByteArrayOutputStream(private val capacity: Int = 8192) :
         }
     }
 
-    fun toByteArray(): ByteArray {
-        var size = pos
+    internal val size: Int get() {
+        var acc = pos
         for (other in completed) {
-            size += other.size
+            acc += other.size
         }
 
-        return ByteArray(size).apply {
-            var written = 0
-            for (other in completed) {
-                System.arraycopy(other, 0, this, written, other.size)
-                written += other.size
-            }
-
-            System.arraycopy(buf, 0, this, written, pos)
-        }
+        return acc
     }
+
+    fun copyTo(output: ByteArray) = output.apply {
+        var written = 0
+        for (other in completed) {
+            System.arraycopy(other, 0, this, written, other.size)
+            written += other.size
+        }
+
+        System.arraycopy(buf, 0, this, written, pos)
+    }
+
+    fun toByteArray() = copyTo(ByteArray(size))
 
     private fun tryComplete() {
         if (pos == capacity) {
