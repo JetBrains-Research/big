@@ -6,10 +6,7 @@ import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
 import gnu.trove.list.array.TFloatArrayList
 import gnu.trove.list.array.TIntArrayList
-import org.jetbrains.bio.CachingIterator
-import org.jetbrains.bio.ScoredInterval
-import org.jetbrains.bio.divCeiling
-import org.jetbrains.bio.mapUnboxed
+import org.jetbrains.bio.*
 import java.io.BufferedReader
 import java.io.Closeable
 import java.io.Reader
@@ -152,6 +149,7 @@ class WigPrinter @JvmOverloads constructor(
 
 
 interface WigSection : Comparable<WigSection> {
+    /** Human-readable chromosome name, e.g. "`chr`". */
     val chrom: String
 
     /** Interval width. */
@@ -193,6 +191,7 @@ interface WigSection : Comparable<WigSection> {
      */
     fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
+    /** Returns the total number of intervals in the section. */
     fun size(): Int
 
     override fun compareTo(other: WigSection): Int = ComparisonChain.start()
@@ -200,7 +199,7 @@ interface WigSection : Comparable<WigSection> {
             .compare(start, other.start)
             .result()
 
-    enum class Type() {
+    enum class Type {
         BED_GRAPH,
         VARIABLE_STEP,
         FIXED_STEP
@@ -214,7 +213,6 @@ interface WigSection : Comparable<WigSection> {
  */
 data class VariableStepSection(
         override val chrom: String,
-        /** Interval width. */
         override val span: Int = 1,
         /** Per-interval positions. */
         internal val positions: TIntList = TIntArrayList(),
@@ -283,13 +281,14 @@ data class VariableStepSection(
         }
     }
 
-    override fun size(): Int = values.size()
+    override fun size() = values.size()
 
-    override fun toString(): String = MoreObjects.toStringHelper(this)
+    override fun toString() = MoreObjects.toStringHelper(this)
+            .addValue(chrom)
             .addValue(span)
             .toString()
 
-    override fun equals(other: Any?): Boolean = when {
+    override fun equals(other: Any?) = when {
         other === this -> true
         other !is VariableStepSection -> false
         else -> span == other.span &&
@@ -297,7 +296,7 @@ data class VariableStepSection(
                 values == other.values
     }
 
-    override fun hashCode(): Int = Objects.hash(span, positions, values)
+    override fun hashCode() = Objects.hash(span, positions, values)
 }
 
 /**
@@ -307,20 +306,16 @@ data class VariableStepSection(
  */
 data class FixedStepSection(
         override val chrom: String,
-        /** Start offset of the first interval on the track. */
         override val start: Int,
         /** Distance between consecutive intervals. */
         val step: Int = 1,
-        /** Interval width. */
         override val span: Int = 1,
         /** Per-interval values. */
         internal val values: TFloatList = TFloatArrayList()) : WigSection {
 
     override val end: Int get() = start + step * (values.size() - 1) + span
 
-    fun add(value: Float) {
-        values.add(value)
-    }
+    fun add(value: Float) = ignore(values.add(value))
 
     operator fun get(pos: Int): Float {
         // Note(lebedev): we expect 'pos' to be a starting position.
@@ -347,16 +342,17 @@ data class FixedStepSection(
         }
     }
 
-    override fun size(): Int = values.size()
+    override fun size() = values.size()
 
-    override fun toString(): String = MoreObjects.toStringHelper(this)
+    override fun toString() = MoreObjects.toStringHelper(this)
+            .addValue(chrom)
             .add("start", start)
             .add("end", end)
             .add("step", step)
             .add("span", span)
             .toString()
 
-    override fun equals(other: Any?): Boolean = when {
+    override fun equals(other: Any?) = when {
         other === this -> true
         other !is FixedStepSection -> false
         else -> start == start &&
@@ -364,5 +360,5 @@ data class FixedStepSection(
                 values == other.values
     }
 
-    override fun hashCode(): Int = Objects.hash(start, step, span, values)
+    override fun hashCode() = Objects.hash(start, step, span, values)
 }

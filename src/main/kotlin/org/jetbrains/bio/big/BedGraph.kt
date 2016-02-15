@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.base.MoreObjects
 import com.google.common.primitives.Ints
 import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
@@ -168,5 +169,9 @@ data class BedGraphSection(
         }
     }
 
-    override fun size(): Int = values.size()
+    override fun size() = values.size()
+
+    override fun toString() = MoreObjects.toStringHelper(this)
+            .addValue(chrom)
+            .toString()
 }

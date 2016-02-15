@@ -168,7 +168,7 @@ class BigWigFileTest {
 
     @Test fun testQueryLeftEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+            assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
@@ -182,7 +182,7 @@ class BigWigFileTest {
 
     @Test fun testQueryRightEndAligned() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+            assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
@@ -196,7 +196,7 @@ class BigWigFileTest {
 
     @Test fun testQueryInnerRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+            assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(ScoredInterval(400700, 400701, 22.0f))
@@ -207,7 +207,7 @@ class BigWigFileTest {
 
     @Test fun testQueryOuterRange() {
         BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
-            assertEquals("FixedStepSection{start=400600, end=400801, step=100, span=1}",
+            assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(
@@ -228,7 +228,7 @@ class BigWigFileTest {
 
         BigWigFile.write(listOf(section), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
         BigWigFile.read(path).use { bwf ->
-            assertEquals("FixedStepSection{start=400600, end=400850, step=100, span=50}",
+            assertEquals("FixedStepSection{chr3, start=400600, end=400850, step=100, span=50}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(

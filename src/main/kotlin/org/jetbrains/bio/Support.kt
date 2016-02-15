@@ -74,8 +74,7 @@ internal inline fun <R> IntProgression.mapUnboxed(
 }
 
 internal abstract class CachingIterator<T>(reader: BufferedReader) : UnmodifiableIterator<T>() {
-    protected var lines: PeekingIterator<String> =
-            Iterators.peekingIterator(reader.lines().iterator())
+    protected var lines = Iterators.peekingIterator(reader.lines().iterator())
     private var cached: T? = null
 
     override fun hasNext(): Boolean {
