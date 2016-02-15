@@ -196,11 +196,11 @@ data class TdfFile private constructor(
             return with(RomBuffer(path, ByteOrder.LITTLE_ENDIAN)) {
                 val header = Header.read(this)
                 val windowFunctions = getSequenceOf { WindowFunction.read(this) }.toList()
-                val trackType: TrackType = TrackType.read(this)
-                val trackLine: String = getCString().trim()
-                val trackNames: List<String> = getSequenceOf { getCString() }.toList()
-                val build: String = getCString()
-                val compressed: Boolean = (getInt() and 0x1) != 0
+                val trackType = TrackType.read(this)
+                val trackLine = getCString().trim()
+                val trackNames = getSequenceOf { getCString() }.toList()
+                val build = getCString()
+                val compressed = (getInt() and 0x1) != 0
                 // Make sure we haven't read anything extra.
                 check(position == header.headerSize + Header.BYTES)
                 val index = with(header.indexOffset, header.indexSize.toLong()) {
