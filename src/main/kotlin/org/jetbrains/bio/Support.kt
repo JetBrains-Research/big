@@ -2,7 +2,6 @@ package org.jetbrains.bio
 
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Iterators
-import com.google.common.collect.PeekingIterator
 import com.google.common.collect.UnmodifiableIterator
 import com.google.common.math.IntMath
 import com.google.common.math.LongMath
@@ -105,31 +104,23 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
  *
  * No assumptions are made about the monotonicity of [f].
  */
-fun <T, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
-    return object : Sequence<Pair<K, Sequence<T>>> {
-        override fun iterator() = object : Iterator<Pair<K, Sequence<T>>> {
+fun <T : Any, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
+    return Sequence {
+        object : Iterator<Pair<K, Sequence<T>>> {
             private val it = Iterators.peekingIterator(this@groupingBy.iterator())
 
             override fun hasNext() = it.hasNext()
 
             override fun next(): Pair<K, Sequence<T>> {
                 val target = f(it.peek())
-                return target to GroupingSequence(it, f, target).constrainOnce()
+                return target to generateSequence {
+                    if (it.hasNext() && f(it.peek()) == target) {
+                        it.next()
+                    } else {
+                        null
+                    }
+                }
             }
-        }
-    }
-}
-
-private class GroupingSequence<T, K>(private val it: PeekingIterator<T>,
-                                     private val f: (T) -> K,
-                                     private val target: K) : Sequence<T> {
-    override fun iterator() = object : Iterator<T> {
-        override fun hasNext() = it.hasNext() && f(it.peek()) == target
-
-        override fun next(): T {
-            val result = it.next()
-            assert(f(result) == target)  // fulfilled by '#hasNext'.
-            return result
         }
     }
 }
