@@ -96,7 +96,8 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
 }
 
 /**
- * A lazy implementation of [Sequence.groupBy].
+ * Lazily groups elements of the sequence into sub-sequences based
+ * on the values produced by the key function [f].
  *
  * The user is responsible for consuming the resulting sub-sequences
  * *in order*. Otherwise the implementation might yield unexpected
