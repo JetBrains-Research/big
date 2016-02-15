@@ -105,10 +105,10 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
  *
  * No assumptions are made about the monotonicity of [f].
  */
-fun <T, K> Sequence<T>.groupByLazy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
+fun <T, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
     return object : Sequence<Pair<K, Sequence<T>>> {
         override fun iterator() = object : Iterator<Pair<K, Sequence<T>>> {
-            private val it = Iterators.peekingIterator(this@groupByLazy.iterator())
+            private val it = Iterators.peekingIterator(this@groupingBy.iterator())
 
             override fun hasNext() = it.hasNext()
 

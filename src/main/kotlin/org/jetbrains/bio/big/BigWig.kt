@@ -217,7 +217,7 @@ class BigWigFile private constructor(input: RomBuffer,
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
-                for ((name, sections) in wigSections.asSequence().groupByLazy { it.chrom }) {
+                for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
                     val chromId = resolver[name]!!
                     for (section in sections.flatMap { it.splice() }) {
                         val dataOffset = output.tell()

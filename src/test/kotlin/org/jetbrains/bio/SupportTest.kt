@@ -24,13 +24,13 @@ class SupportTest {
     }
 
     @Test fun groupingLazyEmpty() {
-        val it = emptySequence<Int>().groupByLazy { it }.iterator()
+        val it = emptySequence<Int>().groupingBy { it }.iterator()
         assertFalse(it.hasNext())
     }
 
     @Test fun groupingLazySingleGroup() {
         val s = sequenceOf(2, 4, 6, 8)
-        val it = s.groupByLazy { it % 2 }.iterator()
+        val it = s.groupingBy { it % 2 }.iterator()
         assertTrue(it.hasNext())
         val (key, g) = it.next()
         assertEquals(0, key)
@@ -39,7 +39,7 @@ class SupportTest {
 
     @Test fun groupingLazyTwoGroups() {
         val s = sequenceOf(2, 4, 7, 9)
-        val it = s.groupByLazy { it % 2 }.iterator()
+        val it = s.groupingBy { it % 2 }.iterator()
         assertTrue(it.hasNext())
         val (key1, g1) = it.next()
         assertEquals(0, key1)
@@ -50,7 +50,7 @@ class SupportTest {
     }
 
     @Test fun groupingNonMonotonic() {
-        val it = sequenceOf(2, 4, 7, 9, 6, 8).groupByLazy { it % 2 }.iterator()
+        val it = sequenceOf(2, 4, 7, 9, 6, 8).groupingBy { it % 2 }.iterator()
         it.next().second.toList()  // consume 2, 4
         it.next().second.toList()  // consume 7, 9
         val (key, g) = it.next()

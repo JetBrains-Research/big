@@ -166,7 +166,7 @@ class BigBedFile private constructor(input: RomBuffer,
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                for ((name, items) in bedEntries.asSequence().groupByLazy { it.chrom }) {
+                for ((name, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
                     val it = items.iterator()
                     val chromIx = resolver[name]!!
                     while (it.hasNext()) {
