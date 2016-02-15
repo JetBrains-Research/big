@@ -57,4 +57,10 @@ class SupportTest {
         assertEquals(0, key)
         assertEquals(listOf(6, 8), g.toList())
     }
+
+    @Test fun groupingReuse() {
+        val it = sequenceOf(2).groupingBy { it % 2 }
+        assertEquals(listOf(2), it.iterator().next().second.toList())
+        assertEquals(listOf(2), it.iterator().next().second.toList())
+    }
 }
