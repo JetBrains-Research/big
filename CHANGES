@@ -3,7 +3,7 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
-Version 0.2.6
+Version 0.3.0
 -------------
 
 - Switched to mmapped files for reading 'Big*' and 'Tdf*' data.
