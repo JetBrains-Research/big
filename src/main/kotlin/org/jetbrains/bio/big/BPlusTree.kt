@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
@@ -205,7 +206,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             val itemCount = items.size
             for (d in countLevels(blockSize, itemCount) - 1 downTo 1) {
                 val levelOffset = output.tell()
-                val itemsPerSlot = blockSize pow d
+                val itemsPerSlot = IntMath.pow(blockSize, d)
                 val itemsPerNode = itemsPerSlot * blockSize
                 val nodeCount = itemCount divCeiling itemsPerNode
 
@@ -253,7 +254,9 @@ internal class BPlusTree(val header: BPlusTree.Header) {
          * @param itemCount total number of leaves in a B+ tree
          * @return required number of levels.
          */
-        internal fun countLevels(blockSize: Int, itemCount: Int) = itemCount logCeiling blockSize
+        internal fun countLevels(blockSize: Int, itemCount: Int): Int {
+            return itemCount logCeiling blockSize
+        }
     }
 }
 
@@ -278,7 +281,7 @@ data class BPlusLeaf(
         writeInt(size)
     }
 
-    override fun toString(): String = "$key => ($id; $size)"
+    override fun toString() = "$key => ($id; $size)"
 
     companion object {
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
@@ -286,7 +289,7 @@ data class BPlusLeaf(
             get(keyBuf)
             val chromId = getInt()
             val chromSize = getInt()
-            BPlusLeaf(String(keyBuf).trimZeros(), chromId, chromSize)
+            BPlusLeaf(String(keyBuf).trimEnd { it == '\u0000' }, chromId, chromSize)
         }
     }
 }
@@ -294,7 +297,7 @@ data class BPlusLeaf(
 /**
  * An item in a B+ tree.
  */
-private class BPlusNode(
+private data class BPlusNode(
         /** Chromosome name, e.g. "chr19" or "chrY". */
         val key: String,
         /** Offset to child node. */
@@ -310,7 +313,7 @@ private class BPlusNode(
             val keyBuf = ByteArray(keySize)
             get(keyBuf)
             val childOffset = getLong()
-            BPlusNode(String(keyBuf).trimZeros(), childOffset)
+            BPlusNode(String(keyBuf).trimEnd { it == '\u0000' }, childOffset)
         }
     }
 }

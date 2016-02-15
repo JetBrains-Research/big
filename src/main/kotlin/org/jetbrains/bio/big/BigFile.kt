@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.collect.Iterators
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
@@ -360,7 +361,7 @@ abstract class BigFile<T> internal constructor(
                 // results suggest it doesn't give a considerable speedup.
                 val summaries = bf.summarizeInternal(
                         query, numBins = size divCeiling reduction)
-                for (slot in summaries.partition(itemsPerSlot)) {
+                for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {
                     val dataOffset = output.tell()
                     output.with(bf.compression) {
                         for ((i, summary) in slot) {

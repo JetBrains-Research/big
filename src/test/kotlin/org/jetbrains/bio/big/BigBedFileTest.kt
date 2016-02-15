@@ -1,7 +1,11 @@
 package org.jetbrains.bio.big
 
+import com.google.common.math.IntMath
 import org.apache.commons.math3.util.Precision
-import org.jetbrains.bio.*
+import org.jetbrains.bio.CompressionType
+import org.jetbrains.bio.Examples
+import org.jetbrains.bio.chromosomes
+import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -123,7 +127,7 @@ class BigBedFileTest {
 
     @Test fun testSummarizeNoOverlapsTwoBins() {
         var startOffset = RANDOM.nextInt(1000000)
-        val bedEntries = (0..(2 pow 16)).asSequence().map {
+        val bedEntries = (0..IntMath.pow(2, 16)).asSequence().map {
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
             startOffset = endOffset + RANDOM.nextInt(100)
@@ -134,7 +138,7 @@ class BigBedFileTest {
     }
 
     @Test fun testSummarizeFourBins() {
-        val bedEntries = (0..(2 pow 16)).asSequence().map {
+        val bedEntries = (0..IntMath.pow(2, 16)).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
@@ -145,7 +149,7 @@ class BigBedFileTest {
     }
 
     @Test fun testSummarizeManyBins() {
-        val bedEntries = (0..(2 pow 16)).asSequence().map {
+        val bedEntries = (0..IntMath.pow(2, 16)).asSequence().map {
             var startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)

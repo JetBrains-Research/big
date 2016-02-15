@@ -1,9 +1,6 @@
 package org.jetbrains.bio.big
 
-import org.jetbrains.bio.CompressionType
-import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.divCeiling
+import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -155,10 +152,38 @@ class BigWigFile private constructor(input: RomBuffer,
             return BigWigFile(input, header, zoomLevels, bPlusTree, rTree)
         }
 
+        private class WigSectionSummary {
+            val chromosomes = HashSet<String>()
+            var count = 0
+            var sum = 0L
+
+            /** Makes sure the sections are sorted by offset. */
+            private var edge = 0
+            /** Makes sure the sections are sorted by chromosome. */
+            private var previous = ""
+
+            operator fun invoke(section: WigSection) {
+                assert(section.chrom == previous || section.chrom !in chromosomes) {
+                    "must be sorted by chromosome"
+                }
+                assert(section.start >= edge) { "must be sorted by offset" }
+
+                chromosomes.add(section.chrom)
+                sum += section.span
+                count++
+
+                previous = section.chrom
+                edge = section.start
+            }
+        }
+
         /**
          * Creates a BigWIG file from given sections.
          *
-         * @param wigSections sections to write and index.
+         * @param wigSections sections sorted by chromosome *and* start offset.
+         *                    The method traverses the sections twice:
+         *                    firstly to summarize and secondly to write
+         *                    and index.
          * @param chromSizes chromosome names and sizes, e.g.
          *                   `("chrX", 59373566)`.
          * @param zoomLevelCount number of zoom levels to pre-compute.
@@ -166,24 +191,25 @@ class BigWigFile private constructor(input: RomBuffer,
          * @param outputPath BigWIG file path.
          * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
-         * @@throws IOException if any of the read or write operations failed.
+         * @throws IOException if any of the read or write operations failed.
          */
+        @Throws(IOException::class)
         @JvmStatic @JvmOverloads fun write(
                 wigSections: Iterable<WigSection>,
                 chromSizes: Iterable<Pair<String, Int>>,
                 outputPath: Path, zoomLevelCount: Int = 8,
                 compression: CompressionType = CompressionType.SNAPPY,
                 order: ByteOrder = ByteOrder.nativeOrder()) {
-            val groupedSections = wigSections.groupByTo(TreeMap()) { it.chrom }
+            val summary = WigSectionSummary().apply { wigSections.forEach { this(it) } }
+
             val header = OrderedDataOutput(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
 
-                val unsortedChromosomes = chromSizes.mapIndexed { i, p ->
-                    BPlusLeaf(p.first, i, p.second)
-                }.filter { it.key in groupedSections }
+                val unsortedChromosomes = chromSizes.filter { it.first in summary.chromosomes }
+                        .mapIndexed { i, p -> BPlusLeaf(p.first, i, p.second) }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
@@ -191,11 +217,9 @@ class BigWigFile private constructor(input: RomBuffer,
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
-                for ((name, sections) in groupedSections) {
-                    Collections.sort(sections)
-
+                for ((name, sections) in wigSections.asSequence().groupByLazy { it.chrom }) {
                     val chromId = resolver[name]!!
-                    for (section in sections.asSequence().flatMap { it.splice() }) {
+                    for (section in sections.flatMap { it.splice() }) {
                         val dataOffset = output.tell()
                         val current = output.with(compression) {
                             when (section) {
@@ -227,18 +251,11 @@ class BigWigFile private constructor(input: RomBuffer,
 
             OrderedDataOutput(outputPath, order, create = false).use { header.write(it) }
 
-            if (groupedSections.isNotEmpty()) {
-                var count = 0
-                var sum = 0L
-                for (section in groupedSections.values.flatten()) {
-                    sum += section.span
-                    count++
+            with(summary) {
+                if (count > 0) {
+                    val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
+                    BigFile.Post.zoom(outputPath, initial = initial)
                 }
-
-                // XXX this can be precomputed with a single pass along with the
-                // chromosomes used in the source WIG.
-                val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                BigFile.Post.zoom(outputPath, initial = initial)
             }
 
             BigFile.Post.totalSummary(outputPath)

@@ -17,6 +17,8 @@ Version 0.2.6
   See 'bPlusTree.c' in UCSC sources for complete spec.
 - Changed 'BPlusTree#write' to use a smaller block size if a B+ tree
   fits in a single block.
+- Changed 'BigWigFile.write' and 'BigBedFile.write' *not* to load all
+  of the data in memory at once.
 
 Version 0.2.5
 -------------

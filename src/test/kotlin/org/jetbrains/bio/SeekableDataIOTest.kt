@@ -57,7 +57,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             assertEquals(s, it.getCString())
             var b = ByteArray(s.length + 8)
             it.get(b)
-            assertEquals(s, String(b).trimZeros())
+            assertEquals(s, String(b).trimEnd { it == '\u0000' })
 
             for (i in 0 until 16) {
                 assertEquals(0.toByte(), it.get())

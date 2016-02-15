@@ -1,7 +1,10 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
-import org.jetbrains.bio.*
+import org.jetbrains.bio.Examples
+import org.jetbrains.bio.OrderedDataOutput
+import org.jetbrains.bio.RomBuffer
+import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.file.Files
 import java.util.*
@@ -93,7 +96,7 @@ class BPlusTreeTest {
     private fun getRandomItems(itemCount: Int): List<BPlusLeaf> {
         val names = RANDOM.ints(itemCount.toLong()).distinct().toArray()
         return (0 until names.size).map { i ->
-            val size = Math.abs(RANDOM.nextInt(2 pow 16)) + 1
+            val size = Math.abs(RANDOM.nextInt(IntMath.pow(2, 16))) + 1
             BPlusLeaf("chr" + names[i], i, size)
         }.toList()
     }

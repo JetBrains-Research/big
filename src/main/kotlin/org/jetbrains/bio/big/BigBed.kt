@@ -1,12 +1,8 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
-import com.google.common.collect.Lists
 import com.google.common.primitives.Shorts
-import org.jetbrains.bio.CompressionType
-import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.divCeiling
+import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -102,10 +98,38 @@ class BigBedFile private constructor(input: RomBuffer,
             return BigBedFile(input, header, zoomLevels, bPlusTree, rTree)
         }
 
+        private class BedEntrySummary {
+            val chromosomes = HashSet<String>()
+            var count = 0
+            var sum = 0L
+
+            /** Makes sure the entries are sorted by offset. */
+            private var edge = 0
+            /** Makes sure the entries are sorted by chromosome. */
+            private var previous = ""
+
+            operator fun invoke(entry: BedEntry) {
+                assert(entry.chrom == previous || entry.chrom !in chromosomes) {
+                    "must be sorted by chromosome"
+                }
+                assert(entry.start >= edge) { "must be sorted by offset" }
+
+                chromosomes.add(entry.chrom)
+                sum += entry.end - entry.start
+                count++
+
+                previous = entry.chrom
+                edge = entry.start
+            }
+        }
+
         /**
          * Creates a BigBED file from given entries.
          *
-         * @param bedEntries entries to write and index.
+         * @param bedEntries sections sorted by chromosome *and* start offset.
+         *                   The method traverses the sections twice:
+         *                   firstly to summarize and secondly to write
+         *                   and index.
          * @param chromSizes chromosome names and sizes, e.g.
          *                   `("chrX", 59373566)`.
          * @param outputPath BigBED file path.
@@ -118,47 +142,46 @@ class BigBedFile private constructor(input: RomBuffer,
          * @@throws IOException if any of the read or write operations failed.
          */
         @Throws(IOException::class)
-        @JvmStatic fun write(bedEntries: Iterable<BedEntry>,
-                             chromSizes: Iterable<Pair<String, Int>>,
-                             outputPath: Path,
-                             itemsPerSlot: Int = 1024,
-                             zoomLevelCount: Int = 8,
-                             compression: CompressionType = CompressionType.SNAPPY,
-                             order: ByteOrder = ByteOrder.nativeOrder()) {
-            val groupedEntries = bedEntries.groupByTo(TreeMap()) { it.chrom }
+        @JvmStatic @JvmOverloads fun write(
+                bedEntries: Iterable<BedEntry>,
+                chromSizes: Iterable<Pair<String, Int>>,
+                outputPath: Path,
+                itemsPerSlot: Int = 1024, zoomLevelCount: Int = 8,
+                compression: CompressionType = CompressionType.SNAPPY,
+                order: ByteOrder = ByteOrder.nativeOrder()) {
+            val summary = BedEntrySummary().apply { bedEntries.forEach { this(it) } }
+
             val header = OrderedDataOutput(outputPath, order).use { output ->
                 output.skipBytes(BigFile.Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
 
-                val unsortedChromosomes = chromSizes.mapIndexed { i, p ->
-                    BPlusLeaf(p.first, i, p.second)
-                }.filter { it.key in groupedEntries }
+                val unsortedChromosomes = chromSizes.filter { it.first in summary.chromosomes }
+                        .mapIndexed { i, p -> BPlusLeaf(p.first, i, p.second) }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
-                val leaves = Lists.newArrayList<RTreeIndexLeaf>()
+                val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                for ((name, items) in groupedEntries) {
-                    Collections.sort(items)
-
+                for ((name, items) in bedEntries.asSequence().groupByLazy { it.chrom }) {
+                    val it = items.iterator()
                     val chromIx = resolver[name]!!
-                    for (i in 0..items.size - 1 step itemsPerSlot) {
+                    while (it.hasNext()) {
                         val dataOffset = output.tell()
-                        val start = items[i].start
+                        var start = 0
                         var end = 0
                         val current = output.with(compression) {
-                            for (j in 0..Math.min(items.size - i, itemsPerSlot) - 1) {
-                                val item = items[i + j]
+                            for (item in it.asSequence().take(itemsPerSlot)) {
                                 writeInt(chromIx)
                                 writeInt(item.start)
                                 writeInt(item.end)
                                 writeString("${item.name},${item.score},${item.strand},${item.rest}")
                                 writeByte(0)  // NUL-terminated.
 
+                                start = Math.min(start, item.start)
                                 end = Math.max(end, item.end)
                             }
                         }
@@ -187,18 +210,11 @@ class BigBedFile private constructor(input: RomBuffer,
 
             OrderedDataOutput(outputPath, order, create = false).use { header.write(it) }
 
-            if (groupedEntries.isNotEmpty()) {
-                var sum = 0L
-                var count = 0
-                for (section in groupedEntries.values.flatten()) {
-                    sum += section.end - section.start
-                    count++
+            with(summary) {
+                if (count > 0) {
+                    val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
+                    BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
                 }
-
-                // XXX this can be precomputed with a single pass along with the
-                // chromosomes used in the source BED.
-                val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
             }
 
             BigFile.Post.totalSummary(outputPath)
