@@ -334,6 +334,27 @@ class BigWigReadWriteTest(private val order: ByteOrder,
         }
     }
 
+    @Test fun testWriteReadMultipleChromosomes() {
+        withTempFile("empty", ".bw") { path ->
+            val section1 = VariableStepSection("chr19").apply {
+                this[100500] = 42.0f
+                this[100600] = 24.0f
+            }
+            val section2 = VariableStepSection("chr21").apply {
+                this[500] = 42.0f
+                this[600] = 24.0f
+            }
+
+            BigWigFile.write(listOf(section1, section2),
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+            BigWigFile.read(path).use { bbf ->
+                assertEquals(1, bbf.query("chr19", 0, 0).count())
+                assertEquals(1, bbf.query("chr21", 0, 0).count())
+            }
+        }
+    }
+
     @Test fun testWriteRead() {
         withTempFile("example", ".bw") { path ->
             val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()

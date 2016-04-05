@@ -109,10 +109,12 @@ class BigBedFile private constructor(input: RomBuffer,
             private var previous = ""
 
             operator fun invoke(entry: BedEntry) {
-                require(entry.chrom == previous || entry.chrom !in chromosomes) {
+                val switch = entry.chrom !in chromosomes
+                require(entry.chrom == previous || switch) {
                     "must be sorted by chromosome"
                 }
-                require(entry.start >= edge) { "must be sorted by offset" }
+
+                require(entry.start >= edge || switch) { "must be sorted by offset" }
 
                 chromosomes.add(entry.chrom)
                 sum += entry.end - entry.start

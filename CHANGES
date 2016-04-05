@@ -9,6 +9,8 @@ Version 0.3.1
 Bugfix release, released on April 5th, 2016
 
 - Fixed 'BigWigFile.write' in the case of no-data chromosomes.
+- Fixed offset tracking in 'BigWigSummary' and 'BigBedSummary' which
+  did not support multiple chromosomes.
 
 Version 0.3.0
 -------------

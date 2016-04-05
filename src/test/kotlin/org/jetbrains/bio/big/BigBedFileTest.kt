@@ -207,6 +207,17 @@ class BigBedReadWriteTest(private val order: ByteOrder,
         }
     }
 
+    @Test fun testWriteReadMultipleChromosomes() {
+        withTempFile("empty", ".bb") { path ->
+            BigBedFile.write(listOf(BedEntry("chr1", 100, 200), BedEntry("chr2", 50, 150)),
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(0, bbf.query("chr21", 0, 0).count())
+            }
+        }
+    }
+
     @Test fun testWriteRead() {
         withTempFile("example1", ".bb") { path ->
             val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
