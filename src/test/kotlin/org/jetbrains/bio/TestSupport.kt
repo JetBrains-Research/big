@@ -46,8 +46,7 @@ internal inline fun withTempFile(prefix: String, suffix: String,
         try {
             Files.delete(path)
         } catch (e: IOException) {
-            // Mmaped buffer not yet garbage collected. Leave it to
-            // the VM.
+            // Mmaped buffer not yet garbage collected. Leave it to the VM.
             path.toFile().deleteOnExit()
         }
     }

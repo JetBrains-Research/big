@@ -163,10 +163,15 @@ class BigWigFile private constructor(input: RomBuffer,
             private var previous = ""
 
             operator fun invoke(section: WigSection) {
-                assert(section.chrom == previous || section.chrom !in chromosomes) {
+                require(section.chrom == previous || section.chrom !in chromosomes) {
                     "must be sorted by chromosome"
                 }
-                assert(section.start >= edge) { "must be sorted by offset" }
+
+                if (section.size() == 0) {
+                    return
+                }
+
+                require(section.start >= edge) { "must be sorted by offset" }
 
                 chromosomes.add(section.chrom)
                 sum += section.span
