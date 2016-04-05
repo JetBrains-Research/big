@@ -167,13 +167,13 @@ class BigWigFile private constructor(input: RomBuffer,
                     "must be sorted by chromosome"
                 }
 
+                chromosomes.add(section.chrom)
+
                 if (section.size() == 0) {
                     return
                 }
 
                 require(section.start >= edge) { "must be sorted by offset" }
-
-                chromosomes.add(section.chrom)
                 sum += section.span
                 count++
 
@@ -225,6 +225,10 @@ class BigWigFile private constructor(input: RomBuffer,
                 for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
                     val chromId = resolver[name]!!
                     for (section in sections.flatMap { it.splice() }) {
+                        if (section.size() == 0) {
+                            continue
+                        }
+
                         val dataOffset = output.tell()
                         val current = output.with(compression) {
                             when (section) {
