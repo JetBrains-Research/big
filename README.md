@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.jetbrains.bio:big:0.3.1'
+    compile 'org.jetbrains.bio:big:0.3.2'
 }
 
 ```
@@ -37,6 +37,14 @@ $ tail -n +2 ./bedExample.txt > example.bed
 Showtime!
 
 ```kotlin
+/** Fetches chromosome sizes from a UCSC provided TSV file. */
+internal fun Path.chromosomes(): List<Pair<String, Int>> {
+    return Files.newBufferedReader(this).lineSequence().map { line ->
+        val chunks = line.split('\t', limit = 3)
+        chunks[0] to chunks[1].toInt()
+    }.toList()
+}
+
 fun main(args: Array<String>) {
     val bedPath = Paths.get("./example.bed")
     val chromSizesPath = Paths.get("./hg19.chrom.sizes")
