@@ -1,12 +1,12 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
+import org.jetbrains.bio.bufferedReader
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
 
 class BedFile(private val path: Path) : Iterable<BedEntry> {
-    override fun iterator() = Files.lines(path).map { line ->
+    override fun iterator() = path.bufferedReader().lines().map { line ->
         val chunks = line.split('\t', limit = 4)
         BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
                  if (chunks.size == 3) "" else chunks[3])

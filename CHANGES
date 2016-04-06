@@ -10,6 +10,7 @@ Bugfix release, released on April 6th, 2016
 
 - Renamed 'WigParser' to 'WigFile' which is initialized with a file to
   prevent possible use-after-exhausted bugs.
+- Allowed gzipped and zipped input in 'WigFile' and 'BedFile'.
 
 Version 0.3.1
 -------------

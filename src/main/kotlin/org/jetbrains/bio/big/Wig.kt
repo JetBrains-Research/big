@@ -23,7 +23,7 @@ import java.util.*
  * See http://genome.ucsc.edu/goldenPath/help/wiggle.html
  */
 class WigFile(private val path: Path) : Iterable<WigSection> {
-    override fun iterator(): Iterator<WigSection> = WigIterator(path.toFile().bufferedReader())
+    override fun iterator(): Iterator<WigSection> = WigIterator(path.bufferedReader())
 }
 
 @VisibleForTesting

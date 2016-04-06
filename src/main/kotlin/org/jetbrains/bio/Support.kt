@@ -8,6 +8,11 @@ import com.google.common.math.LongMath
 import org.apache.log4j.Logger
 import java.io.BufferedReader
 import java.math.RoundingMode
+import java.nio.file.Files
+import java.nio.file.OpenOption
+import java.nio.file.Path
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 import kotlin.reflect.KProperty
 
 /**
@@ -123,4 +128,15 @@ fun <T : Any, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<
             }
         }
     }
+}
+
+internal fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
+    val inputStream = Files.newInputStream(this, *options).buffered()
+    return when (toFile().extension) {
+        "gz"  -> GZIPInputStream(inputStream)
+        "zip" ->
+            // This only works for single-entry ZIP files.
+            ZipInputStream(inputStream).apply { getNextEntry() }
+        else  -> inputStream
+    }.bufferedReader()
 }
