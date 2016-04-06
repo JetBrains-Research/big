@@ -23,18 +23,12 @@ dependencies {
 
 [jcenter]: https://bintray.com/bintray/jcenter
 
-Example
--------
+Examples
+--------
 
-Download example [BED file] [bed-example] and hg19 [chromosome sizes] [chrom-sizes]
-from the [BigBED] [bigbed] documention. Unfortunately the example file has a header
-line which makes it improper BED. Remove the header either manually or via `tail`:
-
-```bash
-$ tail -n +2 ./bedExample.txt > example.bed
-```
-
-Showtime!
+The following examples assume that all required symbols are imported into the
+current scope. They also rely on the helper function for reading TSV formated
+[chromosome sizes] [chrom-sizes] from UCSC annotations.
 
 ```kotlin
 /** Fetches chromosome sizes from a UCSC provided TSV file. */
@@ -44,31 +38,25 @@ internal fun Path.chromosomes(): List<Pair<String, Int>> {
         chunks[0] to chunks[1].toInt()
     }.toList()
 }
+```
 
-fun main(args: Array<String>) {
-    val bedPath = Paths.get("./example.bed")
-    val chromSizesPath = Paths.get("./hg19.chrom.sizes")
-    val bigBedPath = Paths.get("./example.bb")
+### wigToBigWig
 
-    // Convert a BED file to BigBED.
-    BigBedFile.write(BedFile.read(bedPath), chromSizesPath.chromosomes(),
-                     bigBedPath)
+```kotlin
+fun wigToBigWig(inputPath: Path, outputPath: Path, chromSizesPath: Path) {
+    BigWigFile.write(WigFile(inputPath), chromSizesPath.chromosomes(), outputPath)
+}
+```
 
-    // Iterate over entries in a BigBED file.
-    BigBedFile.read(bigBedPath).use { bbf ->
-        for (chromosome in bbf.chromosomes.valueCollection()) {
-            for ((chrom, start, end) in bbf.query(chromosome)) {
-                println("$chrom\t$start\t$end")
-            }
-        }
-    }
+### bigWigSummary
 
-    // Summarise the entries in a BigBED file.
-    BigBedFile.read(bigBedPath).use { bbf ->
-        println("Total: ${bbf.totalSummary}")
+```kotlin
+fun bigWigSummary(inputPath: Path, numBins: Int) {
+    BigWigFile.read(inputPath).use { bwf ->
+        println("Total: ${bwf.totalSummary}")
 
-        for (chromosome in bbf.chromosomes.valueCollection()) {
-            for ((i, summary) in bbf.summarize(chromosome, numBins = 10).withIndex()) {
+        for (chromosome in bwf.chromosomes.valueCollection()) {
+            for ((i, summary) in bwf.summarize(chromosome, numBins = numBins).withIndex()) {
                 println("bin #${i + 1}: $summary")
             }
         }
@@ -76,7 +64,30 @@ fun main(args: Array<String>) {
 }
 ```
 
-[bed-example]: http://genome.ucsc.edu/goldenpath/help/examples/bedExample.txt
+### bedToBigBed
+
+```kotlin
+fun bedToBigBed(inputPath: Path, outputPath: Path, chromSizesPath: Path) {
+    BigBedFile.write(BedFile(inputPath), chromSizesPath.chromosomes(), outputPath)
+}
+```
+
+### bigBedToBed
+
+```kotlin
+fun bigBedToBed(inputPath: Path) {
+    BigBedFile.read(inputPath).use { bbf ->
+        for (chromosome in bbf.chromosomes.valueCollection()) {
+            for ((chrom, start, end) in bbf.query(chromosome)) {
+                // See 'BedEntry' for a complete list of available
+                // attributes.
+                println("$chrom\t$start\t$end")
+            }
+        }
+    }
+}
+```
+
 [chrom-sizes]: http://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes
 
 Useful links
