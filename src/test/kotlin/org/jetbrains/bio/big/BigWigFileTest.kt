@@ -357,7 +357,7 @@ class BigWigReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteRead() {
         withTempFile("example", ".bw") { path ->
-            val wigSections = WigParser(Examples["example.wig"].bufferedReader()).toList()
+            val wigSections = WigFile(Examples["example.wig"]).toList()
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
             BigWigFile.read(path).use { bwf ->

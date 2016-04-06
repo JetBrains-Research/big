@@ -3,6 +3,12 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.3.2
+-------------
+
+- Renamed 'WigParser' to 'WigFile' which is initialized with a file to
+  prevent possible use-after-exhausted bugs.
+
 Version 0.3.1
 -------------
 

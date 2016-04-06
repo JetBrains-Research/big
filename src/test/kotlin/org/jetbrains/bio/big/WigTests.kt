@@ -1,9 +1,9 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.Examples
 import org.jetbrains.bio.ScoredInterval
 import org.junit.Before
 import org.junit.Test
-import java.io.StringReader
 import java.io.StringWriter
 import java.util.*
 import kotlin.properties.Delegates
@@ -204,7 +204,7 @@ class FixedStepSectionTest {
     }
 }
 
-class WigParserTest {
+class WigIteratorTest {
     @Test(expected = IllegalStateException::class) fun testInvalidType() {
         val input = "track type=wiggle_1 windowingFunction=mean\n"
 
@@ -226,11 +226,11 @@ class WigParserTest {
                     "10471   0.4242\n" +
                     "10481   0.2424"
 
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         val track = it.next()
 
         assertNotNull(track)
-        assertEquals("chr1", track.chrom)
+        assertEquals("chr1", track!!.chrom)
         assertEquals(listOf(ScoredInterval(10470, 10471, 0.4242f),
                             ScoredInterval(10480, 10481, 0.2424f)),
                      track.query().toList())
@@ -252,8 +252,8 @@ class WigParserTest {
                     "+Infinity\n" +
                     "-Infinity"
 
-        val it = WigParser(input.reader()).iterator()
-        val intervals = it.next().query().toList()
+        val it = WigIterator(input.reader().buffered())
+        val intervals = it.next()!!.query().toList()
         assertTrue(intervals[0].score.isNaN())
         assertEquals(Float.POSITIVE_INFINITY, intervals[1].score)
         assertEquals(Float.NEGATIVE_INFINITY, intervals[2].score)
@@ -281,7 +281,7 @@ class WigParserTest {
                     "variableStep chrom=chr3 span=5\n" +
                     "10481   0.2424\n"
 
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         assertEquals(3, it.asSequence().count())
     }
 
@@ -304,7 +304,7 @@ class WigParserTest {
                     "fixedStep chrom=chr2 start=10475 step=10 span=5\n" +
                     "0.2424"
 
-        val tracks = WigParser(StringReader(input)).toList()
+        val tracks = WigIterator(input.reader().buffered()).asSequence().toList()
         assertEquals(2, tracks.size)
         assertEquals("chr1", tracks[0].chrom)
         assertEquals("chr2", tracks[1].chrom)
@@ -317,7 +317,7 @@ class WigParserTest {
                     "fixedStep chrom=chr1 start=10475 step=10 span=5\n" +
                     "0.2424"
 
-        val tracks = WigParser(StringReader(input)).toList()
+        val tracks = WigIterator(input.reader().buffered()).asSequence().toList()
         assertEquals(2, tracks.size)
         assertEquals("chr1", tracks[0].chrom)
         assertEquals("chr1", tracks[1].chrom)
@@ -339,18 +339,18 @@ class WigParserTest {
                     "10471   1.01e+03\n" +
                     "10481   1e+03"
 
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         assertTrue(it.hasNext())
-        assertEquals(2, it.next().query().count())
+        assertEquals(2, it.next()!!.query().count())
     }
 
     private fun testWigSection(input: String) {
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         val track = it.next()
 
         assertFalse(it.hasNext())
         assertNotNull(track)
-        assertEquals("chr1", track.chrom)
+        assertEquals("chr1", track!!.chrom)
         assertEquals(listOf(ScoredInterval(10470, 10475, 0.4242f),
                             ScoredInterval(10480, 10485, 0.2424f)),
                      track.query().toList())
@@ -369,12 +369,12 @@ class WigPrinterTest {
         WigPrinter(output, name = "yada").use { it.print(track) }
 
         val input = output.buffer.toString()
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         val parsed = it.next()
 
         assertNotNull(parsed)
         assertFalse(it.hasNext())
-        assertEquals("chr1", parsed.chrom)
+        assertEquals("chr1", parsed!!.chrom)
         assertTrue(parsed is FixedStepSection)
         assertEquals(track, parsed)
     }
@@ -390,13 +390,21 @@ class WigPrinterTest {
         WigPrinter(output, name = "yada").use { it.print(track) }
 
         val input = output.buffer.toString()
-        val it = WigParser(StringReader(input)).iterator()
+        val it = WigIterator(input.reader().buffered())
         val parsed = it.next()
 
         assertNotNull(parsed)
         assertFalse(it.hasNext())
-        assertEquals("chr1", parsed.chrom)
+        assertEquals("chr1", parsed!!.chrom)
         assertTrue(parsed is VariableStepSection)
         assertEquals(track, parsed)
+    }
+}
+
+class WigFileTest {
+    @Test fun iterateTwice() {
+        val wf = WigFile(Examples["example.wig"])
+        assertEquals(2, wf.count())
+        assertEquals(2, wf.count())
     }
 }

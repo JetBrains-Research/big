@@ -358,7 +358,7 @@ abstract class BigFile<T> internal constructor(
                 val query = Interval(chromIx, 0, size)
 
                 // We can re-use pre-computed zooms, but preliminary
-                // results suggest it doesn't give a considerable speedup.
+                // results suggest this doesn't give a noticeable speedup.
                 val summaries = bf.summarizeInternal(
                         query, numBins = size divCeiling reduction)
                 for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {

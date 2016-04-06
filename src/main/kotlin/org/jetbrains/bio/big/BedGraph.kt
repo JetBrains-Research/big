@@ -19,7 +19,7 @@ import java.util.*
 /**
  * A basic BedGraph format parser.
  *
- * Separated from [WigParser] for clarity.
+ * Separated from [WigFile] for clarity.
  *
  * See http://genome.ucsc.edu/goldenpath/help/bedgraph.html
  */

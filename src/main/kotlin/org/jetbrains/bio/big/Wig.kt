@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.MoreObjects
 import com.google.common.collect.ComparisonChain
 import gnu.trove.list.TFloatList
@@ -9,8 +10,8 @@ import gnu.trove.list.array.TIntArrayList
 import org.jetbrains.bio.*
 import java.io.BufferedReader
 import java.io.Closeable
-import java.io.Reader
 import java.io.Writer
+import java.nio.file.Path
 import java.util.*
 
 /**
@@ -21,15 +22,12 @@ import java.util.*
  *
  * See http://genome.ucsc.edu/goldenPath/help/wiggle.html
  */
-class WigParser(private val reader: Reader) :
-        Iterable<WigSection>, AutoCloseable, Closeable {
-
-    override fun iterator(): Iterator<WigSection> = WigIterator(reader.buffered())
-
-    override fun close() = reader.close()
+class WigFile(private val path: Path) : Iterable<WigSection> {
+    override fun iterator(): Iterator<WigSection> = WigIterator(path.toFile().bufferedReader())
 }
 
-private class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(reader) {
+@VisibleForTesting
+internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(reader) {
     override fun cache(): WigSection? {
         var track: WigSection? = null
         var state = State.WAITING
