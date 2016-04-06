@@ -9,9 +9,9 @@ import org.jetbrains.bio.mapUnboxed
  * A semi-closed interval.
  */
 interface Interval {
-    /** Start offset (inclusive).  */
+    /** Start offset (inclusive). */
     val left: Offset
-    /** End offset (exclusive).  */
+    /** End offset (exclusive). */
     val right: Offset
 
     /**

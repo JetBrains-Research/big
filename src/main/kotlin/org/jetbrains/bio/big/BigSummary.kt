@@ -25,19 +25,19 @@ data class BigSummary(
     internal fun update(value: Double, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
         count += intersection
-        sum += value * weight;
+        sum += value * weight
         sumSquares += value * value * weight
-        minValue = Math.min(minValue, value);
-        maxValue = Math.max(maxValue, value);
+        minValue = Math.min(minValue, value)
+        maxValue = Math.max(maxValue, value)
     }
 
     internal fun update(zoomData: ZoomData, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
         count += Math.round(zoomData.count * weight)
-        sum += zoomData.sum * weight;
+        sum += zoomData.sum * weight
         sumSquares += zoomData.sumSquares * weight
-        minValue = Math.min(minValue, zoomData.minValue.toDouble());
-        maxValue = Math.max(maxValue, zoomData.maxValue.toDouble());
+        minValue = Math.min(minValue, zoomData.minValue.toDouble())
+        maxValue = Math.max(maxValue, zoomData.maxValue.toDouble())
     }
 
     /** Because monoids rock. */
@@ -149,7 +149,7 @@ internal data class ZoomData(
     }
 
     companion object {
-        internal val SIZE: Int = Ints.BYTES * 3 + Ints.BYTES + Floats.BYTES * 4
+        internal val SIZE = Ints.BYTES * 3 + Ints.BYTES + Floats.BYTES * 4
 
         internal fun read(input: RomBuffer) = with(input) {
             val chromIx = getInt()
@@ -158,19 +158,10 @@ internal data class ZoomData(
             val count = getInt()
             val minValue = getFloat()
             val maxValue = getFloat()
-            val sum = getFloat();
-            val sumSquares = getFloat();
+            val sum = getFloat()
+            val sumSquares = getFloat()
             ZoomData(chromIx, startOffset, endOffset, count,
-                     minValue, maxValue, sum, sumSquares);
+                     minValue, maxValue, sum, sumSquares)
         }
     }
-}
-
-internal fun Pair<ChromosomeInterval, BigSummary>.toZoomData(): ZoomData {
-    val (chromIx, startOffset, endOffset) = first
-    val (count, minValue, maxValue, sum, sumSquares) = second
-    return ZoomData(chromIx, startOffset, endOffset,
-                    count.toInt(),
-                    minValue.toFloat(), maxValue.toFloat(),
-                    sum.toFloat(), sumSquares.toFloat())
 }

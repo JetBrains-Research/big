@@ -33,7 +33,7 @@ class BigBedFile private constructor(input: RomBuffer,
                 val bedEntry = coverage[j]
                 if (bedEntry.end <= bin.startOffset) {
                     edge = j + 1
-                    continue;
+                    continue
                 } else if (bedEntry.start > bin.endOffset) {
                     break
                 }
