@@ -139,7 +139,7 @@ class BigWigFile private constructor(input: RomBuffer,
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        internal val MAGIC: Int = 0x888FFC26.toInt()
+        internal val MAGIC = 0x888FFC26.toInt()
 
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigWigFile {
@@ -191,7 +191,8 @@ class BigWigFile private constructor(input: RomBuffer,
          *                    firstly to summarize and secondly to write
          *                    and index.
          * @param chromSizes chromosome names and sizes, e.g.
-         *                   `("chrX", 59373566)`.
+         *                   `("chrX", 59373566)`. Sections on chromosomes
+         *                   missing from this list will be dropped.
          * @param zoomLevelCount number of zoom levels to pre-compute.
          *                       Defaults to `8`.
          * @param outputPath BigWIG file path.
@@ -224,7 +225,7 @@ class BigWigFile private constructor(input: RomBuffer,
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
                 for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
-                    val chromId = resolver[name]!!
+                    val chromIx = resolver[name] ?: continue
                     for (section in sections.flatMap { it.splice() }) {
                         if (section.size() == 0) {
                             continue
@@ -239,7 +240,7 @@ class BigWigFile private constructor(input: RomBuffer,
                             }
                         }
 
-                        leaves.add(RTreeIndexLeaf(Interval(chromId, section.start, section.end),
+                        leaves.add(RTreeIndexLeaf(Interval(chromIx, section.start, section.end),
                                                   dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }

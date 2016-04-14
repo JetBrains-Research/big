@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.3.3
+-------------
+
+Bugfix release, released on April 14th 2016
+
+- Fixed 'BigWigFile.write' and 'BigBedFile.write' in case the data
+  contains items with unknown chromosomes.
+
 Version 0.3.2
 -------------
 

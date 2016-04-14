@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.jetbrains.bio:big:0.3.2'
+    compile 'org.jetbrains.bio:big:0.3.3'
 }
 
 ```

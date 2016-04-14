@@ -128,12 +128,13 @@ class BigBedFile private constructor(input: RomBuffer,
         /**
          * Creates a BigBED file from given entries.
          *
-         * @param bedEntries sections sorted by chromosome *and* start offset.
-         *                   The method traverses the sections twice:
+         * @param bedEntries entries sorted by chromosome *and* start offset.
+         *                   The method traverses the entries twice:
          *                   firstly to summarize and secondly to write
          *                   and index.
          * @param chromSizes chromosome names and sizes, e.g.
-         *                   `("chrX", 59373566)`.
+         *                   `("chrX", 59373566)`. Entries on chromosomes
+         *                   missing from this list will be dropped.
          * @param outputPath BigBED file path.
          * @param itemsPerSlot number of items to store in a single
          *                     R+ tree index node. Defaults to `1024`.
@@ -170,7 +171,7 @@ class BigBedFile private constructor(input: RomBuffer,
                 var uncompressBufSize = 0
                 for ((name, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
                     val it = items.iterator()
-                    val chromIx = resolver[name]!!
+                    val chromIx = resolver[name] ?: continue
                     while (it.hasNext()) {
                         val dataOffset = output.tell()
                         var start = 0
