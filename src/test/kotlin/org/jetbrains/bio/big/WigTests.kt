@@ -21,9 +21,19 @@ class VariableStepSectionTest {
         section[500100] = 24.0f
     }
 
-    @Test fun testSet() {
+    @Test fun testSetUpdate() {
         section[100500] = 42.0f
         assertEquals(42f + 42f , section[100500])
+    }
+
+    @Test fun testSetAdd() {
+        section[500200] = 22.0f
+        assertEquals(22.0f , section[500200])
+    }
+
+    @Test fun testSetInsort() {
+        section[100600] = 22.0f
+        assertEquals(22.0f , section[100600])
     }
 
     @Test fun testQueryEmpty() {

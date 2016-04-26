@@ -3,6 +3,11 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.3.4
+-------------
+
+- Added a fast-path to 'VariableStepSection.set'.
+
 Version 0.3.3
 -------------
 

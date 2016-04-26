@@ -228,16 +228,21 @@ data class VariableStepSection(
 
     override val end: Int get() {
         check(size() > 0) { "no data" }
-        return positions[positions.size() - 1] + span
+        return positions.last() + span
     }
 
     operator fun set(pos: Int, value: Float) {
-        val i = positions.binarySearch(pos)
-        if (i < 0) {
-            positions.insert(i.inv(), pos)
-            values.insert(i.inv(), value)
+        if (positions.isEmpty || pos > positions.last()) {
+            positions.add(pos)
+            values.add(value)
         } else {
-            values[i] += value
+            val i = positions.binarySearch(pos)
+            if (i < 0) {
+                positions.insert(i.inv(), pos)
+                values.insert(i.inv(), value)
+            } else {
+                values[i] += value
+            }
         }
     }
 
@@ -321,7 +326,7 @@ data class FixedStepSection(
     }
 
     override fun query(from: Int, to: Int): Sequence<ScoredInterval> {
-        var i = Math.max(start, from - from % span)
+        val i = Math.max(start, from - from % span)
         val j = Math.min(start + step * size(), to - to % span)
         return (i..j - 1 step step)
                 .mapUnboxed { ScoredInterval(it, it + span, get(it)) }
@@ -360,3 +365,5 @@ data class FixedStepSection(
 
     override fun hashCode() = Objects.hash(start, step, span, values)
 }
+
+private fun TIntList.last() = get(size() - 1)
