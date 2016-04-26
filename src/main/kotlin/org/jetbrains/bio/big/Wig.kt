@@ -1,7 +1,9 @@
 package org.jetbrains.bio.big
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.common.base.CharMatcher
 import com.google.common.base.MoreObjects
+import com.google.common.base.Splitter
 import com.google.common.collect.ComparisonChain
 import gnu.trove.list.TFloatList
 import gnu.trove.list.TIntList
@@ -28,24 +30,28 @@ class WigFile(private val path: Path) : Iterable<WigSection> {
 
 @VisibleForTesting
 internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>(reader) {
+    @Suppress("platform_class_mapped_to_kotlin")
     override fun cache(): WigSection? {
         var track: WigSection? = null
         var state = State.WAITING
         loop@ while (lines.hasNext()) {
-            val line = lines.peek().trim()
+            // Java trimming does not allocate a new string if there's
+            // nothing to trim.
+            val line = (lines.peek() as java.lang.String).trim()
             when {
                 line.startsWith('#') -> {
                     lines.next()
                     continue@loop  // Skip comments.
                 }
-                state != State.WAITING && !RE_VALUE.matches(line) ->
+                state != State.WAITING && META_MATCHER.matches(line.first()) ->
                     break@loop     // My job here is done.
             }
 
-            val chunks = RE_WHITESPACE.split(line, 2)
+            val chunks = LINE_SPLITTER.split(line).iterator()
             when (state) {
                 State.WAITING -> {
-                    val (type, rest) = chunks
+                    val type = chunks.next()
+                    val rest = chunks.next()
                     val params = RE_PARAM.findAll(rest).map { m ->
                         (m.groups[1]!!.value to
                                 m.groups[2]!!.value.removeSurrounding("\""))
@@ -55,7 +61,7 @@ internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>
                         "track" -> check(params["type"] == "wiggle_0")
                         "variableStep" -> state = State.VARIABLE_STEP
                         "fixedStep" -> state = State.FIXED_STEP
-                        else -> assert(false)
+                        else -> impossible()
                     }
 
                     if (state != State.WAITING) {
@@ -63,9 +69,9 @@ internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>
                     }
                 }
                 State.VARIABLE_STEP -> (track as VariableStepSection)
-                        .set(chunks[0].toInt() - 1, chunks[1].toFloat())
+                        .set(chunks.next().toInt() - 1, chunks.next().toFloat())
                 State.FIXED_STEP -> (track as FixedStepSection)
-                        .add(chunks[0].toFloat())
+                        .add(chunks.next().toFloat())
             }
 
             lines.next()  // Discard the processed line.
@@ -75,10 +81,13 @@ internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>
     }
 
     companion object {
-        private val RE_VALUE = arrayOf(
-                "NaN", "[+-]Infinity",
-                "(\\d+)?\\s*[+-]?(\\d+(?:\\.\\d+)?(e\\+?\\d+)?)?").joinToString("|").toRegex()
-        private val RE_WHITESPACE = "\\s".toRegex()
+        /** Not a 'Regex' to avoid excessive allocation on '.split'. */
+        private val LINE_SPLITTER = Splitter.on(CharMatcher.whitespace()).limit(2)
+        /**
+         * Matches prefixes of meta-data segments "track", "variableStep"
+         * and "fixedStep".
+         */
+        private val META_MATCHER = CharMatcher.anyOf("tvf")
         private val RE_PARAM = "(\\S+)=(\"[^\"]*\"|\\S+)".toRegex()
     }
 }

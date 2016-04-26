@@ -7,6 +7,7 @@ Version 0.3.4
 -------------
 
 - Added a fast-path to 'VariableStepSection.set'.
+- Speed up 'WigFile' and reduced allocation rate.
 
 Version 0.3.3
 -------------
