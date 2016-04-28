@@ -174,15 +174,16 @@ interface WigSection : Comparable<WigSection> {
      */
     val end: Int
 
+    /** The total number of intervals in the section. */
+    val size: Int
+
+    fun isEmpty() = size == 0
+
     /**
      * Returns a list with all intervals in the section.
      */
     fun query(): Sequence<ScoredInterval> {
-        return if (size() == 0) {
-            emptySequence()
-        } else {
-            query(start, end)
-        }
+        return if (isEmpty()) emptySequence() else query(start, end)
     }
 
     /**
@@ -197,9 +198,6 @@ interface WigSection : Comparable<WigSection> {
      * Splices a section into sub-section of size at most [Short.MAX_SIZE].
      */
     fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
-
-    /** Returns the total number of intervals in the section. */
-    fun size(): Int
 
     override fun compareTo(other: WigSection): Int = ComparisonChain.start()
             .compare(chrom, other.chrom)
@@ -226,17 +224,19 @@ data class VariableStepSection(
         /** Per-interval values. */
         internal val values: TFloatList = TFloatArrayList()) : WigSection {
 
+    override val size: Int get() = values.size()
+
     init {
         require(positions.size() == values.size())
     }
 
     override val start: Int get() {
-        check(size() > 0) { "no data" }
+        check(size > 0) { "no data" }
         return positions[0]
     }
 
     override val end: Int get() {
-        check(size() > 0) { "no data" }
+        check(size > 0) { "no data" }
         return positions.last() + span
     }
 
@@ -280,20 +280,18 @@ data class VariableStepSection(
     }
 
     override fun splice(max: Int): Sequence<VariableStepSection> {
-        val chunks = size() divCeiling max
+        val chunks = size divCeiling max
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
             (0..chunks - 1).mapUnboxed { i ->
                 val from = i * max
-                val to = Math.min((i + 1) * max, size())
+                val to = Math.min((i + 1) * max, size)
                 copy(positions = positions.subList(from, to),
                      values = values.subList(from, to))
             }
         }
     }
-
-    override fun size() = values.size()
 
     override fun toString() = MoreObjects.toStringHelper(this)
             .addValue(chrom)
@@ -327,6 +325,8 @@ data class FixedStepSection(
 
     override val end: Int get() = start + step * (values.size() - 1) + span
 
+    override val size: Int get() = values.size()
+
     fun add(value: Float) = ignore(values.add(value))
 
     operator fun get(pos: Int): Float {
@@ -336,13 +336,13 @@ data class FixedStepSection(
 
     override fun query(from: Int, to: Int): Sequence<ScoredInterval> {
         val i = Math.max(start, from - from % span)
-        val j = Math.min(start + step * size(), to - to % span)
+        val j = Math.min(start + step * size, to - to % span)
         return (i..j - 1 step step)
                 .mapUnboxed { ScoredInterval(it, it + span, get(it)) }
     }
 
     override fun splice(max: Int): Sequence<FixedStepSection> {
-        val chunks = size() divCeiling max
+        val chunks = size divCeiling max
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
@@ -353,8 +353,6 @@ data class FixedStepSection(
             }
         }
     }
-
-    override fun size() = values.size()
 
     override fun toString() = MoreObjects.toStringHelper(this)
             .addValue(chrom)

@@ -170,7 +170,7 @@ class BigWigFile private constructor(input: RomBuffer,
 
                 chromosomes.add(section.chrom)
 
-                if (section.size() == 0) {
+                if (section.isEmpty()) {
                     return
                 }
 
@@ -222,7 +222,7 @@ class BigWigFile private constructor(input: RomBuffer,
 
                 val unzoomedDataOffset = output.tell()
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
-                val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
+                val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size }.sum())
                 var uncompressBufSize = 0
                 for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
                     val chromIx = resolver[name]
@@ -232,7 +232,7 @@ class BigWigFile private constructor(input: RomBuffer,
                     }
 
                     for (section in sections.flatMap { it.splice() }) {
-                        if (section.size() == 0) {
+                        if (section.isEmpty()) {
                             continue
                         }
 
@@ -288,8 +288,8 @@ private fun BedGraphSection.write(output: OrderedDataOutput, resolver: Map<Strin
         writeInt(span)
         writeByte(WigSection.Type.BED_GRAPH.ordinal + 1)
         writeByte(0)  // reserved.
-        writeShort(size())
-        for (i in 0..size() - 1) {
+        writeShort(size)
+        for (i in 0..size - 1) {
             writeInt(startOffsets[i])
             writeInt(endOffsets[i])
             writeFloat(values[i])
@@ -306,8 +306,8 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeInt(span)
         writeByte(WigSection.Type.FIXED_STEP.ordinal + 1)
         writeByte(0)  // reserved.
-        writeShort(size())
-        for (i in 0..size() - 1) {
+        writeShort(size)
+        for (i in 0..size - 1) {
             writeFloat(values[i])
         }
     }
@@ -322,8 +322,8 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeInt(span)
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal + 1)
         writeByte(0)  // reserved.
-        writeShort(size())
-        for (i in 0..size() - 1) {
+        writeShort(size)
+        for (i in 0..size - 1) {
             writeInt(positions[i])
             writeFloat(values[i])
         }

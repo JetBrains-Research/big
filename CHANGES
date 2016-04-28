@@ -12,6 +12,7 @@ Bugfix release, released on April 28th 2016
 - Sped up 'WigFile' and reduced allocation rate.
 - Fixed unbounded looping in 'BigWigFile.write' and 'BigBedFile.write'
   in case the data contains items with unknown chromosomes.
+- Changed 'WigSection.size' to be a property.
 
 Version 0.3.3
 -------------

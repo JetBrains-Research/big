@@ -78,8 +78,8 @@ class VariableStepSectionTest {
         assertEquals(2, subsections.size)
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
-        assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size())
-        assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size())
+        assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size)
+        assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size)
     }
 
     @Test fun testSpliceRandom() {
@@ -91,7 +91,7 @@ class VariableStepSectionTest {
             }
 
             val subsections = section.splice().toList()
-            assertEquals(section.size(), subsections.map { it.size() }.sum())
+            assertEquals(section.size, subsections.map { it.size }.sum())
             assertEquals(section.query().toList(),
                          subsections.map { it.query().toList() }.reduce { a, b -> a + b })
         }
@@ -203,7 +203,7 @@ class FixedStepSectionTest {
             }
 
             val subsections = section.splice().toList()
-            assertEquals(section.size(), subsections.map { it.size() }.sum())
+            assertEquals(section.size, subsections.map { it.size }.sum())
             assertEquals(section.query().toList(),
                          subsections.map { it.query().toList() }.reduce { a, b -> a + b })
         }

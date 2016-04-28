@@ -91,7 +91,7 @@ data class BedGraphSection(
 
     override val span: Int get() {
         val mean = Mean()
-        for (i in 0..size() - 1) {
+        for (i in 0..size - 1) {
             mean.increment((endOffsets[i] - startOffsets[i]).toDouble())
         }
 
@@ -99,16 +99,18 @@ data class BedGraphSection(
     }
 
     override val start: Int get() {
-        check(size() > 0) { "no data" }
+        check(size > 0) { "no data" }
         return startOffsets[0]
     }
 
     override val end: Int get() {
-        check(size() > 0) { "no data" }
+        check(size > 0) { "no data" }
         // XXX intervals might overlap, so in general we don't know the
         // rightmost offset.
         return endOffsets.max()
     }
+
+    override val size: Int get() = values.size()
 
     operator fun set(startOffset: Int, endOffset: Int, value: Float) {
         val i = startOffsets.binarySearch(startOffset)
@@ -155,21 +157,19 @@ data class BedGraphSection(
     }
 
     override fun splice(max: Int): Sequence<WigSection> {
-        val chunks = size() divCeiling max
+        val chunks = size divCeiling max
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
             (0..chunks - 1).mapUnboxed { i ->
                 val from = i * max
-                val to = Math.min((i + 1) * max, size())
+                val to = Math.min((i + 1) * max, size)
                 copy(startOffsets = startOffsets.subList(from, to),
                      endOffsets = endOffsets.subList(from, to),
                      values = values.subList(from, to))
             }
         }
     }
-
-    override fun size() = values.size()
 
     override fun toString() = MoreObjects.toStringHelper(this)
             .addValue(chrom)

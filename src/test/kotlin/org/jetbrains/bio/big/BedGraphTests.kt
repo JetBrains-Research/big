@@ -38,7 +38,7 @@ class BedGraphSectionTest {
                               ScoredInterval(500200, 500300, 0f),
                               ScoredInterval(500200, 500400, 0f))
 
-        assertEquals(4, section.size())
+        assertEquals(4, section.size)
         assertEquals(correct.asList(), section.query().toList())
     }
 
@@ -64,8 +64,8 @@ class BedGraphSectionTest {
         assertEquals(2, subsections.size)
         assertEquals(0, subsections[0].start)
         assertEquals(Short.MAX_VALUE.toInt(), subsections[1].start)
-        assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size())
-        assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size())
+        assertEquals(Short.MAX_VALUE.toInt(), subsections[0].size)
+        assertEquals(Short.MAX_VALUE.toInt() - 100, subsections[1].size)
     }
 
     @Test fun testSpliceRandom() {
@@ -77,7 +77,7 @@ class BedGraphSectionTest {
             }
 
             val subsections = section.splice().toList()
-            assertEquals(section.size(), subsections.map { it.size() }.sum())
+            assertEquals(section.size, subsections.map { it.size }.sum())
             assertEquals(section.query().toList(),
                          subsections.map { it.query().toList() }.reduce { a, b -> a + b })
         }
@@ -117,7 +117,7 @@ chr19 49302300 49302600 -0.75
         val track = it.next()
         assertFalse(it.hasNext())
         assertEquals("chr19", track.chrom)
-        assertEquals(2, track.size())
+        assertEquals(2, track.size)
         assertEquals(listOf(ScoredInterval(49302000, 49302300, -1f),
                             ScoredInterval(49302300, 49302600, -.75f)),
                      track.query().toList())
@@ -133,7 +133,7 @@ chr20 100500 500100 -0.50
         val tracks = BedGraphParser(input.reader()).toList()
         assertEquals(2, tracks.size)
         assertEquals("chr20", tracks[1].chrom)
-        assertEquals(1, tracks[1].size())
+        assertEquals(1, tracks[1].size)
         assertEquals(listOf(ScoredInterval(100500, 500100, -.5f)),
                      tracks[1].query().toList())
     }
