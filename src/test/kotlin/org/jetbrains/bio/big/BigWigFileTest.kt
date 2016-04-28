@@ -122,7 +122,7 @@ class BigWigFileTest {
 
     @Test fun testSummarizeFourBins() {
         val wigSections = (0 until 128).asSequence().map {
-            var startOffset = RANDOM.nextInt(1000000)
+            val startOffset = RANDOM.nextInt(1000000)
             val section = FixedStepSection("chr1", startOffset)
             for (i in 0 until RANDOM.nextInt(127) + 1) {
                 section.add(RANDOM.nextFloat())
@@ -352,6 +352,24 @@ class BigWigReadWriteTest(private val order: ByteOrder,
                 assertEquals(1, bbf.query("chr19", 0, 0).count())
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
             }
+        }
+    }
+
+    @Test fun testWriteReadMissingChromosome() {
+        withTempFile("empty", ".bw") { path ->
+            val section1 = VariableStepSection("chr19").apply {
+                this[100500] = 42.0f
+                this[100600] = 24.0f
+            }
+            val section2 = VariableStepSection("chr21").apply {
+                this[500] = 42.0f
+                this[600] = 24.0f
+            }
+
+            // In case of error this would raise an exception.
+            BigWigFile.write(listOf(section1, section2),
+                             listOf("chr19" to 500100),
+                             path, compression = compression, order = order)
         }
     }
 

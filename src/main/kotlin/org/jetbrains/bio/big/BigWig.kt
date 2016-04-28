@@ -225,7 +225,12 @@ class BigWigFile private constructor(input: RomBuffer,
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size() }.sum())
                 var uncompressBufSize = 0
                 for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
-                    val chromIx = resolver[name] ?: continue
+                    val chromIx = resolver[name]
+                    if (chromIx == null) {
+                        sections.forEach {}  // Consume.
+                        continue
+                    }
+
                     for (section in sections.flatMap { it.splice() }) {
                         if (section.size() == 0) {
                             continue

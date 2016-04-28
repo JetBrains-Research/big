@@ -139,7 +139,7 @@ class BigBedFileTest {
 
     @Test fun testSummarizeFourBins() {
         val bedEntries = (0..IntMath.pow(2, 16)).asSequence().map {
-            var startOffset = RANDOM.nextInt(1000000)
+            val startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
             entry
@@ -150,7 +150,7 @@ class BigBedFileTest {
 
     @Test fun testSummarizeManyBins() {
         val bedEntries = (0..IntMath.pow(2, 16)).asSequence().map {
-            var startOffset = RANDOM.nextInt(1000000)
+            val startOffset = RANDOM.nextInt(1000000)
             val endOffset = startOffset + RANDOM.nextInt(999) + 1
             val entry = BedEntry("chr1", startOffset, endOffset)
             entry
@@ -215,6 +215,15 @@ class BigBedReadWriteTest(private val order: ByteOrder,
             BigBedFile.read(path).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
+        }
+    }
+
+    @Test fun testWriteReadMissingChromosome() {
+        withTempFile("empty", ".bb") { path ->
+            // In case of error this would raise an exception.
+            BigBedFile.write(listOf(BedEntry("chr1", 100, 200), BedEntry("chr2", 50, 150)),
+                             listOf("chr1" to 500100),
+                             path, compression = compression, order = order)
         }
     }
 

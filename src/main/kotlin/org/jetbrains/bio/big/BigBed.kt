@@ -170,8 +170,13 @@ class BigBedFile private constructor(input: RomBuffer,
                 val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
                 for ((name, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
+                    val chromIx = resolver[name]
+                    if (chromIx == null) {
+                        items.forEach {}  // Consume.
+                        continue
+                    }
+
                     val it = items.iterator()
-                    val chromIx = resolver[name] ?: continue
                     while (it.hasNext()) {
                         val dataOffset = output.tell()
                         var start = 0

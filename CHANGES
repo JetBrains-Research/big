@@ -6,8 +6,12 @@ Here you can see the full list of changes between each big release.
 Version 0.3.4
 -------------
 
+Bugfix release, released on April 28th 2016
+
 - Added a fast-path to 'VariableStepSection.set'.
-- Speed up 'WigFile' and reduced allocation rate.
+- Sped up 'WigFile' and reduced allocation rate.
+- Fixed unbounded looping in 'BigWigFile.write' and 'BigBedFile.write'
+  in case the data contains items with unknown chromosomes.
 
 Version 0.3.3
 -------------

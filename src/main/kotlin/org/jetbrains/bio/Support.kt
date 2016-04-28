@@ -112,14 +112,21 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
 fun <T : Any, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
     return Sequence {
         object : Iterator<Pair<K, Sequence<T>>> {
+            private var cached: K? = null
+
             private val it = Iterators.peekingIterator(this@groupingBy.iterator())
 
             override fun hasNext() = it.hasNext()
 
             override fun next(): Pair<K, Sequence<T>> {
                 val target = f(it.peek())
+                assert(cached == null || cached != target) {
+                    "group (key: $target) was not consumed fully"
+                }
+
+                cached = target
                 return target to generateSequence {
-                    if (it.hasNext() && f(it.peek()) == target) {
+                    if (it.hasNext() && f(it.peek()) == cached) {
                         it.next()
                     } else {
                         null
