@@ -62,9 +62,9 @@ internal fun ignore(_value: Any?) {}
 @Suppress("nothing_to_inline")
 inline fun impossible(): Nothing = throw IllegalStateException()
 
-operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
+internal operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
 
-operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) = set(value)
+internal operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) = set(value)
 
 // XXX calling the 'Iterable<T>#map' leads to boxing.
 internal inline fun <R> IntProgression.mapUnboxed(
@@ -109,7 +109,7 @@ internal abstract class CachingIterator<T>(reader: BufferedReader) : Unmodifiabl
  *
  * No assumptions are made about the monotonicity of [f].
  */
-fun <T : Any, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
+internal fun <T : Any, K> Sequence<T>.groupingBy(f: (T) -> K): Sequence<Pair<K, Sequence<T>>> {
     return Sequence {
         object : Iterator<Pair<K, Sequence<T>>> {
             private var cached: K? = null
