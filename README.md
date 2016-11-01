@@ -90,6 +90,42 @@ fun bigBedToBed(inputPath: Path) {
 
 [chrom-sizes]: http://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes
 
+Building from source
+--------------------
+
+The build process is as simple as
+
+```bash
+$ ./gradlew assemble
+```
+
+Testing
+-------
+
+No extra configuration is required for running the tests from Gradle
+
+```bash
+$ ./gradlew test
+```
+
+Publishing
+----------
+
+You can publish a new release with a one-liner
+
+```bash
+./gradlew clean assemble test generatePomFileForMavenJavaPublication bintrayUpload
+```
+
+Make sure to set Bintray credentials (see API key section
+[here](https://bintray.com/profile/edit)) in `$HOME/.gradle/gradle.properties`.
+
+```
+$ cat $HOME/.gradle/gradle.properties
+bintrayUser=CHANGEME
+bintrayKey=CHANGEME
+```
+
 Useful links
 ------------
 
@@ -97,7 +133,7 @@ Useful links
 * UCSC documentation on [WIG] [wig], [BED] [bed], [BigWIG] [bigwig] and [BigBED] [bigbed]
 * Reference C [implementation](http://hgdownload.cse.ucsc.edu/admin/exe) of both
   big formats by UCSC
-* Sketch of [TDF spec.] [tdf] in IGV repository
+* Sketch of [TDF spec.] [tdf] in IGV repository and another version [on Gist] [tdf-gist]
 
 [paper]: http://bioinformatics.oxfordjournals.org/content/26/17/2204.abstract
 [wig]: http://genome.ucsc.edu/goldenpath/help/wiggle.html
@@ -105,3 +141,4 @@ Useful links
 [bigwig]: http://genome.ucsc.edu/goldenpath/help/bigWig.html
 [bigbed]: http://genome.ucsc.edu/goldenpath/help/bigBed.html
 [tdf]: https://github.com/igvteam/igv/blob/master/src/org/broad/igv/tdf/notes.txt
+[tdf-gist]: https://gist.github.com/superbobry/c67614cbfe2a15d35d5c
