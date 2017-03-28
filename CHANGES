@@ -3,7 +3,7 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
-Version 0.3.5
+Master
 -------------
 - Fixed summary semantics: Now for each intersected interval summary 'sum' value is increased in
  "intersected nucleotides number" x "interval value" instead of "intersection %" x "interval value".
@@ -12,7 +12,7 @@ Version 0.3.5
  "intersection %" x "interval summary" = "intersected nucleotides number" x "interval value".
   Old semantics was incorrect, difference was visible at 1-bp resolution.
 
-
+- More informative error message if actual magic doesn't match expected guess
 
 Version 0.3.4
 -------------

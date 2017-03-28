@@ -123,7 +123,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             internal fun read(input: RomBuffer, offset: Long) = with(input) {
                 val expectedOrder = order
                 position = Ints.checkedCast(offset)
-                check(guess(MAGIC)) { "bad magic" }
+                checkHeader(MAGIC)
                 check(order == expectedOrder)
 
                 val blockSize = getInt()

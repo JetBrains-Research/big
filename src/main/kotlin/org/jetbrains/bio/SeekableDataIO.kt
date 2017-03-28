@@ -5,6 +5,7 @@ import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.iq80.snappy.Snappy
+import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
 import java.io.OutputStream
 import java.nio.ByteBuffer
@@ -26,6 +27,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
         set(value: Int) = ignore(mapped.position(value))
 
     val order: ByteOrder get() = mapped.order()
+    var magic: Int? = null
 
     /**
      * Returns a new buffer sharing the data with its parent.
@@ -37,20 +39,31 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
         position(0)
     })
 
-    /** Guess byte order from a given `magic`. */
-    fun guess(magic: Int): Boolean {
+    /** Guess byte order from a given `expectedMagic`. */
+    fun guess(expectedMagic: Int): Boolean {
         mapped.order(ByteOrder.LITTLE_ENDIAN)
         val littleMagic = getInt()
-        if (littleMagic != magic) {
+        magic = littleMagic
+
+        if (littleMagic != expectedMagic) {
             val bigMagic = java.lang.Integer.reverseBytes(littleMagic)
-            if (bigMagic != magic) {
+            if (bigMagic != expectedMagic) {
                 return false
             }
 
+            magic = bigMagic
             mapped.order(ByteOrder.BIG_ENDIAN)
         }
 
         return true
+    }
+
+    fun checkHeader(expectedMagic: Int) {
+        check(guess(expectedMagic)) {
+            val littleMagic = expectedMagic
+            val bigMagic = java.lang.Integer.reverseBytes(expectedMagic)
+            "Unexpected header magic: Actual $magic doesn't match expected LE=$littleMagic and BE=$bigMagic}"
+        }
     }
 
     fun asIntBuffer() = mapped.asIntBuffer()

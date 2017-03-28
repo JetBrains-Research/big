@@ -241,7 +241,7 @@ abstract class BigFile<T> internal constructor(
             internal val BYTES = 64
 
             internal fun read(input: RomBuffer, magic: Int) = with(input) {
-                check(guess(magic)) { "bad magic" }
+                checkHeader(magic)
 
                 val version = getUnsignedShort()
                 val zoomLevelCount = getUnsignedShort()
@@ -273,14 +273,12 @@ abstract class BigFile<T> internal constructor(
         private val LOG = LogManager.getLogger(BigFile::class.java)
 
         /** Checks if a given `path` starts with a valid `magic`. */
-        fun check(path: Path, magic: Int): Boolean {
-            return RomBuffer(path).guess(magic)
-        }
+        fun check(path: Path, magic: Int) = RomBuffer(path).guess(magic)
 
         fun read(path: Path) = when {
             check(path, BigBedFile.MAGIC) -> BigBedFile.read(path)
             check(path, BigWigFile.MAGIC) -> BigWigFile.read(path)
-            else -> throw IllegalStateException()
+            else -> throw IllegalStateException("Unsupported file header magic: ${RomBuffer(path).getInt()}")
         }
     }
 
