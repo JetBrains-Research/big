@@ -22,7 +22,7 @@ data class BigSummary(
     /** Returns `true` if a summary contains no data. */
     internal fun isEmpty() = count == 0L
 
-    internal fun update(value: Double, intersection: Int, total: Int) {
+    internal fun update(value: Double, intersection: Int) {
         count += intersection
         sum += value * intersection
         sumSquares += value * value * intersection

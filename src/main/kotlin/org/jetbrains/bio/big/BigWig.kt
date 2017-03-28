@@ -39,8 +39,7 @@ class BigWigFile private constructor(input: RomBuffer,
                 val interval = Interval(query.chromIx, wigItem.start, wigItem.end)
                 if (interval intersects bin) {
                     summary.update(wigItem.score.toDouble(),
-                                   interval.intersectionLength(bin),
-                                   interval.length())
+                                   interval.intersectionLength(bin))
                 }
             }
 

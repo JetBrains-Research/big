@@ -41,8 +41,7 @@ class BigBedFile private constructor(input: RomBuffer,
                 val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
                     summary.update(bedEntry.score.toDouble(),
-                                   interval.intersectionLength(bin),
-                                   interval.length())
+                                   interval.intersectionLength(bin))
                 }
             }
 
