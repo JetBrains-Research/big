@@ -1,7 +1,6 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
-import org.apache.commons.math3.util.Precision
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.chromosomes
@@ -168,9 +167,9 @@ class BigBedFileTest {
                 val summaries = bbf.summarize(name, 0, 0, numBins)
                 assertEquals(aggregate.map { it.end - it.start }.sum().toLong(),
                              summaries.map { it.count }.sum())
-                assertTrue(Precision.equals(
-                        aggregate.map { it.score }.sum().toDouble(),
-                        summaries.map { it.sum }.sum(), 0.1))
+
+                assertEquals(aggregate.map { it.score.toLong() * (it.end - it.start) }.sum(),
+                             summaries.map { it.sum }.sum().toLong())
             }
         }
     }

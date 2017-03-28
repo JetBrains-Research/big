@@ -23,10 +23,9 @@ data class BigSummary(
     internal fun isEmpty() = count == 0L
 
     internal fun update(value: Double, intersection: Int, total: Int) {
-        val weight = intersection.toDouble() / total
         count += intersection
-        sum += value * weight
-        sumSquares += value * value * weight
+        sum += value * intersection
+        sumSquares += value * value * intersection
         minValue = Math.min(minValue, value)
         maxValue = Math.max(maxValue, value)
     }

@@ -3,6 +3,17 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.3.5
+-------------
+- Fixed summary semantics: Now for each intersected interval summary 'sum' value is increased in
+ "intersected nucleotides number" x "interval value" instead of "intersection %" x "interval value".
+
+ Idea is that interval summary = "nucleotide number" * "interval value" thus intersected sum should be increased in
+ "intersection %" x "interval summary" = "intersected nucleotides number" x "interval value".
+  Old semantics was incorrect, difference was visible at 1-bp resolution.
+
+
+
 Version 0.3.4
 -------------
 
