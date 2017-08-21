@@ -24,7 +24,7 @@ import java.util.zip.Inflater
 class RomBuffer private constructor(val mapped: ByteBuffer) {
     var position: Int
         get() = mapped.position()
-        set(value: Int) = ignore(mapped.position(value))
+        set(value) = ignore(mapped.position(value))
 
     val order: ByteOrder get() = mapped.order()
     var magic: Int? = null
@@ -36,7 +36,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
      */
     fun duplicate() = RomBuffer(mapped.duplicate().apply {
         order(mapped.order())
-        position(0)
+        position(position)
     })
 
     /** Guess byte order from a given `expectedMagic`. */
@@ -108,6 +108,8 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
     // by a zillion of pending finalizers.
     private val inf by ThreadLocal.withInitial { Inflater() }
 
+    internal fun <T> with(block: RomBuffer.() -> T): T = this.block()
+
     /**
      * Executes a `block` on a fixed-size possibly compressed input.
      *
@@ -116,7 +118,10 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
      */
     internal fun <T> with(offset: Long, size: Long,
                           compression: CompressionType = CompressionType.NO_COMPRESSION,
-                          block: RomBuffer.() -> T): T {
+                          block: RomBuffer.() -> T): T = decompress(offset, size, compression).block()
+
+    internal fun decompress(offset: Long, size: Long,
+                            compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
         val input = if (compression.absent) {
             mapped.duplicate().apply {
                 position(offset.toInt())
@@ -138,7 +143,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
 
                     inf.reset()
                     inf.setInput(compressedBuf)
-                    var step = size.toInt()
+                    val step = size.toInt()
                     while (!inf.finished()) {
                         uncompressedBuf = Bytes.ensureCapacity(  // 1.5x
                                 uncompressedBuf, uncompressedSize + step, step / 2)
@@ -150,7 +155,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
                     uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
                     uncompressedBuf = ByteArray(uncompressedSize)
                     Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
-                                      uncompressedBuf, 0)
+                            uncompressedBuf, 0)
                 }
                 else -> impossible()
             }
@@ -158,7 +163,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
             ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
         }
 
-        return RomBuffer(input.order(mapped.order())).block()
+        return RomBuffer(input.order(mapped.order()))
     }
 
     companion object {
