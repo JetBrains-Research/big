@@ -108,8 +108,6 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
     // by a zillion of pending finalizers.
     private val inf by ThreadLocal.withInitial { Inflater() }
 
-    internal fun <T> with(block: RomBuffer.() -> T): T = this.block()
-
     /**
      * Executes a `block` on a fixed-size possibly compressed input.
      *

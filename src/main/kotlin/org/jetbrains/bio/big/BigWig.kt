@@ -77,7 +77,7 @@ class BigWigFile private constructor(input: RomBuffer,
             lastRomBuf = localRomBuf
         }
 
-        return sequenceOf(localRomBuf.second!!.duplicate().with {
+        return sequenceOf(with(localRomBuf.second!!.duplicate()) {
             val chromIx = getInt()
             check(chromIx == query.chromIx, { "chromosome expected: ${query.chromIx}, found: $chromIx" })
             val start = getInt()
