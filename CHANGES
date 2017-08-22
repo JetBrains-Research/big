@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.3.6
+-------------
+- Added RomBuffer caching for internal querying: Now if bigwig summarize of nearby regions are called one by one, r-tree
+  leaf which contains these regions wouldn't be decompressed multiple times, it will be taken from cache.
+
+- Added loop stop after section match in bigwig section search: It's not necessary to go through all r-tree leaf regions
+  if we already found ones which are needed.
+
 Version 0.3.5
 -------------
 - Fixed summary semantics: Now for each intersected interval summary 'sum' value is increased in
