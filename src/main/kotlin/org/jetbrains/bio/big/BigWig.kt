@@ -17,9 +17,14 @@ class BigWigFile private constructor(input: RomBuffer,
 :
         BigFile<WigSection>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun duplicate(): BigWigFile {
-        return BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
+    data class RomBufferState(val chrom: String, val offset: Long, val size: Long) {
+        fun match(chrom: String, offset: Long, size: Long) =
+                this.chrom != chrom || this.offset != offset || this.size != size
     }
+
+    private var lastRomBuf: Pair<RomBufferState, RomBuffer?> = RomBufferState("", 0L, 0L) to null
+
+    override fun duplicate(): BigWigFile = BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -64,9 +69,17 @@ class BigWigFile private constructor(input: RomBuffer,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
-        return sequenceOf(input.with(dataOffset, dataSize, compression) {
+        var localRomBuf = lastRomBuf
+
+        if (localRomBuf.first.match(chrom, dataOffset, dataSize)) {
+            localRomBuf = Pair(RomBufferState(chrom, dataOffset, dataSize),
+                              input.decompress(dataOffset, dataSize, compression))
+            lastRomBuf = localRomBuf
+        }
+
+        return sequenceOf(localRomBuf.second!!.duplicate().with {
             val chromIx = getInt()
-            assert(chromIx == query.chromIx) { "section contains wrong chromosome" }
+            check(chromIx == query.chromIx, { "chromosome expected: ${query.chromIx}, found: $chromIx" })
             val start = getInt()
             getInt()   // end.
             val step = getInt()
@@ -80,12 +93,18 @@ class BigWigFile private constructor(input: RomBuffer,
             when (types[type - 1]) {
                 WigSection.Type.BED_GRAPH -> {
                     val section = BedGraphSection(chrom)
-                    for (i in 0..count - 1) {
+                    var match = false
+                    for (i in 0 until count) {
                         val startOffset = getInt()
                         val endOffset = getInt()
                         val value = getFloat()
                         if (query.contains(startOffset, endOffset, overlaps)) {
                             section[startOffset, endOffset] = value
+                            match = true
+                        } else {
+                            if (match) {
+                                break
+                            }
                         }
                     }
 
@@ -93,11 +112,17 @@ class BigWigFile private constructor(input: RomBuffer,
                 }
                 WigSection.Type.VARIABLE_STEP -> {
                     val section = VariableStepSection(chrom, span)
-                    for (i in 0..count - 1) {
+                    var match = false
+                    for (i in 0 until count) {
                         val pos = getInt()
                         val value = getFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section[pos] = value
+                            match = true
+                        } else {
+                            if (match) {
+                                break
+                            }
                         }
                     }
 
@@ -122,11 +147,17 @@ class BigWigFile private constructor(input: RomBuffer,
 
                     val realignedStart = Math.max(start, query.startOffset + shift)
                     val section = FixedStepSection(chrom, realignedStart, step, span)
-                    for (i in 0..count - 1) {
+                    var match = false
+                    for (i in 0 until count) {
                         val pos = start + i * step
                         val value = getFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section.add(value)
+                            match = true
+                        } else {
+                            if (match) {
+                                break
+                            }
                         }
                     }
 

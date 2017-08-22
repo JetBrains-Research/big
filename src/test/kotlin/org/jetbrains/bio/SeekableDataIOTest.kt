@@ -55,7 +55,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
         }
         RomBuffer(path, order).let {
             assertEquals(s, it.getCString())
-            var b = ByteArray(s.length + 8)
+            val b = ByteArray(s.length + 8)
             it.get(b)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
 
@@ -80,6 +80,19 @@ class SeekableDataIOTest(private val order: ByteOrder,
                 }
             }
         }
+    }
+
+    @Test fun testPositionCopyingDuringDuplication() = withTempFile(order.toString(), ".bb") { path ->
+        val values = arrayListOf(0, 10)
+        OrderedDataOutput(path, order).use { orderedDataOutput ->
+            values.forEach { orderedDataOutput.writeInt(it) }
+        }
+
+        val first = RomBuffer(path, order)
+        first.getInt()
+        val second = first.duplicate()
+
+        assertEquals(values[1], second.getInt())
     }
 
     private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {
