@@ -22,12 +22,9 @@ class BigWigFile private constructor(input: RomBuffer,
                 this.chrom != chrom || this.offset != offset || this.size != size
     }
 
+    private var lastRomBuf: Pair<RomBufferState, RomBuffer?> = RomBufferState("", 0L, 0L) to null
 
-    private var lastRomBuf: Pair<RomBufferState, RomBuffer?> = Pair(RomBufferState("", 0L, 0L), null)
-
-    override fun duplicate(): BigWigFile {
-        return BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
-    }
+    override fun duplicate(): BigWigFile = BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
 
     override fun summarizeInternal(query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
@@ -82,7 +79,7 @@ class BigWigFile private constructor(input: RomBuffer,
 
         return sequenceOf(localRomBuf.second!!.duplicate().with {
             val chromIx = getInt()
-            assert(chromIx == query.chromIx) { "section contains wrong chromosome" }
+            check(chromIx == query.chromIx, { "chromosome expected: ${query.chromIx}, found: $chromIx" })
             val start = getInt()
             getInt()   // end.
             val step = getInt()
