@@ -39,30 +39,11 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
         position(position)
     })
 
-    /** Guess byte order from a given `expectedMagic`. */
-    fun guess(expectedMagic: Int): Boolean {
-        mapped.order(ByteOrder.LITTLE_ENDIAN)
-        val littleMagic = getInt()
-        magic = littleMagic
-
-        if (littleMagic != expectedMagic) {
-            val bigMagic = java.lang.Integer.reverseBytes(littleMagic)
-            if (bigMagic != expectedMagic) {
-                return false
-            }
-
-            magic = bigMagic
-            mapped.order(ByteOrder.BIG_ENDIAN)
-        }
-
-        return true
-    }
-
-    fun checkHeader(expectedMagic: Int) {
-        check(guess(expectedMagic)) {
-            val littleMagic = expectedMagic
-            val bigMagic = java.lang.Integer.reverseBytes(expectedMagic)
-            "Unexpected header magic: Actual $magic doesn't match expected LE=$littleMagic and BE=$bigMagic}"
+    fun checkHeader(leMagic: Int) {
+        val magic = getInt()
+        check(magic == leMagic) {
+            val bigMagic = java.lang.Integer.reverseBytes(leMagic)
+            "Unexpected header magic: Actual $magic doesn't match expected LE=$leMagic (BE=$bigMagic)"
         }
     }
 
@@ -165,7 +146,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
     }
 
     companion object {
-        operator fun invoke(path: Path, order: ByteOrder = ByteOrder.nativeOrder()): RomBuffer {
+        operator fun invoke(path: Path, order: ByteOrder): RomBuffer {
             val mapped = FileChannel.open(path, StandardOpenOption.READ).use {
                 it.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
                     order(order)

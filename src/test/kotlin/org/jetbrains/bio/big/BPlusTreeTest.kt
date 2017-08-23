@@ -6,6 +6,7 @@ import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.util.*
 import kotlin.test.assertEquals
@@ -54,7 +55,7 @@ class BPlusTreeTest {
 
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
-        RomBuffer(Examples[example]).let { input ->
+        RomBuffer(Examples[example], ByteOrder.nativeOrder()).let { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -120,7 +121,7 @@ class BPlusTreeTest {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            RomBuffer(path).let { input ->
+            RomBuffer(path, ByteOrder.nativeOrder()).let { input ->
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)

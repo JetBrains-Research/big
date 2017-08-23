@@ -7,7 +7,9 @@ import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
 import java.io.Closeable
+import java.io.FileInputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
@@ -272,13 +274,51 @@ abstract class BigFile<T> internal constructor(
     companion object {
         private val LOG = LogManager.getLogger(BigFile::class.java)
 
-        /** Checks if a given `path` starts with a valid `magic`. */
-        fun check(path: Path, magic: Int) = RomBuffer(path).guess(magic)
+        /**
+         * Magic specifies file format and bytes order. Let's read magic as little endian.
+         */
+        private fun readLEMagic(path: Path): Int {
+            FileInputStream(path.toFile()).channel.use { fc ->
+                val buf = ByteBuffer.allocate(Integer.SIZE / 8)
+                buf.order(ByteOrder.LITTLE_ENDIAN)
+                fc.read(buf)
+                buf.position(0)
+                return buf.int
+            }
+        }
 
-        fun read(path: Path) = when {
-            check(path, BigBedFile.MAGIC) -> BigBedFile.read(path)
-            check(path, BigWigFile.MAGIC) -> BigWigFile.read(path)
-            else -> throw IllegalStateException("Unsupported file header magic: ${RomBuffer(path).getInt()}")
+        /**
+         * Determines byte order using expected magic field value
+         */
+        internal fun getByteOrder(path: Path, magic: Int): ByteOrder {
+            val leMagic = readLEMagic(path)
+            val (valid, byteOrder) = guess(magic, leMagic)
+            check(valid) {
+                val bigMagic = java.lang.Integer.reverseBytes(magic)
+                "Unexpected header leMagic: Actual $leMagic doesn't match expected LE=$magic and BE=$bigMagic}"
+            }
+            return byteOrder
+        }
+
+        private fun guess(expectedMagic: Int, littleEndianMagic: Int): Pair<Boolean, ByteOrder> {
+            if (littleEndianMagic != expectedMagic) {
+                val bigEndianMagic = java.lang.Integer.reverseBytes(littleEndianMagic)
+                if (bigEndianMagic != expectedMagic) {
+                    return false to ByteOrder.BIG_ENDIAN
+                }
+                return (true to ByteOrder.BIG_ENDIAN)
+            }
+
+            return true to ByteOrder.LITTLE_ENDIAN
+        }
+
+        fun read(path: Path): BigFile<out Comparable<*>> {
+            val magic = readLEMagic(path)
+            return when {
+                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(path)
+                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(path)
+                else -> throw IllegalStateException("Unsupported file header magic: $magic")
+            }
         }
     }
 
