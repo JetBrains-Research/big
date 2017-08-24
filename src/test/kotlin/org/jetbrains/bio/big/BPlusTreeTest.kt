@@ -2,8 +2,8 @@ package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
 import org.jetbrains.bio.Examples
+import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.ByteOrder
@@ -55,7 +55,7 @@ class BPlusTreeTest {
 
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
-        RomBuffer(Examples[example], ByteOrder.nativeOrder()).let { input ->
+        MMBRomBuffer(Examples[example], ByteOrder.nativeOrder()).let { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -121,7 +121,7 @@ class BPlusTreeTest {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            RomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)

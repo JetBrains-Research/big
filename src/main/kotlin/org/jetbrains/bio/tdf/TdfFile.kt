@@ -1,9 +1,7 @@
 package org.jetbrains.bio.tdf
 
-import org.jetbrains.bio.CompressionType
-import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.divCeiling
-import org.jetbrains.bio.mapUnboxed
+import com.google.common.primitives.Ints
+import org.jetbrains.bio.*
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -26,7 +24,7 @@ import java.util.*
  * @since 0.2.2
  */
 data class TdfFile private constructor(
-        private val input: RomBuffer,
+        private val input: MMBRomBuffer,
         private val header: Header,
         private val index: TdfMasterIndex,
         /** Window functions supported by the data, e.g. `"mean"`. */
@@ -193,7 +191,7 @@ data class TdfFile private constructor(
     companion object {
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): TdfFile {
-            return with(RomBuffer(path, ByteOrder.LITTLE_ENDIAN)) {
+            return with(MMBRomBuffer(path, ByteOrder.LITTLE_ENDIAN)) {
                 val header = Header.read(this)
                 val windowFunctions = getSequenceOf { WindowFunction.read(this) }.toList()
                 val trackType = TrackType.read(this)
@@ -202,7 +200,7 @@ data class TdfFile private constructor(
                 val build = getCString()
                 val compressed = (getInt() and 0x1) != 0
                 // Make sure we haven't read anything extra.
-                check(position == header.headerSize + Header.BYTES)
+                check(Ints.checkedCast(position) == header.headerSize + Header.BYTES)
                 val index = with(header.indexOffset, header.indexSize.toLong()) {
                     TdfMasterIndex.read(this)
                 }

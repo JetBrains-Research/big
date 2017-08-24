@@ -62,7 +62,7 @@ data class BigSummary(
         internal val BYTES = Longs.BYTES + Doubles.BYTES * 4
 
         internal fun read(input: RomBuffer, offset: Long) = with(input) {
-            position = Ints.checkedCast(offset)
+            position = offset
 
             val count = getLong()
             val minValue = getDouble()

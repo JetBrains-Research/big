@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.Iterators
+import com.google.common.primitives.Ints
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
@@ -27,7 +28,7 @@ import kotlin.LazyThreadSafetyMode.NONE
  *      compressed data blocks
  */
 abstract class BigFile<T> internal constructor(
-        internal val input: RomBuffer,
+        internal val input: MMBRomBuffer,
         internal val header: Header,
         internal val zoomLevels: List<ZoomLevel>,
         internal val bPlusTree: BPlusTree,
@@ -242,7 +243,7 @@ abstract class BigFile<T> internal constructor(
             /** Number of bytes used for this header. */
             internal val BYTES = 64
 
-            internal fun read(input: RomBuffer, magic: Int) = with(input) {
+            internal fun read(input: MMBRomBuffer, magic: Int) = with(input) {
                 checkHeader(magic)
 
                 val version = getUnsignedShort()
@@ -279,7 +280,7 @@ abstract class BigFile<T> internal constructor(
          */
         private fun readLEMagic(path: Path): Int {
             FileInputStream(path.toFile()).channel.use { fc ->
-                val buf = ByteBuffer.allocate(Integer.SIZE / 8)
+                val buf = ByteBuffer.allocate(Ints.BYTES)
                 buf.order(ByteOrder.LITTLE_ENDIAN)
                 fc.read(buf)
                 buf.position(0)

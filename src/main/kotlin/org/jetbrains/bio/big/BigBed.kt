@@ -11,7 +11,7 @@ import java.util.*
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile private constructor(input: RomBuffer,
+class BigBedFile private constructor(input: MMBRomBuffer,
                                      header: BigFile.Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
@@ -69,7 +69,9 @@ class BigBedFile private constructor(input: RomBuffer,
             val chunk = ArrayList<BedEntry>()
             do {
                 val chromIx = getInt()
-                assert(chromIx == query.chromIx) { "interval contains wrong chromosome" }
+                assert(chromIx == query.chromIx) {
+                    "interval contains wrong chromosome $chromIx, expected ${query.chromIx}"
+                }
                 val startOffset = getInt()
                 val endOffset = getInt()
                 val rest = getCString()
@@ -89,7 +91,7 @@ class BigBedFile private constructor(input: RomBuffer,
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigBedFile {
             val byteOrder = getByteOrder(path, MAGIC)
-            val input = RomBuffer(path, byteOrder)
+            val input = MMBRomBuffer(path, byteOrder)
 
             val header = Header.read(input, MAGIC)
             val zoomLevels = (0..header.zoomLevelCount - 1)

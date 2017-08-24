@@ -1,8 +1,8 @@
 package org.jetbrains.bio.big
 
 import org.jetbrains.bio.Examples
+import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.ByteOrder
@@ -35,7 +35,7 @@ class RTreeIndexTest {
                 RTreeIndex.write(it, emptyList())
             }
 
-            RomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
                 val rti = RTreeIndex.read(input, 0L)
                 val query = Interval(0, 100, 200)
                 assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
@@ -79,7 +79,7 @@ class RTreeIndexTest {
             OrderedDataOutput(path).use {
                 RTreeIndex.write(it, leaves, blockSize)
             }
-            RomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
                 val rti = RTreeIndex.read(input, 0)
                 for (leaf in leaves) {
                     val overlaps = rti.findOverlappingBlocks(

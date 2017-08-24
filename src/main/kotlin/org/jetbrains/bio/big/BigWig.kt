@@ -9,7 +9,7 @@ import java.util.*
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile private constructor(input: RomBuffer,
+class BigWigFile private constructor(input: MMBRomBuffer,
                                      header: Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
@@ -174,7 +174,7 @@ class BigWigFile private constructor(input: RomBuffer,
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigWigFile {
             val byteOrder = getByteOrder(path, MAGIC)
-            val input = RomBuffer(path, byteOrder)
+            val input = MMBRomBuffer(path, byteOrder)
             val header = Header.read(input, MAGIC)
             val zoomLevels = (0..header.zoomLevelCount - 1)
                     .map { ZoomLevel.read(input) }

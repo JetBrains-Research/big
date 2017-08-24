@@ -11,6 +11,10 @@ Version 0.4.0
 - Fixed IllegalArgumentException in BedEntry.<init>, see issue #29 on GitHub.
  Big bed serialization fixed.
 
+- Support big files larger than 2G (issue #28) using com.indeed:util-mmap   Memory mapping library
+
+- Switch to Kotlin 1.1.x
+
 Version 0.3.6
 -------------
 - Added 'RomBuffer' caching for internal querying: Now if

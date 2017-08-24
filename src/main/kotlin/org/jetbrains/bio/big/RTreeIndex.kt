@@ -5,6 +5,7 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.apache.log4j.Level
 import org.apache.log4j.LogManager
+import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
@@ -42,7 +43,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     @Throws(IOException::class)
-    fun findOverlappingBlocks(input: RomBuffer,
+    fun findOverlappingBlocks(input: MMBRomBuffer,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return if (header.itemCount == 0L) {
             emptySequence()
@@ -51,11 +52,11 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    internal fun findOverlappingBlocksRecursively(input: RomBuffer,
+    internal fun findOverlappingBlocksRecursively(input: MMBRomBuffer,
                                                   query: ChromosomeInterval,
                                                   offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
-        input.position = Ints.checkedCast(offset)
+        input.position = offset
 
         val isLeaf = input.get() > 0
         input.get()  // reserved.
@@ -65,8 +66,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         // shared between calls.
         return if (isLeaf) {
             val acc = ArrayList<RTreeIndexLeaf>(childCount)
-            input.with(input.position.toLong(),
-                       (childCount * RTreeIndexLeaf.BYTES).toLong()) {
+            input.with(input.position, (childCount * RTreeIndexLeaf.BYTES).toLong()) {
                 for (i in 0..childCount - 1) {
                     val leaf = RTreeIndexLeaf.read(this)
                     if (leaf.interval intersects query) {
@@ -78,8 +78,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             acc.asSequence()
         } else {
             val acc = ArrayList<RTreeIndexNode>(childCount)
-            input.with(input.position.toLong(),
-                       (childCount * RTreeIndexNode.BYTES).toLong()) {
+            input.with(input.position, (childCount * RTreeIndexNode.BYTES).toLong()) {
                 for (i in 0..childCount - 1) {
                     val node = RTreeIndexNode.read(this)
                     if (node.interval intersects query) {
@@ -122,7 +121,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
 
             internal fun read(input: RomBuffer, offset: Long) = with(input) {
                 val expectedOrder = order
-                position = Ints.checkedCast(offset)
+                position = offset
                 checkHeader(MAGIC)
                 check(order == expectedOrder)
 

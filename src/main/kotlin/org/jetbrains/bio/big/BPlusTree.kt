@@ -35,7 +35,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
     private fun traverseRecursively(input: RomBuffer,
                                     offset: Long): Sequence<BPlusLeaf> {
         assert(input.order == header.order)
-        input.position = Ints.checkedCast(offset)
+        input.position = offset
 
         val isLeaf = input.get() > 0
         input.get()  // reserved.
@@ -69,7 +69,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
     private tailrec fun findRecursively(input: RomBuffer, blockStart: Long,
                                         query: String): BPlusLeaf? {
         assert(input.order == header.order)
-        input.position = Ints.checkedCast(blockStart)
+        input.position = blockStart
 
         val isLeaf = input.get() > 0
         input.get()  // reserved.
@@ -120,7 +120,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
             fun read(input: RomBuffer, offset: Long) = with(input) {
                 val expectedOrder = order
-                position = Ints.checkedCast(offset)
+                position = offset
                 checkHeader(MAGIC)
                 check(order == expectedOrder)
 

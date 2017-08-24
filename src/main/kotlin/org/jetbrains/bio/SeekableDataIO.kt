@@ -1,9 +1,7 @@
 package org.jetbrains.bio
 
-import com.google.common.primitives.Bytes
-import com.google.common.primitives.Ints
-import com.google.common.primitives.Longs
-import com.google.common.primitives.Shorts
+import com.google.common.primitives.*
+import com.indeed.util.mmap.MMapBuffer
 import org.iq80.snappy.Snappy
 import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
@@ -13,7 +11,6 @@ import java.nio.ByteOrder
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.zip.Deflater
@@ -21,23 +18,16 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
 /** A read-only mapped buffer.*/
-class RomBuffer private constructor(val mapped: ByteBuffer) {
-    var position: Int
-        get() = mapped.position()
-        set(value) = ignore(mapped.position(value))
-
-    val order: ByteOrder get() = mapped.order()
-    var magic: Int? = null
+interface RomBuffer: Closeable, AutoCloseable {
+    var position: Long
+    val order: ByteOrder
 
     /**
      * Returns a new buffer sharing the data with its parent.
      *
      * @see ByteBuffer.duplicate for details.
      */
-    fun duplicate() = RomBuffer(mapped.duplicate().apply {
-        order(mapped.order())
-        position(position)
-    })
+    fun duplicate(): RomBuffer
 
     fun checkHeader(leMagic: Int) {
         val magic = getInt()
@@ -47,27 +37,25 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
         }
     }
 
-    fun asIntBuffer() = mapped.asIntBuffer()
+    fun asIntArray(size: Int): IntArray
+    fun asFloatArray(size: Int): FloatArray
 
-    fun asFloatBuffer() = mapped.asFloatBuffer()
-
-    fun get(dst: ByteArray) = mapped.get(dst)
-
-    fun get() = mapped.get()
+    fun get(dst: ByteArray)
+    fun get(): Byte
 
     fun getUnsignedByte() = java.lang.Byte.toUnsignedInt(get())
 
-    fun getShort() = mapped.getShort()
+    fun getShort(): Short
 
     fun getUnsignedShort() = java.lang.Short.toUnsignedInt(getShort())
 
-    fun getInt() = mapped.getInt()
+    fun getInt(): Int
 
-    fun getLong() = mapped.getLong()
+    fun getLong(): Long
 
-    fun getFloat() = mapped.getFloat()
+    fun getFloat(): Float
 
-    fun getDouble() = mapped.getDouble()
+    fun getDouble(): Double
 
     fun getCString(): String {
         val sb = StringBuilder()
@@ -83,7 +71,161 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
         return sb.toString()
     }
 
-    fun hasRemaining() = mapped.hasRemaining()
+    fun hasRemaining(): Boolean
+}
+
+/** A read-only mapped buffer based on ByteBuffer.*/
+class BBRomBuffer(val mapped: ByteBuffer): RomBuffer {
+    override var position: Long
+        get() = mapped.position().toLong()
+        set(value) = ignore(mapped.position(Ints.checkedCast(value)))
+
+    override val order: ByteOrder get() = mapped.order()
+
+    /**
+     * Returns a new buffer sharing the data with its parent.
+     *
+     * @see ByteBuffer.duplicate for details.
+     */
+    override fun duplicate() = BBRomBuffer(mapped.duplicate().apply {
+        order(mapped.order())
+        position(Ints.checkedCast(position))
+    })
+
+    override fun close() { /* Do nothing */ }
+
+    override fun asIntArray(size: Int) = IntArray(size).apply {
+        mapped.asIntBuffer().get(this)
+        mapped.position(mapped.position() + size * Ints.BYTES)
+    }
+
+    override fun asFloatArray(size: Int) = FloatArray(size).apply {
+        mapped.asFloatBuffer().get(this)
+        mapped.position(mapped.position() + size * Floats.BYTES)
+    }
+
+    override fun get(dst: ByteArray) { mapped.get(dst) }
+
+    override fun get() = mapped.get()
+
+    override fun getShort() = mapped.getShort()
+
+    override fun getInt() = mapped.getInt()
+
+    override fun getLong() = mapped.getLong()
+
+    override fun getFloat() = mapped.getFloat()
+
+    override fun getDouble() = mapped.getDouble()
+
+    override fun hasRemaining() = mapped.hasRemaining()
+}
+
+/** A read-only mapped buffer which supports files > 2GB .*/
+class MMBRomBuffer private constructor(val mapped: MMapBuffer,
+                                       override var position: Long = 0,
+                                       limit: Long = mapped.memory().length()) : RomBuffer {
+
+    override val order: ByteOrder get() = mapped.memory().order
+    private var limit: Long = limit
+        set(value) {
+            val length = mapped.memory().length()
+            check (value <= length) {
+                "Limit $value is greater than buffer length $length"
+            }
+            field = value
+        }
+
+    override fun hasRemaining() = position < limit
+
+    /**
+     * Returns a new buffer sharing the data with its parent.
+     *
+     * @see ByteBuffer.duplicate for details.
+     */
+    override fun duplicate(): MMBRomBuffer = MMBRomBuffer(mapped, position, limit)
+
+    override fun close() { mapped.close() }
+
+    private fun checkLimit() {
+        check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
+    }
+
+    fun asIntBuffer(size: Long): com.indeed.util.mmap.IntArray {
+        val value = mapped.memory().intArray(position, size)
+        position += size * java.lang.Integer.BYTES
+        checkLimit()
+        return value
+    }
+
+    fun asFloatBuffer(size: Long): com.indeed.util.mmap.FloatArray {
+        val value = mapped.memory().floatArray(position, size)!!
+        position += size * java.lang.Float.BYTES
+        checkLimit()
+        return value
+
+    }
+    override fun asIntArray(size: Int): kotlin.IntArray {
+        val dst = IntArray(size)
+        asIntBuffer(size.toLong()).get(0, dst)
+        checkLimit()
+        return dst
+    }
+
+    override fun asFloatArray(size: Int): kotlin.FloatArray {
+        val dst = FloatArray(size)
+        asFloatBuffer(size.toLong()).get(0, dst)
+        checkLimit()
+        return dst
+    }
+
+    override fun get(dst: ByteArray) {
+        mapped.memory().getBytes(position, dst)
+        position += dst.size * java.lang.Byte.BYTES
+        checkLimit()
+    }
+
+    override fun get(): Byte {
+        val value = mapped.memory().getByte(position)
+        position += java.lang.Byte.BYTES
+        checkLimit()
+        return value
+    }
+
+    override fun getShort(): Short {
+        val value = mapped.memory().getShort(position)
+        position += java.lang.Short.BYTES
+        checkLimit()
+        return value
+    }
+
+    override fun getInt(): Int {
+        val value = mapped.memory().getInt(position)
+        position += Integer.BYTES
+        checkLimit()
+        return value
+    }
+
+    override fun getLong(): Long {
+        val value = mapped.memory().getLong(position)
+        position += java.lang.Long.BYTES
+        checkLimit()
+        return value
+    }
+
+    override fun getFloat(): Float {
+        val value = mapped.memory().getFloat(position)
+        position += java.lang.Float.BYTES
+        checkLimit()
+        return value
+    }
+
+    override fun getDouble(): Double {
+        val value = mapped.memory().getDouble(position)
+        position += java.lang.Double.BYTES
+        checkLimit()
+        return value
+    }
 
     // This is important to keep lazy, otherwise the GC will be trashed
     // by a zillion of pending finalizers.
@@ -101,15 +243,16 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
 
     internal fun decompress(offset: Long, size: Long,
                             compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
-        val input = if (compression.absent) {
-            mapped.duplicate().apply {
-                position(offset.toInt())
-                limit(Ints.checkedCast(offset + size))
+
+        return if (compression.absent) {
+            duplicate().apply {
+                position = offset
+                limit = offset + size
             }
         } else {
             val compressedBuf = ByteArray(size.toInt())
-            mapped.duplicate().apply {
-                position(offset.toInt())
+            duplicate().apply {
+                position = offset
                 get(compressedBuf)
             }
 
@@ -138,23 +281,14 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
                 }
                 else -> impossible { "Unexpected compression: $compression" }
             }
-
-            ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
+            val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
+            BBRomBuffer(input.order(order))
         }
-
-        return RomBuffer(input.order(mapped.order()))
     }
 
     companion object {
-        operator fun invoke(path: Path, order: ByteOrder): RomBuffer {
-            val mapped = FileChannel.open(path, StandardOpenOption.READ).use {
-                it.map(MapMode.READ_ONLY, 0L, Files.size(path)).apply {
-                    order(order)
-                }
-            }
-
-            return RomBuffer(mapped)
-        }
+        operator fun invoke(path: Path, order: ByteOrder)
+                = MMBRomBuffer(MMapBuffer(path, MapMode.READ_ONLY, order))
     }
 }
 
