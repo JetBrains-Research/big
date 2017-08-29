@@ -40,7 +40,7 @@ class BigFileTest {
             val futures = (0..7).map {
                 executor.submit {
                     latch.countDown()
-                    assertEquals(6857, bwf.duplicate().query(name).count())
+                    assertEquals(6857, bwf.query(name).count())
                     latch.await()
                 }
             }
@@ -100,14 +100,13 @@ class BigFileTest {
                         else -> it.parallelStream()
                     }
                 }.map { name ->
-                    val bfCopy = bf.duplicate()
                     val chrIdx = name.replace("chr", "").toInt()
                     val chunkStart = 100000000 + chrIdx * 10000000
                     val metric = IntStream.range(0, nLocuses).mapToLong { i ->
                         val start = chunkStart + i * locusSize
                         val end = start + locusSize
-                        bfCopy.summarize(name, start, end,
-                                         numBins = 10).map { it.count }.sum()
+                        bf.summarize(name, start, end,
+                                     numBins = 10).map { it.count }.sum()
                     }.sum()
                     name to Ints.checkedCast(metric)
                 }.collect(Collectors.toList()).sortedBy { it.first }
@@ -138,15 +137,13 @@ class BigFileTest {
                     }
                 }.mapToObj { chunkIdx ->
                     val chrIdx = chrName.replace("chr", "").toInt()
-                    val bfCopy = bf.duplicate()
                     val chunkStart = 100000000 + chrIdx * 10000000 + chunkIdx * chunkSize
 
                     val locusSize = chunkSize / nLocuses
                     val metrics = IntStream.range(0, nLocuses).mapToLong { i ->
                         val start = chunkStart + i * locusSize
                         val end = start + locusSize
-                        bfCopy
-                                .summarize(chrName, start, end, numBins = 10)
+                        bf.summarize(chrName, start, end, numBins = 10)
                                 .map { it.count }.sum()
                     }.sum()
                     chunkIdx to Ints.checkedCast(metrics)

@@ -73,18 +73,6 @@ abstract class BigFile<T> internal constructor(
     }
 
     /**
-     * Returns an independent view of this [BigFile] data.
-     *
-     * This is useful if you wan't to work with the same file from
-     * multiple threads.
-     *
-     * @since 0.2.6
-     */
-    @Deprecated("Since 0.4.0 [BigFile] data is state less, duplication not required for " +
-                        "multiple threads access")
-    abstract fun duplicate(): BigFile<T>
-
-    /**
      * Splits the interval `[startOffset, endOffset)` into `numBins`
      * non-intersecting sub-intervals (aka bins) and computes a summary
      * of the data values for each bin.

@@ -21,8 +21,6 @@ class BigBedFile private constructor(input: MMapBuffer,
 :
         BigFile<BedEntry>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun duplicate() = this
-
     override fun summarizeInternal(input: MMBRomBuffer,
                                    query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {

@@ -26,8 +26,6 @@ class BigWigFile private constructor(input: MMapBuffer,
                         || this.offset != offset || this.size != size
     }
 
-    override fun duplicate(): BigWigFile = this
-
     override fun summarizeInternal(input: MMBRomBuffer,
                                    query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
