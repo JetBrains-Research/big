@@ -49,17 +49,6 @@ data class TdfFile private constructor(
     val groupNames: Set<String> get() = index.groups.keys
 
     /**
-     * Returns an independent view of this [TdfFile] data.
-     *
-     * This is useful if you wan't to work with the same file from
-     * multiple threads.
-     *
-     * @since 0.2.6
-     */
-    @Deprecated("Not needed in version >= 0.4.0")
-    fun duplicate() = this
-
-    /**
      * Returns a list of dataset tiles overlapping a given interval.
      *
      * @param dataset dataset to query.

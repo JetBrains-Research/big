@@ -15,11 +15,8 @@ Version 0.4.0
 
 - Switch to Kotlin 1.1.x
 
-- Concurrent access to big bed/wig files improved. BigFile.duplicate() call
+- Concurrent access to big bed/wig/tdf files improved. BigFile/TdfFile.duplicate() call
  not required any more for concurrent access. Method removed.
-
-- TdfFile.duplicate() call not required any more for concurrent access. Method
- deprecated.
 
 Version 0.3.6
 -------------
