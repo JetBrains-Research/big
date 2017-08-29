@@ -32,7 +32,7 @@ interface Interval {
                         unionRight.chromIx, unionRight.offset)
     }
 
-    fun write(output: OrderedDataOutput): Unit
+    fun write(output: OrderedDataOutput)
 
     companion object {
         internal operator fun invoke(chromIx: Int, startOffset: Int,
@@ -108,7 +108,7 @@ internal data class ChromosomeInterval(val chromIx: Int,
             sequenceOf(this)
         } else {
             val width = length().toDouble() / n
-            (0..n - 1).mapUnboxed { i ->
+            (0 until n).mapUnboxed { i ->
                 val start = Math.round(startOffset + i * width).toInt()
                 val end = Math.round(startOffset + (i + 1) * width).toInt()
                 Interval(chromIx, start, Math.min(end, endOffset))

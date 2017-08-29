@@ -52,9 +52,9 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    internal fun findOverlappingBlocksRecursively(input: MMBRomBuffer,
-                                                  query: ChromosomeInterval,
-                                                  offset: Long): Sequence<RTreeIndexLeaf> {
+    private fun findOverlappingBlocksRecursively(input: MMBRomBuffer,
+                                                 query: ChromosomeInterval,
+                                                 offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
         input.position = offset
 
@@ -67,7 +67,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         return if (isLeaf) {
             val acc = ArrayList<RTreeIndexLeaf>(childCount)
             input.with(input.position, (childCount * RTreeIndexLeaf.BYTES).toLong()) {
-                for (i in 0..childCount - 1) {
+                for (i in 0 until childCount) {
                     val leaf = RTreeIndexLeaf.read(this)
                     if (leaf.interval intersects query) {
                         acc.add(leaf)
@@ -79,7 +79,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         } else {
             val acc = ArrayList<RTreeIndexNode>(childCount)
             input.with(input.position, (childCount * RTreeIndexNode.BYTES).toLong()) {
-                for (i in 0..childCount - 1) {
+                for (i in 0 until childCount) {
                     val node = RTreeIndexNode.read(this)
                     if (node.interval intersects query) {
                         acc.add(node)
@@ -134,7 +134,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                 val endDataOffset = getLong()
                 val itemsPerSlot = getInt()
                 getInt()  // reserved.
-                val rootOffset = position.toLong()
+                val rootOffset = position
 
                 Header(order, blockSize, itemCount, startChromIx, startBase,
                        endChromIx, endBase, endDataOffset, itemsPerSlot, rootOffset)
@@ -150,7 +150,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
 
         internal fun write(output: OrderedDataOutput, leaves: List<RTreeIndexLeaf>,
-                           blockSize: Int = 256, itemsPerSlot: Int = 512): Unit {
+                           blockSize: Int = 256, itemsPerSlot: Int = 512) {
             require(blockSize > 1) { "blockSize must be >1" }
 
             if (leaves.isEmpty()) {
@@ -164,7 +164,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             }
 
             val leftmost = leaves.first().interval.left
-            var rightmost = leaves.last().interval.right
+            val rightmost = leaves.last().interval.right
 
             val header = Header(output.order, blockSize,
                                 leaves.size.toLong(),
@@ -192,7 +192,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
                     writeShort(leafCount)
-                    for (j in 0..leafCount - 1) {
+                    for (j in 0 until leafCount) {
                         leaves[i + j].write(this)
                     }
 
@@ -228,7 +228,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
                         writeShort(childCount)
-                        for (j in 0..childCount - 1) {
+                        for (j in 0 until childCount) {
                             RTreeIndexNode(level[i + j], childOffset).write(this)
                             childOffset += bytesInNextLevelBlock
                         }
@@ -248,7 +248,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                                   blockSize: Int): List<List<Interval>> {
             var intervals = leaves.map { it.interval }
             if (LOG.isEnabledFor(Level.WARN)) {
-                for (i in 1..intervals.size - 1) {
+                for (i in 1 until intervals.size) {
                     if (intervals[i] intersects intervals[i - 1]) {
                         LOG.warn("R+ tree leaves are overlapping: " +
                                  "${intervals[i]} ^ ${intervals[i - 1]}")

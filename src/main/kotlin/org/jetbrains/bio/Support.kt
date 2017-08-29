@@ -77,7 +77,7 @@ internal inline fun <R> IntProgression.mapUnboxed(
 }
 
 internal abstract class CachingIterator<T>(reader: BufferedReader) : UnmodifiableIterator<T>() {
-    protected var lines = Iterators.peekingIterator(reader.lines().iterator())
+    protected var lines = Iterators.peekingIterator(reader.lines().iterator())!!
     private var cached: T? = null
 
     override fun hasNext(): Boolean {
@@ -142,7 +142,7 @@ internal fun Path.bufferedReader(vararg options: OpenOption): BufferedReader {
         "gz"  -> GZIPInputStream(inputStream)
         "zip" ->
             // This only works for single-entry ZIP files.
-            ZipInputStream(inputStream).apply { getNextEntry() }
+            ZipInputStream(inputStream).apply { nextEntry }
         else  -> inputStream
     }.bufferedReader()
 }

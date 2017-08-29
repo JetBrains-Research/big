@@ -4,7 +4,7 @@ import java.io.OutputStream
 import java.util.*
 
 /**
- * A faster version of [java.io.ByteArraOutputStream].
+ * A faster version of [java.io.ByteArrayOutputStream].
  *
  * Key differences:
  *

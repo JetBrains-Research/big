@@ -11,13 +11,13 @@ import java.util.*
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile private constructor(input: MMapBuffer,
+class BigWigFile private constructor(memBuffer: MMapBuffer,
                                      header: Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
                                      rTree: RTreeIndex)
 :
-        BigFile<WigSection>(input, header, zoomLevels, bPlusTree, rTree) {
+        BigFile<WigSection>(memBuffer, header, zoomLevels, bPlusTree, rTree) {
 
     data class RomBufferState(val memBuffer: MMapBuffer?, val chrom: String,
                               val offset: Long, val size: Long) {
@@ -33,7 +33,7 @@ class BigWigFile private constructor(input: MMapBuffer,
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..wigItems.size - 1) {
+            for (j in edge until wigItems.size) {
                 val wigItem = wigItems[j]
                 if (wigItem.end <= bin.startOffset) {
                     edge = j + 1
@@ -188,7 +188,7 @@ class BigWigFile private constructor(input: MMapBuffer,
             val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
             val input = MMBRomBuffer(memBuffer)
             val header = Header.read(input, MAGIC)
-            val zoomLevels = (0..header.zoomLevelCount - 1)
+            val zoomLevels = (0 until header.zoomLevelCount)
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
@@ -259,7 +259,7 @@ class BigWigFile private constructor(input: MMapBuffer,
                 output.skipBytes(BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizes.filter { it.first in summary.chromosomes }
-                        .mapIndexed { i, p -> BPlusLeaf(p.first, i, p.second) }
+                        .mapIndexed { i, (key, size) -> BPlusLeaf(key, i, size) }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
@@ -332,7 +332,7 @@ private fun BedGraphSection.write(output: OrderedDataOutput, resolver: Map<Strin
         writeByte(WigSection.Type.BED_GRAPH.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size)
-        for (i in 0..size - 1) {
+        for (i in 0 until size) {
             writeInt(startOffsets[i])
             writeInt(endOffsets[i])
             writeFloat(values[i])
@@ -350,7 +350,7 @@ private fun FixedStepSection.write(output: OrderedDataOutput, resolver: Map<Stri
         writeByte(WigSection.Type.FIXED_STEP.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size)
-        for (i in 0..size - 1) {
+        for (i in 0 until size) {
             writeFloat(values[i])
         }
     }
@@ -366,7 +366,7 @@ private fun VariableStepSection.write(output: OrderedDataOutput, resolver: Map<S
         writeByte(WigSection.Type.VARIABLE_STEP.ordinal + 1)
         writeByte(0)  // reserved.
         writeShort(size)
-        for (i in 0..size - 1) {
+        for (i in 0 until size) {
             writeInt(positions[i])
             writeFloat(values[i])
         }

@@ -59,9 +59,9 @@ data class TdfFile private constructor(
     fun query(dataset: TdfDataset, startOffset: Int, endOffset: Int): List<TdfTile> {
         val startTile = startOffset / dataset.tileWidth
         val endTile = endOffset divCeiling dataset.tileWidth
-        return (startTile..Math.min(dataset.tileCount - 1, endTile)).map {
+        return (startTile..Math.min(dataset.tileCount - 1, endTile)).mapNotNull {
             getTile(dataset, it)
-        }.filterNotNull()
+        }
     }
 
     /**
@@ -89,7 +89,7 @@ data class TdfFile private constructor(
     //     how to share resources between the dataset and 'TdfFile'.
     fun getTile(ds: TdfDataset, tileNumber: Int): TdfTile? {
         return with(ds) {
-            require(tileNumber >= 0 && tileNumber < tileCount) { "invalid tile index" }
+            require(tileNumber in 0..(tileCount - 1)) { "invalid tile index" }
             val position = tilePositions[tileNumber]
             if (position < 0) {
                 return null  // Indicates empty tile.

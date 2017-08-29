@@ -10,7 +10,7 @@ class BedFile(private val path: Path) : Iterable<BedEntry> {
         val chunks = line.split('\t', limit = 4)
         BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
                  if (chunks.size == 3) "" else chunks[3])
-    }.iterator()
+    }.iterator()!!
 
     companion object {
         @Throws(IOException::class)
@@ -38,7 +38,7 @@ data class BedEntry(
         val rest: String = "") : Comparable<BedEntry> {
 
     init {
-        require(score >= 0 && score <= 1000) {
+        require(score in 0..1000) {
             "Unexpected score: $score"
         }
 

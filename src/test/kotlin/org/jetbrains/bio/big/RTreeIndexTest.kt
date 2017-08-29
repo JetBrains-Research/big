@@ -70,7 +70,7 @@ class RTreeIndexTest {
             val step = 1024
             val leaves = ArrayList<RTreeIndexLeaf>()
             var offset = 0
-            for (i in 0..size - 1) {
+            for (i in 0 until size) {
                 val next = offset + RANDOM.nextInt(step) + 1
                 val interval = Interval(0, offset, next)
                 leaves.add(RTreeIndexLeaf(interval, 0, 0))

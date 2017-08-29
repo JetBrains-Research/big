@@ -131,28 +131,29 @@ abstract class BigFile<T> internal constructor(
                                   query: ChromosomeInterval, zoomLevel: ZoomLevel,
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
-        val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
-            assert(!compression.absent || block.dataSize % ZoomData.SIZE == 0L)
-            input.with(block.dataOffset, block.dataSize, compression) {
-                val res = ArrayList<ZoomData>()
-                do {
-                    val zoomData = ZoomData.read(this)
-                    if (zoomData.interval intersects query) {
-                        res.add(zoomData)
+        val zoomData = zRTree.findOverlappingBlocks(input, query)
+                .flatMap { (_ /* interval */, offset, size) ->
+                    assert(!compression.absent || size % ZoomData.SIZE == 0L)
+                    input.with(offset, size, compression) {
+                        val res = ArrayList<ZoomData>()
+                        do {
+                            val zoomData = ZoomData.read(this)
+                            if (zoomData.interval intersects query) {
+                                res.add(zoomData)
+                            }
+                        } while (hasRemaining())
+
+                        res.asSequence()
                     }
-                } while (hasRemaining())
 
-                res.asSequence()
-            }
-
-            // XXX we can avoid explicit '#toList' call here, but the
-            // worst-case space complexity will still be O(n).
-        }.toList()
+                    // XXX we can avoid explicit '#toList' call here, but the
+                    // worst-case space complexity will still be O(n).
+                }.toList()
 
         var edge = 0  // yay! map with a side effect.
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..zoomData.size - 1) {
+            for (j in edge until zoomData.size) {
                 val interval = zoomData[j].interval
                 if (interval.endOffset <= bin.startOffset) {
                     edge = j + 1
@@ -358,7 +359,7 @@ abstract class BigFile<T> internal constructor(
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = initial
-                    for (level in 0..bf.zoomLevels.size - 1) {
+                    for (level in 0 until bf.zoomLevels.size) {
                         val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
                         if (zoomLevel == null) {
                             LOG.trace("${reduction}x reduction rejected")

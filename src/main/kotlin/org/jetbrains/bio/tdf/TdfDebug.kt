@@ -48,8 +48,8 @@ fun TdfFile.debug(includeTiles: Boolean = false) {
         val ds = getDatasetInternal(dsName)
 
         println("Attributes")
-        for (entry in ds.attributes.entries) {
-            println("\t" + entry.key + " = " + entry.value)
+        for ((key, value) in ds.attributes) {
+            println("\t" + key + " = " + value)
         }
         println()
 

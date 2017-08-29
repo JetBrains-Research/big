@@ -91,7 +91,7 @@ data class BedGraphSection(
 
     override val span: Int get() {
         val mean = Mean()
-        for (i in 0..size - 1) {
+        for (i in 0 until size) {
             mean.increment((endOffsets[i] - startOffsets[i]).toDouble())
         }
 
@@ -161,7 +161,7 @@ data class BedGraphSection(
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
-            (0..chunks - 1).mapUnboxed { i ->
+            (0 until chunks).mapUnboxed { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, size)
                 copy(startOffsets = startOffsets.subList(from, to),

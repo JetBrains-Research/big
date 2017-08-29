@@ -128,7 +128,7 @@ private enum class State {
 class WigPrinter @JvmOverloads constructor(
         private val writer: Writer,
         private val name: String,
-        private val description: String = name) : Closeable, AutoCloseable {
+        description: String = name) : Closeable, AutoCloseable {
 
     init {
         writer.write("track type=wiggle_0 name=\"$name\" description=\"$description\"\n")
@@ -137,8 +137,8 @@ class WigPrinter @JvmOverloads constructor(
     fun print(track: VariableStepSection) {
         writer.write("variableStep chrom=${track.chrom} span=${track.span}\n")
 
-        for (interval in track.query()) {
-            writer.write("${interval.start + 1} ${interval.score}\n")
+        for ((start, _/* end */, score) in track.query()) {
+            writer.write("${start + 1} $score\n")
         }
     }
 
@@ -196,7 +196,7 @@ interface WigSection : Comparable<WigSection> {
     fun query(from: Int, to: Int): Sequence<ScoredInterval>
 
     /**
-     * Splices a section into sub-section of size at most [Short.MAX_SIZE].
+     * Splices a section into sub-section of size at most [java.lang.Short.MAX_VALUE].
      */
     fun splice(max: Int = Short.MAX_VALUE.toInt()): Sequence<WigSection>
 
@@ -285,7 +285,7 @@ data class VariableStepSection(
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
-            (0..chunks - 1).mapUnboxed { i ->
+            (0 until chunks).mapUnboxed { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, size)
                 copy(positions = positions.subList(from, to),
@@ -338,7 +338,7 @@ data class FixedStepSection(
     override fun query(from: Int, to: Int): Sequence<ScoredInterval> {
         val i = Math.max(start, from - from % span)
         val j = Math.min(start + step * size, to - to % span)
-        return (i..j - 1 step step)
+        return (i until j step step)
                 .mapUnboxed { ScoredInterval(it, it + span, get(it)) }
     }
 
@@ -347,7 +347,7 @@ data class FixedStepSection(
         return if (chunks == 1) {
             sequenceOf(this)
         } else {
-            (0..chunks - 1).mapUnboxed { i ->
+            (0 until chunks).mapUnboxed { i ->
                 val from = i * max
                 val to = Math.min((i + 1) * max, values.size())
                 copy(start = start + step * from, values = values.subList(from, to))

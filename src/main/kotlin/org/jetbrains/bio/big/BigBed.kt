@@ -28,7 +28,7 @@ class BigBedFile private constructor(input: MMapBuffer,
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
-            for (j in edge..coverage.size - 1) {
+            for (j in edge until coverage.size) {
                 val bedEntry = coverage[j]
                 if (bedEntry.end <= bin.startOffset) {
                     edge = j + 1
@@ -95,7 +95,7 @@ class BigBedFile private constructor(input: MMapBuffer,
             val input = MMBRomBuffer(memBuffer)
 
             val header = Header.read(input, MAGIC)
-            val zoomLevels = (0..header.zoomLevelCount - 1)
+            val zoomLevels = (0 until header.zoomLevelCount)
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
@@ -165,7 +165,7 @@ class BigBedFile private constructor(input: MMapBuffer,
                 output.skipBytes(BigSummary.BYTES)
 
                 val unsortedChromosomes = chromSizes.filter { it.first in summary.chromosomes }
-                        .mapIndexed { i, p -> BPlusLeaf(p.first, i, p.second) }
+                        .mapIndexed { i, (key, size) -> BPlusLeaf(key, i, size) }
                 val chromTreeOffset = output.tell()
                 BPlusTree.write(output, unsortedChromosomes)
 
@@ -173,8 +173,8 @@ class BigBedFile private constructor(input: MMapBuffer,
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
-                for ((name, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
-                    val chromIx = resolver[name]
+                for ((chrName, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
+                    val chromIx = resolver[chrName]
                     if (chromIx == null) {
                         items.forEach {}  // Consume.
                         continue
@@ -183,23 +183,23 @@ class BigBedFile private constructor(input: MMapBuffer,
                     val it = items.iterator()
                     while (it.hasNext()) {
                         val dataOffset = output.tell()
-                        var start = 0
-                        var end = 0
+                        var leafStart = 0
+                        var leafEnd = 0
                         val current = output.with(compression) {
-                            for (item in it.asSequence().take(itemsPerSlot)) {
+                            for ((_, start, end, name, score, strand, rest) in it.asSequence().take(itemsPerSlot)) {
                                 writeInt(chromIx)
-                                writeInt(item.start)
-                                writeInt(item.end)
-                                writeString("${item.name}\t${item.score}\t${item.strand}\t${item.rest}")
+                                writeInt(start)
+                                writeInt(end)
+                                writeString("$name\t$score\t$strand\t$rest")
                                 writeByte(0)  // NUL-terminated.
 
-                                start = Math.min(start, item.start)
-                                end = Math.max(end, item.end)
+                                leafStart = Math.min(leafStart, start)
+                                leafEnd = Math.max(leafEnd, end)
                             }
                         }
 
                         leaves.add(RTreeIndexLeaf(
-                                Interval(chromIx, start, end),
+                                Interval(chromIx, leafStart, leafEnd),
                                 dataOffset, output.tell() - dataOffset))
                         uncompressBufSize = Math.max(uncompressBufSize, current)
                     }

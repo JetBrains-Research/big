@@ -42,11 +42,11 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         val childCount = input.getUnsignedShort()
 
         return if (isLeaf) {
-            (0..childCount - 1)
+            (0 until childCount)
                     .mapUnboxed { BPlusLeaf.read(input, header.keySize) }
                     .toList().asSequence()
         } else {
-            (0..childCount - 1)
+            (0 until childCount)
                     .mapUnboxed { BPlusNode.read(input, header.keySize) }
                     .toList().asSequence()
                     .flatMap { traverseRecursively(input, it.childOffset) }
@@ -76,7 +76,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         val childCount = input.getUnsignedShort()
 
         if (isLeaf) {
-            for (i in 0..childCount - 1) {
+            for (i in 0 until childCount) {
                 val leaf = BPlusLeaf.read(input, header.keySize)
                 if (leaf.key == query) {
                     return leaf
@@ -87,7 +87,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         } else {
             var node = BPlusNode.read(input, header.keySize)
             // vvv loop from 1 because we've read the first child above.
-            for (i in 1..childCount - 1) {
+            for (i in 1 until childCount) {
                 val next = BPlusNode.read(input, header.keySize)
                 if (query < next.key) {
                     break
@@ -175,13 +175,13 @@ internal class BPlusTree(val header: BPlusTree.Header) {
             // Now just write the leaves.
             val itemCount = items.size
             val levelOffset = output.tell()
-            for (i in 0..itemCount - 1 step blockSize) {
+            for (i in 0 until itemCount step blockSize) {
                 val leafCount = Math.min(itemCount - i, blockSize)
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
                     writeShort(leafCount)
-                    for (j in 0..leafCount - 1) {
+                    for (j in 0 until leafCount) {
                         items[i + j].write(output, keySize)
                     }
 
@@ -214,13 +214,13 @@ internal class BPlusTree(val header: BPlusTree.Header) {
                 val bytesInNextLevelBlock =
                         if (d == 1) bytesInLeafBlock else bytesInIndexBlock
                 var childOffset = levelOffset + bytesInCurrentLevel
-                for (i in 0..itemCount - 1 step itemsPerNode) {
+                for (i in 0 until itemCount step itemsPerNode) {
                     val childCount = Math.min((itemCount - i) divCeiling itemsPerSlot, blockSize)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
                         writeShort(childCount)
-                        for (j in 0..Math.min(itemsPerNode, itemCount - i) - 1 step itemsPerSlot) {
+                        for (j in 0 until Math.min(itemsPerNode, itemCount - i) step itemsPerSlot) {
                             BPlusNode(items[i + j].key, childOffset)
                                     .write(output, keySize)
                             childOffset += bytesInNextLevelBlock
