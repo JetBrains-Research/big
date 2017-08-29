@@ -59,8 +59,7 @@ internal inline fun <T> Logger.time(message: String, block: () -> T): T {
 internal fun ignore(_value: Any?) {}
 
 /** A marker function for "impossible" `when` branches. */
-@Suppress("nothing_to_inline")
-inline fun impossible(): Nothing = throw IllegalStateException()
+inline fun impossible(lazyMsg: () -> String): Nothing = throw IllegalStateException(lazyMsg())
 
 internal operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
 

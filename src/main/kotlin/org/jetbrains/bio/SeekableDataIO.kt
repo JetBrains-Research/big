@@ -155,7 +155,7 @@ class RomBuffer private constructor(val mapped: ByteBuffer) {
                     Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
                             uncompressedBuf, 0)
                 }
-                else -> impossible()
+                else -> impossible { "Unexpected compression: $compression" }
             }
 
             ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
@@ -309,7 +309,7 @@ class OrderedDataOutput(private val output: OutputStream,
                     ack(compressedSize)
                     uncompressedBuf.size
                 }
-                else -> impossible()
+                else -> impossible { "Unexpected compression: $compression" }
             }
         }
     }

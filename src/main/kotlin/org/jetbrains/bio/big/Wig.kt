@@ -61,7 +61,8 @@ internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>
                         "track" -> check(params["type"] == "wiggle_0")
                         "variableStep" -> state = State.VARIABLE_STEP
                         "fixedStep" -> state = State.FIXED_STEP
-                        else -> impossible()
+                        "browser" -> { /* Just ignore */ }
+                        else -> impossible  { "Unexpected section: $type" }
                     }
 
                     if (state != State.WAITING) {

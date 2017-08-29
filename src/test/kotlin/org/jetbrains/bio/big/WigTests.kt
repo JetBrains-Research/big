@@ -354,6 +354,27 @@ class WigIteratorTest {
         assertEquals(2, it.next()!!.query().count())
     }
 
+    @Test fun testBrowserAttrsLine() {
+        val input = "browser position chr1:1-135534747\n" +
+                "browser hide all\n" +
+                "browser pack refGene cpgIslandExt\n" +
+                "track type=wiggle_0 name=\"YD1 methCpG\" visibility=full color=190,0,0 autoScale=off viewLimits=0.0:100.0 yLineMark=0.0 yLineOnOff=on maxHeightPixels=75:75:20 priority=01\n" +
+                "variableStep chrom=chr1\n" +
+                "10497\t86.009\n" +
+                "10525\t88.684\n" +
+                "137157\t81.818"
+
+        val it = WigIterator(input.reader().buffered())
+        val track = it.next()
+
+        assertNotNull(track)
+        assertEquals("chr1", track!!.chrom)
+        assertEquals(listOf(ScoredInterval(10496, 10497, 86.009f),
+                            ScoredInterval(10524, 10525, 88.684f),
+                            ScoredInterval(137156, 137157, 81.818f)),
+                     track.query().toList())
+    }
+
     private fun testWigSection(input: String) {
         val it = WigIterator(input.reader().buffered())
         val track = it.next()
