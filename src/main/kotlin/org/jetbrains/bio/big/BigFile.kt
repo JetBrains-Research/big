@@ -194,7 +194,7 @@ abstract class BigFile<T> internal constructor(
         return if (res == null) {
             emptySequence()
         } else {
-            val (_key, chromIx, size) = res
+            val (_/* key */, chromIx, size) = res
             val properEndOffset = if (endOffset == 0) size else endOffset
             query(input, Interval(chromIx, startOffset, properEndOffset), overlaps)
         }
@@ -372,7 +372,7 @@ abstract class BigFile<T> internal constructor(
                     }
                 }
 
-                modify(path, offset = Header.BYTES.toLong()) { bf, output ->
+                modify(path, offset = Header.BYTES.toLong()) { _/* bf */, output ->
                     for (zoomLevel in zoomLevels) {
                         val zoomHeaderOffset = output.tell()
                         zoomLevel.write(output)
@@ -388,7 +388,7 @@ abstract class BigFile<T> internal constructor(
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
             val input = MMBRomBuffer(bf.memBuff)
-            for ((name, chromIx, size) in bf.bPlusTree.traverse(input)) {
+            for ((_/* name */, chromIx, size) in bf.bPlusTree.traverse(input)) {
                 val query = Interval(chromIx, 0, size)
 
                 // We can re-use pre-computed zooms, but preliminary

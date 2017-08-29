@@ -257,7 +257,7 @@ class BigWigFileTest {
                          bwf.query(name, expected.start, expected.end).first())
 
             // omit first interval.
-            val (start, end, _score) = expected.query().first()
+            val (start, end, _/* score */) = expected.query().first()
             assertEquals(expected.size - 1,
                          bwf.query(name, end, expected.end).first().size)
             assertEquals(expected.query().toList().subList(1, expected.size),
@@ -300,7 +300,7 @@ class BigWigFileTest {
     private fun testQueryConsistency(overlaps: Boolean) {
            BigWigFile.read(Examples["example2.bw"]).use { bwf ->
                val input = MMBRomBuffer(bwf.memBuff)
-               val (name, chromIx, _size) = bwf.bPlusTree.traverse(input).first()
+               val (name, chromIx, _/* size */) = bwf.bPlusTree.traverse(input).first()
                val wigItems = bwf.query(name).flatMap { it.query().asSequence() }.toList()
                val i = RANDOM.nextInt(wigItems.size)
                val j = RANDOM.nextInt(wigItems.size)

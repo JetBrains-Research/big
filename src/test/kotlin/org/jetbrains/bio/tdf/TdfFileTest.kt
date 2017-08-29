@@ -37,7 +37,7 @@ class TdfFileTest {
     @Test fun testGetTile() {
         TdfFile.read(Examples["example.tdf"]).use { tdf ->
             val dataset = tdf.getDataset("All")
-            val tile = tdf.getTile(dataset, 0)
+            tdf.getTile(dataset, 0) //tile
             // nothing here atm.
         }
     }

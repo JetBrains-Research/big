@@ -30,7 +30,7 @@ class BigFileTest {
         BigWigFile.read(Examples["example2.bw"]).use { bwf ->
             val input = MMBRomBuffer(bwf.memBuff)
 
-            val (name, _chromIx, size) =
+            val (name, _/* chromIx */, _/* size */) =
                     bwf.bPlusTree.traverse(input).first()
 
             val executor = MoreExecutors.listeningDecorator(
@@ -57,17 +57,17 @@ class BigFileTest {
         withTempFile("example2", ".bw") { path ->
             BigWigFile.read(Examples["example2.bw"]).use { bwf ->
                 val input = MMBRomBuffer(bwf.memBuff)
-                val (name, _chromIx, size) =
+                val (name, _/* chromIx */, size) =
                         bwf.bPlusTree.traverse(input).first()
                 BigWigFile.write(bwf.query(name).take(32).toList(), listOf(name to size), path)
             }
 
             BigWigFile.read(path).use { bwf ->
                 val input = MMBRomBuffer(bwf.memBuff)
-                val (_name, chromIx, size) =
+                val (_/* name */, chromIx, size) =
                         bwf.bPlusTree.traverse(input).first()
                 val query = Interval(chromIx, 0, size)
-                for ((reduction, _dataOffset, indexOffset) in bwf.zoomLevels) {
+                for ((reduction, _/* dataOffset */, indexOffset) in bwf.zoomLevels) {
                     if (reduction == 0) {
                         break
                     }

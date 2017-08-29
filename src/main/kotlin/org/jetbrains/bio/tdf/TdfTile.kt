@@ -137,7 +137,7 @@ data class TdfVaryTile(val starts: IntArray,
     companion object {
         fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             // This is called 'tiledStart' in IGV sources and is unused.
-            val start = getInt()
+            getInt() // start
             val span = getFloat().toInt()  // Really?
             val size = getInt()
 
