@@ -185,7 +185,7 @@ class BigBedFile private constructor(input: RomBuffer,
                                 writeInt(chromIx)
                                 writeInt(item.start)
                                 writeInt(item.end)
-                                writeString("${item.name},${item.score},${item.strand},${item.rest}")
+                                writeString("${item.name}\t${item.score}\t${item.strand}\t${item.rest}")
                                 writeByte(0)  // NUL-terminated.
 
                                 start = Math.min(start, item.start)

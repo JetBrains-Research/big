@@ -38,8 +38,13 @@ data class BedEntry(
         val rest: String = "") : Comparable<BedEntry> {
 
     init {
-        require(score >= 0 && score <= 1000)
-        require(strand == '+' || strand == '-' || strand == '.')
+        require(score >= 0 && score <= 1000) {
+            "Unexpected score: $score"
+        }
+
+        require(strand == '+' || strand == '-' || strand == '.') {
+            "Unexpected strand value: $strand"
+        }
     }
 
     override fun compareTo(other: BedEntry): Int = ComparisonChain.start()
@@ -49,7 +54,7 @@ data class BedEntry(
 
     companion object {
         operator fun invoke(chrom: String, start: Int, end: Int, rest: String = ""): BedEntry {
-            val it = rest.split(',', limit = 4).iterator()
+            val it = rest.split('\t', limit = 4).iterator()
             return BedEntry(
                 chrom, start, end,
                 name = if (it.hasNext()) it.next() else "",

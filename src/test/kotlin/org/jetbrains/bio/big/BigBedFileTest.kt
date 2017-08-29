@@ -20,6 +20,18 @@ class BigBedFileTest {
 
     @Test fun testQueryUncompressed() = testQuery(Examples["example1.bb"])
 
+    @Test fun bed9Format() {
+        BigBedFile.read(Examples["bed9.bb"]).use { bb ->
+            val items = bb.query("chr1").toList()
+            assertEquals(
+                    "BedEntry(chrom=chr1, start=0, end=9800, name=15_Quies, score=0, strand=., rest=0\t9800\t255,255,255)",
+                    items.first().toString())
+            assertEquals(
+                    "BedEntry(chrom=chr1, start=724000, end=727200, name=8_ZNF/Rpts, score=0, strand=., rest=724000\t727200\t102,205,170)",
+                    items.last().toString())
+        }
+    }
+
     private fun testQuery(path: Path) {
         val items = BedFile.read(Examples["example1.bed"]).toList()
         testQuerySmall(path, items)
