@@ -18,6 +18,9 @@ Version 0.4.0
 - Concurrent access to big bed/wig files improved. BigFile.duplicate() call
  not required any more for concurrent access. Method removed.
 
+- TdfFile.duplicate() call not required any more for concurrent access. Method
+ deprecated.
+
 Version 0.3.6
 -------------
 - Added 'RomBuffer' caching for internal querying: Now if

@@ -1,10 +1,12 @@
 package org.jetbrains.bio.tdf
 
 import com.google.common.primitives.Ints
+import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
@@ -24,7 +26,7 @@ import java.util.*
  * @since 0.2.2
  */
 data class TdfFile private constructor(
-        private val input: MMBRomBuffer,
+        private val memBuff: MMapBuffer,
         private val header: Header,
         private val index: TdfMasterIndex,
         /** Window functions supported by the data, e.g. `"mean"`. */
@@ -54,7 +56,8 @@ data class TdfFile private constructor(
      *
      * @since 0.2.6
      */
-    fun duplicate() = copy(input = input.duplicate())
+    @Deprecated("Not needed in version >= 0.4.0")
+    fun duplicate() = this
 
     /**
      * Returns a list of dataset tiles overlapping a given interval.
@@ -109,8 +112,8 @@ data class TdfFile private constructor(
                 CompressionType.NO_COMPRESSION
             }
 
-            input.with(position, tileSizes[tileNumber].toLong(),
-                       compression = compression) {
+            MMBRomBuffer(memBuff).with(position, tileSizes[tileNumber].toLong(),
+                                       compression = compression) {
                 TdfTile.read(this, trackNames.size)
             }
         }
@@ -129,6 +132,7 @@ data class TdfFile private constructor(
         }
 
         val (offset, size) = index.datasets[name]!!
+        val input = MMBRomBuffer(memBuff)
         return input.with(offset, size.toLong()) { TdfDataset.read(this) }
     }
 
@@ -138,6 +142,7 @@ data class TdfFile private constructor(
         }
 
         val (offset, size) = index.groups[name]!!
+        val input = MMBRomBuffer(memBuff)
         return input.with(offset, size.toLong()) { TdfGroup.read(this) }
     }
 
@@ -186,28 +191,28 @@ data class TdfFile private constructor(
         }
     }
 
-    override fun close() {}
+    override fun close() { memBuff.close() }
 
     companion object {
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): TdfFile {
-            return with(MMBRomBuffer(path, ByteOrder.LITTLE_ENDIAN)) {
-                val header = Header.read(this)
-                val windowFunctions = getSequenceOf { WindowFunction.read(this) }.toList()
-                val trackType = TrackType.read(this)
-                val trackLine = getCString().trim()
-                val trackNames = getSequenceOf { getCString() }.toList()
-                val build = getCString()
-                val compressed = (getInt() and 0x1) != 0
-                // Make sure we haven't read anything extra.
-                check(Ints.checkedCast(position) == header.headerSize + Header.BYTES)
-                val index = with(header.indexOffset, header.indexSize.toLong()) {
-                    TdfMasterIndex.read(this)
-                }
-
-                TdfFile(this, header, index, windowFunctions, trackType,
-                        trackLine, trackNames, build, compressed)
+            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN)
+            val input = MMBRomBuffer(memBuffer)
+            val header = Header.read(input)
+            val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
+            val trackType = TrackType.read(input)
+            val trackLine = input.getCString().trim()
+            val trackNames = input.getSequenceOf { input.getCString() }.toList()
+            val build = input.getCString()
+            val compressed = (input.getInt() and 0x1) != 0
+            // Make sure we haven't read anything extra.
+            check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
+            val index = input.with(header.indexOffset, header.indexSize.toLong()) {
+                TdfMasterIndex.read(this)
             }
+
+            return TdfFile(memBuffer, header, index, windowFunctions, trackType,
+                           trackLine, trackNames, build, compressed)
         }
     }
 }

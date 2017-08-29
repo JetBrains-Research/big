@@ -1,6 +1,5 @@
 package org.jetbrains.bio.big
 
-import com.google.common.primitives.Ints
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
 import org.jetbrains.bio.Examples
@@ -89,71 +88,94 @@ class BigFileTest {
         fun doTestConcurrentChrAccess(fileName: String,
                                       expected: Array<Pair<String, Int>>,
                                       singleThreadMode: Boolean = false) {
-            val res = BigFile.read(Examples[fileName]).use { bf ->
-                val size = 50000000
-                val nLocuses = 10000 // race condition better happens when we have more locuses
-                val locusSize = size / nLocuses
-
-                bf.chromosomes.valueCollection().toList().let {
-                    when {
-                        singleThreadMode -> it.stream()
-                        else -> it.parallelStream()
-                    }
-                }.map { name ->
-                    val chrIdx = name.replace("chr", "").toInt()
-                    val chunkStart = 100000000 + chrIdx * 10000000
-                    val metric = IntStream.range(0, nLocuses).mapToLong { i ->
-                        val start = chunkStart + i * locusSize
-                        val end = start + locusSize
-                        bf.summarize(name, start, end,
-                                     numBins = 10).map { it.count }.sum()
-                    }.sum()
-                    name to Ints.checkedCast(metric)
-                }.collect(Collectors.toList()).sortedBy { it.first }
+            BigFile.read(Examples[fileName]).use { bf ->
+                val chrs = bf.chromosomes.valueCollection().toList()
+                doTestConcurrentChrAccess(chrs, expected, singleThreadMode) { name, start, end ->
+                    bf.summarize(name, start, end, numBins = 10).map { it.count }.sum()
+                }
             }
 
-            println(res.map { (a,b) -> "$a to $b" }.joinToString())
+        }
+
+        fun doTestConcurrentChrAccess(chrs: List<String>,
+                                      expected: Array<Pair<String, Int>>,
+                                      singleThreadMode: Boolean = false,
+                                      summarizeFun: (String, Int, Int) -> Long) {
+
+            val size = 50000000
+            val nLocuses = 10000 // race condition better happens when we have more locuses
+            val locusSize = size / nLocuses
+
+            val res = chrs.let {
+                when {
+                    singleThreadMode -> it.stream()
+                    else -> it.parallelStream()
+                }
+            }.map { name ->
+                val chrIdx = name.replace("chr", "").toInt()
+                val chunkStart = 100000000 + chrIdx * 10000000
+
+                val metric = IntStream.range(0, nLocuses).mapToLong { i ->
+                    val start = chunkStart + i * locusSize
+                    val end = start + locusSize
+                    summarizeFun(name, start, end)
+                }.sum()
+                name to metric
+            }.collect(Collectors.toList()).sortedBy { it.first }
+
+            // For debug:
+            //println(res.map { (a, b) -> "$a to $b" }.joinToString())
 
             // If test fails, first try to run it in single thread mode. In multiple threaded
             // mode result my by affected due to race conditions
-            Assert.assertArrayEquals(expected, res.toTypedArray())
+            Assert.assertArrayEquals(expected.map { it.first to it.second.toLong() }.toTypedArray(),
+                                     res.toTypedArray())
         }
 
         fun doTestConcurrentDataAccess(fileName: String, expected: Array<Pair<Int, Int>>,
                                        singleThreadMode: Boolean = false) {
-            val res = BigFile.read(Examples[fileName]).use { bf ->
-                val chunksNum = 100
-                val nLocuses = 100 // race condition better happens when we have more locuses
-
-                val size = 50000000
-                val chunkSize = size / chunksNum
-
+            BigFile.read(Examples[fileName]).use { bf ->
                 val chrName = bf.chromosomes.valueCollection().first()
-
-                IntStream.range(0, chunksNum).let {
-                    when {
-                        singleThreadMode -> it
-                        else -> it.parallel()
-                    }
-                }.mapToObj { chunkIdx ->
-                    val chrIdx = chrName.replace("chr", "").toInt()
-                    val chunkStart = 100000000 + chrIdx * 10000000 + chunkIdx * chunkSize
-
-                    val locusSize = chunkSize / nLocuses
-                    val metrics = IntStream.range(0, nLocuses).mapToLong { i ->
-                        val start = chunkStart + i * locusSize
-                        val end = start + locusSize
-                        bf.summarize(chrName, start, end, numBins = 10)
-                                .map { it.count }.sum()
-                    }.sum()
-                    chunkIdx to Ints.checkedCast(metrics)
-                }.collect(Collectors.toList()).sortedBy { it.first }
+                doTestConcurrentDataAccess(chrName, expected, singleThreadMode) { name, start, end ->
+                    bf.summarize(name, start, end, numBins = 10).map { it.count }.sum()
+                }
             }
-            println(res.map { (a,b) -> "$a to $b" }.joinToString())
+        }
+
+        fun doTestConcurrentDataAccess(chrName: String, expected: Array<Pair<Int, Int>>,
+                                       singleThreadMode: Boolean = false,
+                                       summarizeFun: (String, Int, Int) -> Long) {
+            val chunksNum = 100
+            val nLocuses = 100 // race condition better happens when we have more locuses
+
+            val size = 50000000
+            val chunkSize = size / chunksNum
+
+            val res = IntStream.range(0, chunksNum).let {
+                when {
+                    singleThreadMode -> it
+                    else -> it.parallel()
+                }
+            }.mapToObj { chunkIdx ->
+                val chrIdx = chrName.replace("chr", "").toInt()
+                val chunkStart = 100000000 + chrIdx * 10000000 + chunkIdx * chunkSize
+
+                val locusSize = chunkSize / nLocuses
+                val metric = IntStream.range(0, nLocuses).mapToLong { i ->
+                    val start = chunkStart + i * locusSize
+                    val end = start + locusSize
+                    summarizeFun(chrName, start, end)
+                }.sum()
+                chunkIdx to metric
+            }.collect(Collectors.toList()).sortedBy { it.first }
+
+            // For debug:
+            //println(res.map { (a,b) -> "$a to $b" }.joinToString())
 
             // If test fails, first try to run it in single thread mode. In multiple threaded
             // mode result my by affected due to race conditions
-            Assert.assertArrayEquals(expected, res.toTypedArray())
+            Assert.assertArrayEquals(expected.map { it.first to it.second.toLong() }.toTypedArray(),
+                                     res.toTypedArray())
         }
 
     }
