@@ -2,16 +2,18 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
 import com.google.common.primitives.Shorts
+import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile private constructor(input: MMBRomBuffer,
+class BigBedFile private constructor(input: MMapBuffer,
                                      header: BigFile.Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
@@ -19,13 +21,12 @@ class BigBedFile private constructor(input: MMBRomBuffer,
 :
         BigFile<BedEntry>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun duplicate(): BigBedFile {
-        return BigBedFile(input, header, zoomLevels, bPlusTree, rTree)
-    }
+    override fun duplicate() = this
 
-    override fun summarizeInternal(query: ChromosomeInterval,
+    override fun summarizeInternal(input: MMBRomBuffer,
+                                   query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val coverage = query(query, overlaps = true).aggregate()
+        val coverage = query(input, query, overlaps = true).aggregate()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -61,7 +62,8 @@ class BigBedFile private constructor(input: MMBRomBuffer,
         return (overlaps && interval intersects this) || interval in this
     }
 
-    override fun queryInternal(dataOffset: Long, dataSize: Long,
+    override fun queryInternal(input: MMBRomBuffer,
+                               dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<BedEntry> {
         val chrom = chromosomes[query.chromIx]
@@ -91,14 +93,15 @@ class BigBedFile private constructor(input: MMBRomBuffer,
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigBedFile {
             val byteOrder = getByteOrder(path, MAGIC)
-            val input = MMBRomBuffer(path, byteOrder)
+            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
+            val input = MMBRomBuffer(memBuffer)
 
             val header = Header.read(input, MAGIC)
             val zoomLevels = (0..header.zoomLevelCount - 1)
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-            return BigBedFile(input, header, zoomLevels, bPlusTree, rTree)
+            return BigBedFile(memBuffer, header, zoomLevels, bPlusTree, rTree)
         }
 
         private class BedEntrySummary {

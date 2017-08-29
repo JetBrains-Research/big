@@ -1,10 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
-import org.jetbrains.bio.CompressionType
-import org.jetbrains.bio.Examples
-import org.jetbrains.bio.chromosomes
-import org.jetbrains.bio.withTempFile
+import org.jetbrains.bio.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -77,8 +74,9 @@ class BigBedFileTest {
 
     private fun testQueryConsistency(overlaps: Boolean) {
         BigBedFile.read(Examples["example1.bb"]).use { bbf ->
+            val input = MMBRomBuffer(bbf.memBuff)
             val (name, chromIx, _size) =
-                    bbf.bPlusTree.traverse(bbf.input).first()
+                    bbf.bPlusTree.traverse(input).first()
             val bedEntries = bbf.query(name).toList()
             val i = RANDOM.nextInt(bedEntries.size)
             val j = RANDOM.nextInt(bedEntries.size)
@@ -169,6 +167,32 @@ class BigBedFileTest {
 
         testSummarize(bedEntries, numBins = 1000)
     }
+
+    @Test fun testConcurrentChrAccess() {
+        BigFileTest.doTestConcurrentChrAccess("concurrent.bb",
+                                              arrayOf("chr1" to 2657021, "chr2" to 2657021,
+                                                      "chr3" to 2657021, "chr4" to 2657021))
+    }
+    
+    @Test fun testConcurrentDataAccess() {
+        val expected = arrayOf(
+                0 to 490, 1 to 2095, 2 to 4082, 3 to 0, 4 to 0, 5 to 0, 6 to 0, 7 to 0, 8 to 0,
+                9 to 2276, 10 to 2139, 11 to 7868, 12 to 8188, 13 to 5438, 14 to 3658, 15 to 4461,
+                16 to 2956, 17 to 7364, 18 to 5494, 19 to 5456, 20 to 4908, 21 to 2580, 22 to 3588,
+                23 to 6187, 24 to 5521, 25 to 5023, 26 to 4243, 27 to 2769, 28 to 2797, 29 to 4430,
+                30 to 3973, 31 to 2080, 32 to 3384, 33 to 5515, 34 to 14301, 35 to 7841, 36 to 8267,
+                37 to 4391, 38 to 5628, 39 to 4155, 40 to 11800, 41 to 5630, 42 to 8815, 43 to 10814,
+                44 to 8783, 45 to 7916, 46 to 15045, 47 to 248525, 48 to 491778, 49 to 477901,
+                50 to 425092, 51 to 12275, 52 to 7334, 53 to 5090, 54 to 8476, 55 to 13496,
+                56 to 11233, 57 to 16723, 58 to 10054, 59 to 12596, 60 to 181465, 61 to 316541,
+                62 to 5772, 63 to 3880, 64 to 7227, 65 to 14748, 66 to 13244, 67 to 13383,
+                68 to 13577, 69 to 8804, 70 to 25613, 71 to 20331, 72 to 12898, 73 to 13131,
+                74 to 12612, 75 to 14219, 76 to 6654, 77 to 0, 78 to 0, 79 to 0, 80 to 0, 81 to 0,
+                82 to 0, 83 to 0, 84 to 0, 85 to 0, 86 to 0, 87 to 0, 88 to 0, 89 to 0, 90 to 0,
+                91 to 0, 92 to 0, 93 to 0, 94 to 0, 95 to 0, 96 to 0, 97 to 0, 98 to 0, 99 to 0)
+        
+            BigFileTest.doTestConcurrentDataAccess("concurrent.bb", expected, true)
+      }
 
     private fun testSummarize(bedEntries: List<BedEntry>, numBins: Int) {
         val name = bedEntries.map { it.chrom }.first()

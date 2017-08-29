@@ -1,15 +1,17 @@
 package org.jetbrains.bio.big
 
+import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile private constructor(input: MMBRomBuffer,
+class BigWigFile private constructor(input: MMapBuffer,
                                      header: Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
@@ -17,18 +19,19 @@ class BigWigFile private constructor(input: MMBRomBuffer,
 :
         BigFile<WigSection>(input, header, zoomLevels, bPlusTree, rTree) {
 
-    data class RomBufferState(val chrom: String, val offset: Long, val size: Long) {
-        fun match(chrom: String, offset: Long, size: Long) =
-                this.chrom != chrom || this.offset != offset || this.size != size
+    data class RomBufferState(val memBuffer: MMapBuffer?, val chrom: String,
+                              val offset: Long, val size: Long) {
+        fun match(memBuffer: MMapBuffer, chrom: String, offset: Long, size: Long) =
+                this.memBuffer != memBuffer || this.chrom != chrom
+                        || this.offset != offset || this.size != size
     }
 
-    private var lastRomBuf: Pair<RomBufferState, RomBuffer?> = RomBufferState("", 0L, 0L) to null
+    override fun duplicate(): BigWigFile = this
 
-    override fun duplicate(): BigWigFile = BigWigFile(input.duplicate(), header, zoomLevels, bPlusTree, rTree)
-
-    override fun summarizeInternal(query: ChromosomeInterval,
+    override fun summarizeInternal(input: MMBRomBuffer,
+                                   query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val wigItems = query(query, overlaps = true).flatMap { it.query() }.toList()
+        val wigItems = query(input, query, overlaps = true).flatMap { it.query() }.toList()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -65,16 +68,17 @@ class BigWigFile private constructor(input: MMBRomBuffer,
         return (overlaps && interval intersects this) || interval in this
     }
 
-    override fun queryInternal(dataOffset: Long, dataSize: Long,
+    override fun queryInternal(input: MMBRomBuffer,
+                               dataOffset: Long, dataSize: Long,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
-        var localRomBuf = lastRomBuf
+        var localRomBuf = lastRomBuf.get()
 
-        if (localRomBuf.first.match(chrom, dataOffset, dataSize)) {
-            localRomBuf = Pair(RomBufferState(chrom, dataOffset, dataSize),
+        if (localRomBuf.first.match(memBuff, chrom, dataOffset, dataSize)) {
+            localRomBuf = Pair(RomBufferState(input.mapped, chrom, dataOffset, dataSize),
                               input.decompress(dataOffset, dataSize, compression))
-            lastRomBuf = localRomBuf
+            lastRomBuf.set(localRomBuf)
         }
 
         return sequenceOf(with(localRomBuf.second!!.duplicate()) {
@@ -167,20 +171,30 @@ class BigWigFile private constructor(input: MMBRomBuffer,
         })
     }
 
+    override fun close() {
+        lastRomBuf.remove()
+        super.close()
+    }
+
     companion object {
         /** Magic number used for determining [ByteOrder]. */
         internal val MAGIC = 0x888FFC26.toInt()
 
+        private val lastRomBuf: ThreadLocal<Pair<RomBufferState, RomBuffer?>> = ThreadLocal.withInitial {
+            RomBufferState(null,"", 0L, 0L) to null
+        }
+
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigWigFile {
             val byteOrder = getByteOrder(path, MAGIC)
-            val input = MMBRomBuffer(path, byteOrder)
+            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
+            val input = MMBRomBuffer(memBuffer)
             val header = Header.read(input, MAGIC)
             val zoomLevels = (0..header.zoomLevelCount - 1)
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-            return BigWigFile(input, header, zoomLevels, bPlusTree, rTree)
+            return BigWigFile(memBuffer, header, zoomLevels, bPlusTree, rTree)
         }
 
         private class WigSectionSummary {

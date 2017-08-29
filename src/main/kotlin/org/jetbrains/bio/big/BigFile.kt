@@ -2,6 +2,7 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.Iterators
 import com.google.common.primitives.Ints
+import com.indeed.util.mmap.MMapBuffer
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
@@ -28,7 +29,7 @@ import kotlin.LazyThreadSafetyMode.NONE
  *      compressed data blocks
  */
 abstract class BigFile<T> internal constructor(
-        internal val input: MMBRomBuffer,
+        internal val memBuff: MMapBuffer,
         internal val header: Header,
         internal val zoomLevels: List<ZoomLevel>,
         internal val bPlusTree: BPlusTree,
@@ -36,7 +37,7 @@ abstract class BigFile<T> internal constructor(
 
     /** Whole-file summary. */
     val totalSummary: BigSummary by lazy(NONE) {
-        BigSummary.read(input, header.totalSummaryOffset)
+        BigSummary.read(MMBRomBuffer(memBuff), header.totalSummaryOffset)
     }
 
     /**
@@ -47,8 +48,8 @@ abstract class BigFile<T> internal constructor(
     val chromosomes: TIntObjectMap<String> by lazy(NONE) {
         with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
-            for (leaf in traverse(input)) {
-                res.put(leaf.id, leaf.key)
+            for ((key, id) in traverse(MMBRomBuffer(memBuff))) {
+                res.put(id, key)
             }
 
             TCollections.unmodifiableMap(res)
@@ -79,6 +80,8 @@ abstract class BigFile<T> internal constructor(
      *
      * @since 0.2.6
      */
+    @Deprecated("Since 0.4.0 [BigFile] data is state less, duplication not required for " +
+                        "multiple threads access")
     abstract fun duplicate(): BigFile<T>
 
     /**
@@ -97,6 +100,8 @@ abstract class BigFile<T> internal constructor(
     @Throws(IOException::class)
     fun summarize(name: String, startOffset: Int = 0, endOffset: Int = 0,
                   numBins: Int = 1, index: Boolean = true): List<BigSummary> {
+
+        val input = MMBRomBuffer(memBuff)
         val chromosome = bPlusTree.find(input, name)
                          ?: throw NoSuchElementException(name)
 
@@ -113,10 +118,10 @@ abstract class BigFile<T> internal constructor(
         val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
         val sparseSummaries = if (zoomLevel == null || !index) {
             LOG.trace("Summarizing $query from raw data")
-            summarizeInternal(query, numBins)
+            summarizeInternal(input, query, numBins)
         } else {
             LOG.trace("Summarizing $query from ${zoomLevel.reduction}x zoom")
-            summarizeFromZoom(query, zoomLevel, numBins)
+            summarizeFromZoom(input, query, zoomLevel, numBins)
         }
 
         val emptySummary = BigSummary()
@@ -130,9 +135,12 @@ abstract class BigFile<T> internal constructor(
 
     @Throws(IOException::class)
     internal abstract fun summarizeInternal(
-            query: ChromosomeInterval, numBins: Int): Sequence<IndexedValue<BigSummary>>
+            input: MMBRomBuffer,
+            query: ChromosomeInterval,
+            numBins: Int): Sequence<IndexedValue<BigSummary>>
 
-    private fun summarizeFromZoom(query: ChromosomeInterval, zoomLevel: ZoomLevel,
+    private fun summarizeFromZoom(input: MMBRomBuffer,
+                                  query: ChromosomeInterval, zoomLevel: ZoomLevel,
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
         val zoomData = zRTree.findOverlappingBlocks(input, query).flatMap { block ->
@@ -193,23 +201,25 @@ abstract class BigFile<T> internal constructor(
     @Throws(IOException::class)
     @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
                             overlaps: Boolean = false): Sequence<T> {
+        val input = MMBRomBuffer(memBuff)
         val res = bPlusTree.find(input, name)
         return if (res == null) {
             emptySequence()
         } else {
             val (_key, chromIx, size) = res
             val properEndOffset = if (endOffset == 0) size else endOffset
-            query(Interval(chromIx, startOffset, properEndOffset), overlaps)
+            query(input, Interval(chromIx, startOffset, properEndOffset), overlaps)
         }
     }
 
-    internal fun query(query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
+    internal fun query(input: MMBRomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
         return rTree.findOverlappingBlocks(input, query)
-                .flatMap { queryInternal(it.dataOffset, it.dataSize, query, overlaps) }
+                .flatMap { queryInternal(input, it.dataOffset, it.dataSize, query, overlaps) }
     }
 
     @Throws(IOException::class)
-    internal abstract fun queryInternal(dataOffset: Long, dataSize: Long,
+    internal abstract fun queryInternal(input: MMBRomBuffer,
+                                        dataOffset: Long, dataSize: Long,
                                         query: ChromosomeInterval,
                                         overlaps: Boolean): Sequence<T>
 
@@ -393,13 +403,14 @@ abstract class BigFile<T> internal constructor(
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
-            for ((name, chromIx, size) in bf.bPlusTree.traverse(bf.input)) {
+            val input = MMBRomBuffer(bf.memBuff)
+            for ((name, chromIx, size) in bf.bPlusTree.traverse(input)) {
                 val query = Interval(chromIx, 0, size)
 
                 // We can re-use pre-computed zooms, but preliminary
                 // results suggest this doesn't give a noticeable speedup.
-                val summaries = bf.summarizeInternal(
-                        query, numBins = size divCeiling reduction)
+                val summaries
+                        = bf.summarizeInternal(input, query, numBins = size divCeiling reduction)
                 for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {
                     val dataOffset = output.tell()
                     output.with(bf.compression) {

@@ -26,10 +26,11 @@ class BPlusTreeTest {
 
     @Test fun testFind() {
         BigBedFile.read(Examples["example1.bb"]).use { bf ->
-            var leaf = bf.bPlusTree.find(bf.input, "chr1")
+            val input = MMBRomBuffer(bf.memBuff)
+            var leaf = bf.bPlusTree.find(input, "chr1")
             assertNull(leaf)
 
-            leaf = bf.bPlusTree.find(bf.input, "chr21")
+            leaf = bf.bPlusTree.find(input, "chr21")
             assertNotNull(leaf)
             assertEquals(0, leaf!!.id)
             assertEquals(48129895, leaf.size)

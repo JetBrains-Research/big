@@ -15,6 +15,9 @@ Version 0.4.0
 
 - Switch to Kotlin 1.1.x
 
+- Concurrent access to big bed/wig files improved. BigFile.duplicate() call
+ not required any more for concurrent access. Method marked as obsolete.
+
 Version 0.3.6
 -------------
 - Added 'RomBuffer' caching for internal querying: Now if

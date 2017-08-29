@@ -122,15 +122,15 @@ class BBRomBuffer(val mapped: ByteBuffer): RomBuffer {
 }
 
 /** A read-only mapped buffer which supports files > 2GB .*/
-class MMBRomBuffer private constructor(val mapped: MMapBuffer,
-                                       override var position: Long = 0,
-                                       limit: Long = mapped.memory().length()) : RomBuffer {
+class MMBRomBuffer(val mapped: MMapBuffer,
+                   override var position: Long = 0,
+                   limit: Long = mapped.memory().length()) : RomBuffer {
 
     override val order: ByteOrder get() = mapped.memory().order
     private var limit: Long = limit
         set(value) {
             val length = mapped.memory().length()
-            check (value <= length) {
+            check(value <= length) {
                 "Limit $value is greater than buffer length $length"
             }
             field = value
@@ -165,6 +165,7 @@ class MMBRomBuffer private constructor(val mapped: MMapBuffer,
         return value
 
     }
+
     override fun asIntArray(size: Int): kotlin.IntArray {
         val dst = IntArray(size)
         asIntBuffer(size.toLong()).get(0, dst)
@@ -267,7 +268,7 @@ class MMBRomBuffer private constructor(val mapped: MMapBuffer,
                     inf.setInput(compressedBuf)
                     val step = size.toInt()
                     while (!inf.finished()) {
-                        uncompressedBuf = Bytes.ensureCapacity(  // 1.5x
+                        uncompressedBuf = Bytes.ensureCapacity(// 1.5x
                                 uncompressedBuf, uncompressedSize + step, step / 2)
                         val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
                         uncompressedSize += actual
@@ -277,7 +278,7 @@ class MMBRomBuffer private constructor(val mapped: MMapBuffer,
                     uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
                     uncompressedBuf = ByteArray(uncompressedSize)
                     Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
-                            uncompressedBuf, 0)
+                                      uncompressedBuf, 0)
                 }
                 else -> impossible { "Unexpected compression: $compression" }
             }

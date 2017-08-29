@@ -51,7 +51,8 @@ class RTreeIndexTest {
             val right = left + RANDOM.nextInt(items.size - left)
             val query = Interval(0, items[left].start, items[right].end)
 
-            for (block in rti.findOverlappingBlocks(bbf.input, query)) {
+            val input = MMBRomBuffer(bbf.memBuff)
+            for (block in rti.findOverlappingBlocks(input, query)) {
                 assertTrue(block.interval intersects query)
             }
         }
