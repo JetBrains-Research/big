@@ -325,15 +325,11 @@ abstract class BigFile<T> internal constructor(
     protected object Post {
         private val LOG = LogManager.getLogger(javaClass)
 
-        private inline fun <T>  modify(path: Path, offset: Long = 0L,
-                                       block: (BigFile<*>, OrderedDataOutput) -> T): T {
-            val bf = read(path)
-            return try {
-                OrderedDataOutput(path, bf.header.order, offset, create = false).use {
-                    block(bf, it)
-                }
-            } finally {
-                bf.close()
+        private inline fun <T> modify(
+                path: Path, offset: Long = 0L,
+                block: (BigFile<*>, OrderedDataOutput) -> T): T = read(path).use { bf ->
+            OrderedDataOutput(path, bf.header.order, offset, create = false).use {
+                block(bf, it)
             }
         }
 
