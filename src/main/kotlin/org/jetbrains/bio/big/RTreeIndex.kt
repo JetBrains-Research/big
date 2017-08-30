@@ -58,8 +58,8 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         assert(input.order == header.order)
         input.position = offset
 
-        val isLeaf = input.get() > 0
-        input.get()  // reserved.
+        val isLeaf = input.getByte() > 0
+        input.getByte()  // reserved.
         val childCount = input.getUnsignedShort()
 
         // XXX we have to eagerly read the blocks because 'input' is

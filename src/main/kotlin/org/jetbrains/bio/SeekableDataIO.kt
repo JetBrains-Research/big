@@ -37,13 +37,13 @@ interface RomBuffer: Closeable, AutoCloseable {
         }
     }
 
-    fun asIntArray(size: Int): IntArray
-    fun asFloatArray(size: Int): FloatArray
+    fun getInts(size: Int): IntArray
+    fun getFloats(size: Int): FloatArray
 
-    fun get(dst: ByteArray)
-    fun get(): Byte
+    fun getBytes(size: Int): ByteArray
+    fun getByte(): Byte
 
-    fun getUnsignedByte() = java.lang.Byte.toUnsignedInt(get())
+    fun getUnsignedByte() = java.lang.Byte.toUnsignedInt(getByte())
 
     fun getShort(): Short
 
@@ -60,7 +60,7 @@ interface RomBuffer: Closeable, AutoCloseable {
     fun getCString(): String {
         val sb = StringBuilder()
         do {
-            val ch = get()
+            val ch = getByte()
             if (ch == 0.toByte()) {
                 break
             }
@@ -94,19 +94,21 @@ class BBRomBuffer(private val buffer: ByteBuffer): RomBuffer {
 
     override fun close() { /* Do nothing */ }
 
-    override fun asIntArray(size: Int) = IntArray(size).apply {
+    override fun getInts(size: Int) = IntArray(size).apply {
         buffer.asIntBuffer().get(this)
         buffer.position(buffer.position() + size * Ints.BYTES)
     }
 
-    override fun asFloatArray(size: Int) = FloatArray(size).apply {
+    override fun getFloats(size: Int) = FloatArray(size).apply {
         buffer.asFloatBuffer().get(this)
         buffer.position(buffer.position() + size * Floats.BYTES)
     }
 
-    override fun get(dst: ByteArray) { buffer.get(dst) }
+    override fun getBytes(size: Int) = ByteArray(size).apply {
+        buffer.get(this)
+    }
 
-    override fun get() = buffer.get()
+    override fun getByte() = buffer.get()
 
     override fun getShort() = buffer.getShort()
 
@@ -151,79 +153,72 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
     }
 
-    fun asIntBuffer(size: Long): com.indeed.util.mmap.IntArray {
-        val value = mapped.memory().intArray(position, size)
-        position += size * java.lang.Integer.BYTES
-        checkLimit()
-        return value
-    }
-
-    fun asFloatBuffer(size: Long): com.indeed.util.mmap.FloatArray {
-        val value = mapped.memory().floatArray(position, size)!!
-        position += size * java.lang.Float.BYTES
-        checkLimit()
-        return value
-
-    }
-
-    override fun asIntArray(size: Int): kotlin.IntArray {
-        val dst = IntArray(size)
-        asIntBuffer(size.toLong()).get(0, dst)
-        checkLimit()
-        return dst
-    }
-
-    override fun asFloatArray(size: Int): kotlin.FloatArray {
-        val dst = FloatArray(size)
-        asFloatBuffer(size.toLong()).get(0, dst)
-        checkLimit()
-        return dst
-    }
-
-    override fun get(dst: ByteArray) {
+    override fun getBytes(size: Int): ByteArray {
+        val dst = ByteArray(size)
         mapped.memory().getBytes(position, dst)
-        position += dst.size * java.lang.Byte.BYTES
+        position += dst.size
         checkLimit()
+        return dst
     }
 
-    override fun get(): Byte {
+    override fun getByte(): Byte {
         val value = mapped.memory().getByte(position)
-        position += java.lang.Byte.BYTES
+        position += 1
         checkLimit()
         return value
     }
 
     override fun getShort(): Short {
         val value = mapped.memory().getShort(position)
-        position += java.lang.Short.BYTES
+        position += Shorts.BYTES
         checkLimit()
         return value
     }
 
+    override fun getInts(size: Int): IntArray {
+        val dst = IntArray(size)
+
+        val buff = mapped.memory().intArray(position, size.toLong())
+        buff.get(0, dst)
+        position += size * Ints.BYTES
+        checkLimit()
+        return dst
+    }
+
     override fun getInt(): Int {
         val value = mapped.memory().getInt(position)
-        position += Integer.BYTES
+        position += Ints.BYTES
         checkLimit()
         return value
     }
 
     override fun getLong(): Long {
         val value = mapped.memory().getLong(position)
-        position += java.lang.Long.BYTES
+        position += Longs.BYTES
         checkLimit()
         return value
     }
 
+    override fun getFloats(size: Int): FloatArray {
+        val dst = FloatArray(size)
+
+        val value = mapped.memory().floatArray(position, size.toLong())!!
+        value.get(0, dst)
+        position += size * Floats.BYTES
+        checkLimit()
+        return dst
+    }
+
     override fun getFloat(): Float {
         val value = mapped.memory().getFloat(position)
-        position += java.lang.Float.BYTES
+        position += Floats.BYTES
         checkLimit()
         return value
     }
 
     override fun getDouble(): Double {
         val value = mapped.memory().getDouble(position)
-        position += java.lang.Double.BYTES
+        position += Doubles.BYTES
         checkLimit()
         return value
     }
@@ -251,10 +246,9 @@ class MMBRomBuffer(val mapped: MMapBuffer,
                 limit = offset + size
             }
         } else {
-            val compressedBuf = ByteArray(size.toInt())
-            duplicate().apply {
+            val compressedBuf = with(duplicate()) {
                 position = offset
-                get(compressedBuf)
+                getBytes(Ints.checkedCast(size))
             }
 
             var uncompressedSize: Int

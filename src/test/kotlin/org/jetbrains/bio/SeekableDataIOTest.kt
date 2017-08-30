@@ -25,7 +25,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeLong(l)
         }
         MMBRomBuffer(path, order).let {
-            assertEquals(b, it.get())
+            assertEquals(b, it.getByte())
             assertEquals(s.toShort(), it.getShort())
             assertEquals(i, it.getInt())
             assertEquals(l, it.getLong())
@@ -55,12 +55,11 @@ class SeekableDataIOTest(private val order: ByteOrder,
         }
         MMBRomBuffer(path, order).let {
             assertEquals(s, it.getCString())
-            val b = ByteArray(s.length + 8)
-            it.get(b)
+            val b = it.getBytes(s.length + 8)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
 
             for (i in 0 until 16) {
-                assertEquals(0.toByte(), it.get())
+                assertEquals(0.toByte(), it.getByte())
             }
         }
     }

@@ -87,7 +87,7 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
             val step = getInt()
             val span = getInt()
             val type = getUnsignedByte()
-            get()  // reserved.
+            getByte()  // reserved.
             val count = getUnsignedShort()
 
             val types = WigSection.Type.values()

@@ -37,8 +37,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         assert(input.order == header.order)
         input.position = offset
 
-        val isLeaf = input.get() > 0
-        input.get()  // reserved.
+        val isLeaf = input.getByte() > 0
+        input.getByte()  // reserved.
         val childCount = input.getUnsignedShort()
 
         return if (isLeaf) {
@@ -71,8 +71,8 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         assert(input.order == header.order)
         input.position = blockStart
 
-        val isLeaf = input.get() > 0
-        input.get()  // reserved.
+        val isLeaf = input.getByte() > 0
+        input.getByte()  // reserved.
         val childCount = input.getUnsignedShort()
 
         if (isLeaf) {
@@ -285,8 +285,7 @@ data class BPlusLeaf(
 
     companion object {
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
-            val keyBuf = ByteArray(keySize)
-            get(keyBuf)
+            val keyBuf = getBytes(keySize)
             val chromId = getInt()
             val chromSize = getInt()
             BPlusLeaf(String(keyBuf).trimEnd { it == '\u0000' }, chromId, chromSize)
@@ -310,8 +309,7 @@ private data class BPlusNode(
 
     companion object {
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
-            val keyBuf = ByteArray(keySize)
-            get(keyBuf)
+            val keyBuf = getBytes(keySize)
             val childOffset = getLong()
             BPlusNode(String(keyBuf).trimEnd { it == '\u0000' }, childOffset)
         }

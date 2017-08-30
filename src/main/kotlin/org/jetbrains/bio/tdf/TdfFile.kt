@@ -164,8 +164,7 @@ data class TdfFile private constructor(
             val BYTES = 24
 
             internal fun read(input: RomBuffer) = with(input) {
-                val b = ByteArray(4)
-                get(b)
+                val b = getBytes(4)
                 val magicString = String(b)
                 check (magicString.startsWith("TDF") || magicString.startsWith("IBF")) {
                     "bad signature in $input"

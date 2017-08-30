@@ -73,8 +73,8 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
         fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             val size = getInt()
 
-            val start = asIntArray(size)
-            val end = asIntArray(size)
+            val start = getInts(size)
+            val end = getInts(size)
 
             val trackCount = getInt()
             check(trackCount == expectedTracks) {
@@ -82,7 +82,7 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
             }
 
             val data = Array(trackCount) {
-                asFloatArray(size)
+                getFloats(size)
             }
 
             TdfBedTile(start, end, data)
@@ -114,7 +114,7 @@ data class TdfFixedTile(val start: Int, val span: Double,
             // vvv not part of the implementation, see igvteam/igv/#180.
             // val trackCount = readInt()
             val data = Array(expectedTracks) {
-                asFloatArray(size)
+                getFloats(size)
             }
 
             TdfFixedTile(start, span, data)
@@ -141,7 +141,7 @@ data class TdfVaryTile(val starts: IntArray,
             val span = getFloat().toInt()  // Really?
             val size = getInt()
 
-            val step = asIntArray(size)
+            val step = getInts(size)
 
             val trackCount = getInt()
             check(trackCount == expectedTracks) {
@@ -149,7 +149,7 @@ data class TdfVaryTile(val starts: IntArray,
             }
             
             val data = Array(trackCount) {
-                asFloatArray(size)
+                getFloats(size)
             }
 
             TdfVaryTile(step, span, data)
