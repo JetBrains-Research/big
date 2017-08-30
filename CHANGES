@@ -5,21 +5,31 @@ Here you can see the full list of changes between each big release.
 
 Version 0.4.0
 -------------
-- Fixed IllegalStateException: impossible "browser" section type in *.wig file,
- see issue #30 on GitHub
 
-- Fixed IllegalArgumentException in BedEntry.<init>, see issue #29 on GitHub.
- Big bed serialization fixed.
+Bugfix release, released on [Unreleased]
 
-- Support big files larger than 2G (issue #28) using com.indeed:util-mmap   Memory mapping library
-
+Changed
 - Switch to Kotlin 1.1.x
+- Concurrent access to big bed/wig/tdf files improved.
+- Big bed serialization fixed.
 
-- Concurrent access to big bed/wig/tdf files improved. BigFile/TdfFile.duplicate() call
- not required any more for concurrent access. Method removed.
+Fixed
+- Issue #30: IllegalStateException: impossible "browser" section type
+  in *.wig file.
+- Issue #29: IllegalArgumentException in BedEntry.<init>.
+- Issue #28: Support big files larger than 2G (issue #28) using
+  `com.indeed:util-mmap` (https://github.com/indeedeng/util/tree/master/mmap)
+   memory mapping library
+
+Removed
+- BigFile/TdfFile.duplicate() call not required any more for concurrent access.
+  Method removed.
 
 Version 0.3.6
 -------------
+
+Released on August 23th 2016
+
 - Added 'RomBuffer' caching for internal querying: Now if
   'BigWig.summarizeInternal' of nearby regions are called one by one,
   'RTreeIndexLeaf' which contains these regions wouldn't be
@@ -31,14 +41,20 @@ Version 0.3.6
 
 Version 0.3.5
 -------------
-- Fixed summary semantics: Now for each intersected interval summary 'sum' value is increased in
- "intersected nucleotides number" x "interval value" instead of "intersection %" x "interval value".
 
- Idea is that interval summary = "nucleotide number" * "interval value" thus intersected sum should be increased in
- "intersection %" x "interval summary" = "intersected nucleotides number" x "interval value".
+Bugfix release, released on March 28th 2016
+
+- Fixed summary semantics: Now for each intersected interval summary ‘sum’
+  value is increased in "intersected nucleotides number" * "interval value"
+  instead of "intersection %" * "interval value".
+
+  Idea is that interval summary = "nucleotide number" * "interval value"
+  thus intersected sum should be increased in "intersection %" * "interval summary"
+  i.e. "intersected nucleotides number" * "interval value".
   Old semantics was incorrect, difference was visible at 1-bp resolution.
 
-- More informative error message if actual magic doesn't match expected guess
+- More informative error message if actual magic doesn’t match
+  expected guess
 
 Version 0.3.4
 -------------
