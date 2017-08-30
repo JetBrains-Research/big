@@ -37,9 +37,9 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         assert(input.order == header.order)
         input.position = offset
 
-        val isLeaf = input.getByte() > 0
-        input.getByte()  // reserved.
-        val childCount = input.getUnsignedShort()
+        val isLeaf = input.readByte() > 0
+        input.readByte()  // reserved.
+        val childCount = input.readUnsignedShort()
 
         return if (isLeaf) {
             (0 until childCount)
@@ -71,9 +71,9 @@ internal class BPlusTree(val header: BPlusTree.Header) {
         assert(input.order == header.order)
         input.position = blockStart
 
-        val isLeaf = input.getByte() > 0
-        input.getByte()  // reserved.
-        val childCount = input.getUnsignedShort()
+        val isLeaf = input.readByte() > 0
+        input.readByte()  // reserved.
+        val childCount = input.readUnsignedShort()
 
         if (isLeaf) {
             for (i in 0 until childCount) {
@@ -124,13 +124,13 @@ internal class BPlusTree(val header: BPlusTree.Header) {
                 checkHeader(MAGIC)
                 check(order == expectedOrder)
 
-                val blockSize = getInt()
-                val keySize = getInt()
-                val valSize = getInt()
+                val blockSize = readInt()
+                val keySize = readInt()
+                val valSize = readInt()
                 check(valSize == Ints.BYTES * 2) { "inconsistent value size: $valSize" }
 
-                val itemCount = getLong()
-                getLong()  // reserved.
+                val itemCount = readLong()
+                readLong()  // reserved.
                 val rootOffset = position.toLong()
 
                 Header(order, blockSize, keySize, Ints.checkedCast(itemCount),
@@ -285,9 +285,9 @@ data class BPlusLeaf(
 
     companion object {
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
-            val keyBuf = getBytes(keySize)
-            val chromId = getInt()
-            val chromSize = getInt()
+            val keyBuf = readBytes(keySize)
+            val chromId = readInt()
+            val chromSize = readInt()
             BPlusLeaf(String(keyBuf).trimEnd { it == '\u0000' }, chromId, chromSize)
         }
     }
@@ -309,8 +309,8 @@ private data class BPlusNode(
 
     companion object {
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
-            val keyBuf = getBytes(keySize)
-            val childOffset = getLong()
+            val keyBuf = readBytes(keySize)
+            val childOffset = readLong()
             BPlusNode(String(keyBuf).trimEnd { it == '\u0000' }, childOffset)
         }
     }

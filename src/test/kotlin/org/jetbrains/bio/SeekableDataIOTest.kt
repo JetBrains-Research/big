@@ -25,10 +25,10 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeLong(l)
         }
         MMBRomBuffer(path, order).let {
-            assertEquals(b, it.getByte())
-            assertEquals(s.toShort(), it.getShort())
-            assertEquals(i, it.getInt())
-            assertEquals(l, it.getLong())
+            assertEquals(b, it.readByte())
+            assertEquals(s.toShort(), it.readShort())
+            assertEquals(i, it.readInt())
+            assertEquals(l, it.readLong())
         }
     }
 
@@ -40,8 +40,8 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeDouble(d)
         }
         MMBRomBuffer(path, order).let {
-            assertEquals(f, it.getFloat())
-            assertEquals(d, it.getDouble())
+            assertEquals(f, it.readFloat())
+            assertEquals(d, it.readDouble())
         }
     }
 
@@ -54,12 +54,12 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.skipBytes(16)
         }
         MMBRomBuffer(path, order).let {
-            assertEquals(s, it.getCString())
-            val b = it.getBytes(s.length + 8)
+            assertEquals(s, it.readCString())
+            val b = it.readBytes(s.length + 8)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
 
             for (i in 0 until 16) {
-                assertEquals(0.toByte(), it.getByte())
+                assertEquals(0.toByte(), it.readByte())
             }
         }
     }
@@ -75,7 +75,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
         MMBRomBuffer(path, order).let {
             it.with(0, Files.size(path), compression) {
                 for (i in 0 until values.size) {
-                    assertEquals(values[i], getInt())
+                    assertEquals(values[i], readInt())
                 }
             }
         }
@@ -88,10 +88,10 @@ class SeekableDataIOTest(private val order: ByteOrder,
         }
 
         val first = MMBRomBuffer(path, order)
-        first.getInt()
+        first.readInt()
         val second = first.duplicate()
 
-        assertEquals(values[1], second.getInt())
+        assertEquals(values[1], second.readInt())
     }
 
     private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {

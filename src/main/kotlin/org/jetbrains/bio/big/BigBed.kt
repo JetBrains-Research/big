@@ -68,13 +68,13 @@ class BigBedFile private constructor(input: MMapBuffer,
         return input.with(dataOffset, dataSize, compression) {
             val chunk = ArrayList<BedEntry>()
             do {
-                val chromIx = getInt()
+                val chromIx = readInt()
                 assert(chromIx == query.chromIx) {
                     "interval contains wrong chromosome $chromIx, expected ${query.chromIx}"
                 }
-                val startOffset = getInt()
-                val endOffset = getInt()
-                val rest = getCString()
+                val startOffset = readInt()
+                val endOffset = readInt()
+                val rest = readCString()
                 if (query.contains(startOffset, endOffset, overlaps)) {
                     chunk.add(BedEntry(chrom, startOffset, endOffset, rest))
                 }

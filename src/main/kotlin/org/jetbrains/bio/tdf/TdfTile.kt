@@ -25,7 +25,7 @@ interface TdfTile {
         private val LOG = Logger.getLogger(TdfTile::class.java)
 
         internal fun read(input: RomBuffer, expectedTracks: Int) = with(input) {
-            val type = getCString()
+            val type = readCString()
             when (type) {
                 "fixedStep" -> TdfFixedTile.fill(this, expectedTracks)
                 "variableStep" -> TdfVaryTile.fill(this, expectedTracks)
@@ -71,18 +71,18 @@ data class TdfBedTile(val starts: IntArray, val ends: IntArray,
 
     companion object {
         fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
-            val size = getInt()
+            val size = readInt()
 
-            val start = getInts(size)
-            val end = getInts(size)
+            val start = readInts(size)
+            val end = readInts(size)
 
-            val trackCount = getInt()
+            val trackCount = readInt()
             check(trackCount == expectedTracks) {
                 "expected $expectedTracks tracks, got: $trackCount"
             }
 
             val data = Array(trackCount) {
-                getFloats(size)
+                readFloats(size)
             }
 
             TdfBedTile(start, end, data)
@@ -107,14 +107,14 @@ data class TdfFixedTile(val start: Int, val span: Double,
 
     companion object {
         fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
-            val size = getInt()
-            val start = getInt()
-            val span = getInt().toDouble()
+            val size = readInt()
+            val start = readInt()
+            val span = readInt().toDouble()
 
             // vvv not part of the implementation, see igvteam/igv/#180.
             // val trackCount = readInt()
             val data = Array(expectedTracks) {
-                getFloats(size)
+                readFloats(size)
             }
 
             TdfFixedTile(start, span, data)
@@ -137,19 +137,19 @@ data class TdfVaryTile(val starts: IntArray,
     companion object {
         fun fill(input: RomBuffer, expectedTracks: Int) = with(input) {
             // This is called 'tiledStart' in IGV sources and is unused.
-            getInt() // start
-            val span = getFloat().toInt()  // Really?
-            val size = getInt()
+            readInt() // start
+            val span = readFloat().toInt()  // Really?
+            val size = readInt()
 
-            val step = getInts(size)
+            val step = readInts(size)
 
-            val trackCount = getInt()
+            val trackCount = readInt()
             check(trackCount == expectedTracks) {
                 "expected $expectedTracks tracks, got: $trackCount"
             }
             
             val data = Array(trackCount) {
-                getFloats(size)
+                readFloats(size)
             }
 
             TdfVaryTile(step, span, data)

@@ -80,15 +80,15 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
         }
 
         return sequenceOf(with(localRomBuf.second!!.duplicate()) {
-            val chromIx = getInt()
+            val chromIx = readInt()
             check(chromIx == query.chromIx, { "chromosome expected: ${query.chromIx}, found: $chromIx" })
-            val start = getInt()
-            getInt()   // end.
-            val step = getInt()
-            val span = getInt()
-            val type = getUnsignedByte()
-            getByte()  // reserved.
-            val count = getUnsignedShort()
+            val start = readInt()
+            readInt()   // end.
+            val step = readInt()
+            val span = readInt()
+            val type = readUnsignedByte()
+            readByte()  // reserved.
+            val count = readUnsignedShort()
 
             val types = WigSection.Type.values()
             check(type >= 1 && type <= types.size)
@@ -97,9 +97,9 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
                     val section = BedGraphSection(chrom)
                     var match = false
                     for (i in 0 until count) {
-                        val startOffset = getInt()
-                        val endOffset = getInt()
-                        val value = getFloat()
+                        val startOffset = readInt()
+                        val endOffset = readInt()
+                        val value = readFloat()
                         if (query.contains(startOffset, endOffset, overlaps)) {
                             section[startOffset, endOffset] = value
                             match = true
@@ -116,8 +116,8 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
                     val section = VariableStepSection(chrom, span)
                     var match = false
                     for (i in 0 until count) {
-                        val pos = getInt()
-                        val value = getFloat()
+                        val pos = readInt()
+                        val value = readFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section[pos] = value
                             match = true
@@ -152,7 +152,7 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
                     var match = false
                     for (i in 0 until count) {
                         val pos = start + i * step
-                        val value = getFloat()
+                        val value = readFloat()
                         if (query.contains(pos, pos + span, overlaps)) {
                             section.add(value)
                             match = true

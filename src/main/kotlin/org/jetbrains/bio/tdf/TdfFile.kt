@@ -164,16 +164,16 @@ data class TdfFile private constructor(
             val BYTES = 24
 
             internal fun read(input: RomBuffer) = with(input) {
-                val b = getBytes(4)
+                val b = readBytes(4)
                 val magicString = String(b)
                 check (magicString.startsWith("TDF") || magicString.startsWith("IBF")) {
                     "bad signature in $input"
                 }
 
-                val version = getInt()
-                val indexOffset = getLong()
-                val indexSize = getInt()
-                val headerSize = getInt()
+                val version = readInt()
+                val indexOffset = readLong()
+                val indexSize = readInt()
+                val headerSize = readInt()
                 Header(version, indexOffset, indexSize, headerSize)
             }
         }
@@ -189,10 +189,10 @@ data class TdfFile private constructor(
             val header = Header.read(input)
             val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
             val trackType = TrackType.read(input)
-            val trackLine = input.getCString().trim()
-            val trackNames = input.getSequenceOf { input.getCString() }.toList()
-            val build = input.getCString()
-            val compressed = (input.getInt() and 0x1) != 0
+            val trackLine = input.readCString().trim()
+            val trackNames = input.getSequenceOf { input.readCString() }.toList()
+            val build = input.readCString()
+            val compressed = (input.readInt() and 0x1) != 0
             // Make sure we haven't read anything extra.
             check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
             val index = input.with(header.indexOffset, header.indexSize.toLong()) {
@@ -239,9 +239,9 @@ internal data class TdfMasterIndex private constructor(
     companion object {
         private fun RomBuffer.readIndex(): Map<String, IndexEntry> {
             return getSequenceOf {
-                val name = getCString()
-                val fPosition = getLong()
-                val n = getInt()
+                val name = readCString()
+                val fPosition = readLong()
+                val n = readInt()
                 name to IndexEntry(fPosition, n)
             }.toMap()
         }
@@ -269,20 +269,20 @@ data class TdfDataset private constructor(
     companion object {
         fun read(input: RomBuffer) = with(input) {
             val attributes = readAttributes()
-            val dataType = getCString()
+            val dataType = readCString()
 
             check(dataType.toLowerCase() == "float") {
                 "unsupported data type: $dataType"
             }
 
-            val tileWidth = getFloat().toInt()
+            val tileWidth = readFloat().toInt()
 
-            val tileCount = getInt()
+            val tileCount = readInt()
             val tileOffsets = LongArray(tileCount)
             val tileSizes = IntArray(tileCount)
             for (i in 0 until tileCount) {
-                tileOffsets[i] = getLong()
-                tileSizes[i] = getInt()
+                tileOffsets[i] = readLong()
+                tileSizes[i] = readInt()
             }
 
             TdfDataset(attributes, tileWidth, tileCount, tileOffsets, tileSizes)
@@ -308,7 +308,7 @@ enum class WindowFunction {
 
     companion object {
         fun read(input: RomBuffer) = with(input) {
-            valueOf(getCString().toUpperCase())
+            valueOf(readCString().toUpperCase())
         }
     }
 }
@@ -316,20 +316,20 @@ enum class WindowFunction {
 data class TrackType(val id: String) {
     companion object {
         fun read(input: RomBuffer) = with(input) {
-            TrackType(getCString())
+            TrackType(readCString())
         }
     }
 }
 
 private fun <T> RomBuffer.getSequenceOf(
         block: RomBuffer.() -> T): Sequence<T> {
-    return (0 until getInt()).mapUnboxed { block() }
+    return (0 until readInt()).mapUnboxed { block() }
 }
 
 private fun RomBuffer.readAttributes(): Map<String, String> {
     return getSequenceOf {
-        val key = getCString()
-        val value = getCString()
+        val key = readCString()
+        val value = readCString()
         key to value
     }.toMap()
 }

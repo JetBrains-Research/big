@@ -245,17 +245,17 @@ abstract class BigFile<T> internal constructor(
             internal fun read(input: MMBRomBuffer, magic: Int) = with(input) {
                 checkHeader(magic)
 
-                val version = getUnsignedShort()
-                val zoomLevelCount = getUnsignedShort()
-                val chromTreeOffset = getLong()
-                val unzoomedDataOffset = getLong()
-                val unzoomedIndexOffset = getLong()
-                val fieldCount = getUnsignedShort()
-                val definedFieldCount = getUnsignedShort()
-                val asOffset = getLong()
-                val totalSummaryOffset = getLong()
-                val uncompressBufSize = getInt()
-                val extendedHeaderOffset = getLong()
+                val version = readUnsignedShort()
+                val zoomLevelCount = readUnsignedShort()
+                val chromTreeOffset = readLong()
+                val unzoomedDataOffset = readLong()
+                val unzoomedIndexOffset = readLong()
+                val fieldCount = readUnsignedShort()
+                val definedFieldCount = readUnsignedShort()
+                val asOffset = readLong()
+                val totalSummaryOffset = readLong()
+                val uncompressBufSize = readInt()
+                val extendedHeaderOffset = readLong()
 
                 when {
                     asOffset > 0 -> LOG.warn("AutoSQL queries are unsupported")

@@ -58,9 +58,9 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         assert(input.order == header.order)
         input.position = offset
 
-        val isLeaf = input.getByte() > 0
-        input.getByte()  // reserved.
-        val childCount = input.getUnsignedShort()
+        val isLeaf = input.readByte() > 0
+        input.readByte()  // reserved.
+        val childCount = input.readUnsignedShort()
 
         // XXX we have to eagerly read the blocks because 'input' is
         // shared between calls.
@@ -125,15 +125,15 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                 checkHeader(MAGIC)
                 check(order == expectedOrder)
 
-                val blockSize = getInt()
-                val itemCount = getLong()
-                val startChromIx = getInt()
-                val startBase = getInt()
-                val endChromIx = getInt()
-                val endBase = getInt()
-                val endDataOffset = getLong()
-                val itemsPerSlot = getInt()
-                getInt()  // reserved.
+                val blockSize = readInt()
+                val itemCount = readLong()
+                val startChromIx = readInt()
+                val startBase = readInt()
+                val endChromIx = readInt()
+                val endBase = readInt()
+                val endDataOffset = readLong()
+                val itemsPerSlot = readInt()
+                readInt()  // reserved.
                 val rootOffset = position
 
                 Header(order, blockSize, itemCount, startChromIx, startBase,
@@ -299,12 +299,12 @@ data class RTreeIndexLeaf(val interval: Interval,
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
 
         internal fun read(input: RomBuffer) = with(input) {
-            val startChromIx = getInt()
-            val startOffset = getInt()
-            val endChromIx = getInt()
-            val endOffset = getInt()
+            val startChromIx = readInt()
+            val startOffset = readInt()
+            val endChromIx = readInt()
+            val endOffset = readInt()
             val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
-            RTreeIndexLeaf(interval, dataOffset = getLong(), dataSize = getLong())
+            RTreeIndexLeaf(interval, dataOffset = readLong(), dataSize = readLong())
         }
     }
 }
@@ -323,12 +323,12 @@ private data class RTreeIndexNode(val interval: Interval,
         internal val BYTES = Ints.BYTES * 4 + Longs.BYTES
 
         internal fun read(input: RomBuffer) = with(input) {
-            val startChromIx = getInt()
-            val startOffset = getInt()
-            val endChromIx = getInt()
-            val endOffset = getInt()
+            val startChromIx = readInt()
+            val startOffset = readInt()
+            val endChromIx = readInt()
+            val endOffset = readInt()
             val interval = Interval(startChromIx, startOffset, endChromIx, endOffset)
-            RTreeIndexNode(interval, dataOffset = getLong())
+            RTreeIndexNode(interval, dataOffset = readLong())
         }
     }
 }

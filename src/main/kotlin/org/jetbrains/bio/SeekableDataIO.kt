@@ -18,7 +18,7 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
 /** A read-only buffer. */
-interface RomBuffer: Closeable, AutoCloseable {
+interface RomBuffer: Closeable {
     var position: Long
     val order: ByteOrder
 
@@ -30,37 +30,37 @@ interface RomBuffer: Closeable, AutoCloseable {
     fun duplicate(): RomBuffer
 
     fun checkHeader(leMagic: Int) {
-        val magic = getInt()
+        val magic = readInt()
         check(magic == leMagic) {
             val bigMagic = java.lang.Integer.reverseBytes(leMagic)
             "Unexpected header magic: Actual $magic doesn't match expected LE=$leMagic (BE=$bigMagic)"
         }
     }
 
-    fun getInts(size: Int): IntArray
-    fun getFloats(size: Int): FloatArray
+    fun readInts(size: Int): IntArray
+    fun readFloats(size: Int): FloatArray
 
-    fun getBytes(size: Int): ByteArray
-    fun getByte(): Byte
+    fun readBytes(size: Int): ByteArray
+    fun readByte(): Byte
 
-    fun getUnsignedByte() = java.lang.Byte.toUnsignedInt(getByte())
+    fun readUnsignedByte() = java.lang.Byte.toUnsignedInt(readByte())
 
-    fun getShort(): Short
+    fun readShort(): Short
 
-    fun getUnsignedShort() = java.lang.Short.toUnsignedInt(getShort())
+    fun readUnsignedShort() = java.lang.Short.toUnsignedInt(readShort())
 
-    fun getInt(): Int
+    fun readInt(): Int
 
-    fun getLong(): Long
+    fun readLong(): Long
 
-    fun getFloat(): Float
+    fun readFloat(): Float
 
-    fun getDouble(): Double
+    fun readDouble(): Double
 
-    fun getCString(): String {
+    fun readCString(): String {
         val sb = StringBuilder()
         do {
-            val ch = getByte()
+            val ch = readByte()
             if (ch == 0.toByte()) {
                 break
             }
@@ -75,7 +75,7 @@ interface RomBuffer: Closeable, AutoCloseable {
 }
 
 /** A read-only buffer based on [ByteBuffer]. */
-class BBRomBuffer(private val buffer: ByteBuffer): RomBuffer {
+class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffer {
     override var position: Long
         get() = buffer.position().toLong()
         set(value) = ignore(buffer.position(Ints.checkedCast(value)))
@@ -94,31 +94,31 @@ class BBRomBuffer(private val buffer: ByteBuffer): RomBuffer {
 
     override fun close() { /* Do nothing */ }
 
-    override fun getInts(size: Int) = IntArray(size).apply {
+    override fun readInts(size: Int) = IntArray(size).apply {
         buffer.asIntBuffer().get(this)
         buffer.position(buffer.position() + size * Ints.BYTES)
     }
 
-    override fun getFloats(size: Int) = FloatArray(size).apply {
+    override fun readFloats(size: Int) = FloatArray(size).apply {
         buffer.asFloatBuffer().get(this)
         buffer.position(buffer.position() + size * Floats.BYTES)
     }
 
-    override fun getBytes(size: Int) = ByteArray(size).apply {
+    override fun readBytes(size: Int) = ByteArray(size).apply {
         buffer.get(this)
     }
 
-    override fun getByte() = buffer.get()
+    override fun readByte() = buffer.get()
 
-    override fun getShort() = buffer.getShort()
+    override fun readShort() = buffer.getShort()
 
-    override fun getInt() = buffer.getInt()
+    override fun readInt() = buffer.getInt()
 
-    override fun getLong() = buffer.getLong()
+    override fun readLong() = buffer.getLong()
 
-    override fun getFloat() = buffer.getFloat()
+    override fun readFloat() = buffer.getFloat()
 
-    override fun getDouble() = buffer.getDouble()
+    override fun readDouble() = buffer.getDouble()
 
     override fun hasRemaining() = buffer.hasRemaining()
 }
@@ -153,7 +153,7 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
     }
 
-    override fun getBytes(size: Int): ByteArray {
+    override fun readBytes(size: Int): ByteArray {
         val dst = ByteArray(size)
         mapped.memory().getBytes(position, dst)
         position += dst.size
@@ -161,21 +161,21 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         return dst
     }
 
-    override fun getByte(): Byte {
+    override fun readByte(): Byte {
         val value = mapped.memory().getByte(position)
         position += 1
         checkLimit()
         return value
     }
 
-    override fun getShort(): Short {
+    override fun readShort(): Short {
         val value = mapped.memory().getShort(position)
         position += Shorts.BYTES
         checkLimit()
         return value
     }
 
-    override fun getInts(size: Int): IntArray {
+    override fun readInts(size: Int): IntArray {
         val dst = IntArray(size)
 
         val buff = mapped.memory().intArray(position, size.toLong())
@@ -185,21 +185,21 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         return dst
     }
 
-    override fun getInt(): Int {
+    override fun readInt(): Int {
         val value = mapped.memory().getInt(position)
         position += Ints.BYTES
         checkLimit()
         return value
     }
 
-    override fun getLong(): Long {
+    override fun readLong(): Long {
         val value = mapped.memory().getLong(position)
         position += Longs.BYTES
         checkLimit()
         return value
     }
 
-    override fun getFloats(size: Int): FloatArray {
+    override fun readFloats(size: Int): FloatArray {
         val dst = FloatArray(size)
 
         val value = mapped.memory().floatArray(position, size.toLong())!!
@@ -209,14 +209,14 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         return dst
     }
 
-    override fun getFloat(): Float {
+    override fun readFloat(): Float {
         val value = mapped.memory().getFloat(position)
         position += Floats.BYTES
         checkLimit()
         return value
     }
 
-    override fun getDouble(): Double {
+    override fun readDouble(): Double {
         val value = mapped.memory().getDouble(position)
         position += Doubles.BYTES
         checkLimit()
@@ -248,7 +248,7 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         } else {
             val compressedBuf = with(duplicate()) {
                 position = offset
-                getBytes(Ints.checkedCast(size))
+                readBytes(Ints.checkedCast(size))
             }
 
             var uncompressedSize: Int

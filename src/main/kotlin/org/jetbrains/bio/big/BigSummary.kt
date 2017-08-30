@@ -64,11 +64,11 @@ data class BigSummary(
         internal fun read(input: RomBuffer, offset: Long) = with(input) {
             position = offset
 
-            val count = getLong()
-            val minValue = getDouble()
-            val maxValue = getDouble()
-            val sum = getDouble()
-            val sumSquares = getDouble()
+            val count = readLong()
+            val minValue = readDouble()
+            val maxValue = readDouble()
+            val sum = readDouble()
+            val sumSquares = readDouble()
             BigSummary(count, minValue, maxValue, sum, sumSquares)
         }
     }
@@ -89,11 +89,11 @@ data internal class ZoomLevel(val reduction: Int,
         internal val BYTES = Ints.BYTES * 2 + Longs.BYTES * 2
 
         internal fun read(input: RomBuffer) = with(input) {
-            val reduction = getInt()
-            val reserved = getInt()
+            val reduction = readInt()
+            val reserved = readInt()
             check(reserved == 0)
-            val dataOffset = getLong()
-            val indexOffset = getLong()
+            val dataOffset = readLong()
+            val indexOffset = readLong()
             ZoomLevel(reduction, dataOffset, indexOffset)
         }
     }
@@ -151,14 +151,14 @@ internal data class ZoomData(
         internal val SIZE = Ints.BYTES * 3 + Ints.BYTES + Floats.BYTES * 4
 
         internal fun read(input: RomBuffer) = with(input) {
-            val chromIx = getInt()
-            val startOffset = getInt()
-            val endOffset = getInt()
-            val count = getInt()
-            val minValue = getFloat()
-            val maxValue = getFloat()
-            val sum = getFloat()
-            val sumSquares = getFloat()
+            val chromIx = readInt()
+            val startOffset = readInt()
+            val endOffset = readInt()
+            val count = readInt()
+            val minValue = readFloat()
+            val maxValue = readFloat()
+            val sum = readFloat()
+            val sumSquares = readFloat()
             ZoomData(chromIx, startOffset, endOffset, count,
                      minValue, maxValue, sum, sumSquares)
         }
