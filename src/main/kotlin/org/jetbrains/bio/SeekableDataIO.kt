@@ -17,7 +17,7 @@ import java.util.zip.Deflater
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
-/** A read-only mapped buffer.*/
+/** A read-only buffer. */
 interface RomBuffer: Closeable, AutoCloseable {
     var position: Long
     val order: ByteOrder
@@ -74,51 +74,51 @@ interface RomBuffer: Closeable, AutoCloseable {
     fun hasRemaining(): Boolean
 }
 
-/** A read-only mapped buffer based on ByteBuffer.*/
-class BBRomBuffer(val mapped: ByteBuffer): RomBuffer {
+/** A read-only buffer based on [ByteBuffer]. */
+class BBRomBuffer(private val buffer: ByteBuffer): RomBuffer {
     override var position: Long
-        get() = mapped.position().toLong()
-        set(value) = ignore(mapped.position(Ints.checkedCast(value)))
+        get() = buffer.position().toLong()
+        set(value) = ignore(buffer.position(Ints.checkedCast(value)))
 
-    override val order: ByteOrder get() = mapped.order()
+    override val order: ByteOrder get() = buffer.order()
 
     /**
      * Returns a new buffer sharing the data with its parent.
      *
      * @see ByteBuffer.duplicate for details.
      */
-    override fun duplicate() = BBRomBuffer(mapped.duplicate().apply {
-        order(mapped.order())
+    override fun duplicate() = BBRomBuffer(buffer.duplicate().apply {
+        order(buffer.order())
         position(Ints.checkedCast(position))
     })
 
     override fun close() { /* Do nothing */ }
 
     override fun asIntArray(size: Int) = IntArray(size).apply {
-        mapped.asIntBuffer().get(this)
-        mapped.position(mapped.position() + size * Ints.BYTES)
+        buffer.asIntBuffer().get(this)
+        buffer.position(buffer.position() + size * Ints.BYTES)
     }
 
     override fun asFloatArray(size: Int) = FloatArray(size).apply {
-        mapped.asFloatBuffer().get(this)
-        mapped.position(mapped.position() + size * Floats.BYTES)
+        buffer.asFloatBuffer().get(this)
+        buffer.position(buffer.position() + size * Floats.BYTES)
     }
 
-    override fun get(dst: ByteArray) { mapped.get(dst) }
+    override fun get(dst: ByteArray) { buffer.get(dst) }
 
-    override fun get() = mapped.get()
+    override fun get() = buffer.get()
 
-    override fun getShort() = mapped.getShort()
+    override fun getShort() = buffer.getShort()
 
-    override fun getInt() = mapped.getInt()
+    override fun getInt() = buffer.getInt()
 
-    override fun getLong() = mapped.getLong()
+    override fun getLong() = buffer.getLong()
 
-    override fun getFloat() = mapped.getFloat()
+    override fun getFloat() = buffer.getFloat()
 
-    override fun getDouble() = mapped.getDouble()
+    override fun getDouble() = buffer.getDouble()
 
-    override fun hasRemaining() = mapped.hasRemaining()
+    override fun hasRemaining() = buffer.hasRemaining()
 }
 
 /** A read-only mapped buffer which supports files > 2GB .*/
