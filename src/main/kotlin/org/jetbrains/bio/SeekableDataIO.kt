@@ -274,7 +274,7 @@ class MMBRomBuffer(val mapped: MMapBuffer,
                     Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
                                       uncompressedBuf, 0)
                 }
-                else -> impossible { "Unexpected compression: $compression" }
+                CompressionType.NO_COMPRESSION -> { impossible() }
             }
             val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
             BBRomBuffer(input.order(order))
@@ -419,7 +419,7 @@ class OrderedDataOutput(private val output: OutputStream,
                     ack(compressedSize)
                     uncompressedBuf.size
                 }
-                else -> impossible { "Unexpected compression: $compression" }
+                CompressionType.NO_COMPRESSION -> { impossible() }
             }
         }
     }

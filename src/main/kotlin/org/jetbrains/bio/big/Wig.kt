@@ -62,7 +62,7 @@ internal class WigIterator(reader: BufferedReader) : CachingIterator<WigSection>
                         "variableStep" -> state = State.VARIABLE_STEP
                         "fixedStep" -> state = State.FIXED_STEP
                         "browser" -> { /* Just ignore */ }
-                        else -> impossible  { "Unexpected section: $type" }
+                        else -> error("Unexpected section: $type")
                     }
 
                     if (state != State.WAITING) {
