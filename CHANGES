@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.4.0
 -------------
 
-Bugfix release, released on [Unreleased]
+Bugfix release, released on September 4th 2017
 
 Changed
 - Switch to Kotlin 1.1.x
@@ -28,7 +28,7 @@ Removed
 Version 0.3.6
 -------------
 
-Released on August 23th 2016
+Released on August 23th 2017
 
 - Added 'RomBuffer' caching for internal querying: Now if
   'BigWig.summarizeInternal' of nearby regions are called one by one,
@@ -42,7 +42,7 @@ Released on August 23th 2016
 Version 0.3.5
 -------------
 
-Bugfix release, released on March 28th 2016
+Bugfix release, released on March 28th 2017
 
 - Fixed summary semantics: Now for each intersected interval summary ‘sum’
   value is increased in "intersected nucleotides number" * "interval value"
