@@ -84,6 +84,8 @@ class BigBedFile private constructor(input: MMapBuffer,
         }
     }
 
+    override fun close() { memBuff.close() }
+
     companion object {
         /** Magic number used for determining [ByteOrder]. */
         internal val MAGIC = 0x8789F2EB.toInt()

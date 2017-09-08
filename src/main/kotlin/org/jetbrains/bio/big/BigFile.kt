@@ -33,7 +33,7 @@ abstract class BigFile<T> internal constructor(
         internal val header: Header,
         internal val zoomLevels: List<ZoomLevel>,
         internal val bPlusTree: BPlusTree,
-        internal val rTree: RTreeIndex) : Closeable, AutoCloseable {
+        internal val rTree: RTreeIndex) : Closeable {
 
     /** Whole-file summary. */
     val totalSummary: BigSummary by lazy(NONE) {
@@ -211,8 +211,6 @@ abstract class BigFile<T> internal constructor(
                                         dataOffset: Long, dataSize: Long,
                                         query: ChromosomeInterval,
                                         overlaps: Boolean): Sequence<T>
-
-    override fun close() {}
 
     internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 5,
                                val zoomLevelCount: Int = 0,

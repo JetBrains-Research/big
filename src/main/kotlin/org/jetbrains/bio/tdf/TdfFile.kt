@@ -40,7 +40,7 @@ data class TdfFile private constructor(
         /** Genome build, e.g. `"hg38"`. */
         val build: String,
         /** Whether the data sections are compressed with DEFLATE. */
-        val compressed: Boolean) : Closeable, AutoCloseable {
+        val compressed: Boolean) : Closeable {
 
     val version: Int get() = header.version
 

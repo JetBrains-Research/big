@@ -19,7 +19,7 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
 :
         BigFile<WigSection>(memBuffer, header, zoomLevels, bPlusTree, rTree) {
 
-    data class RomBufferState(val memBuffer: MMapBuffer?, val chrom: String,
+    data class RomBufferState(private val memBuffer: MMapBuffer?, val chrom: String,
                               val offset: Long, val size: Long) {
         fun match(memBuffer: MMapBuffer, chrom: String, offset: Long, size: Long) =
                 this.memBuffer != memBuffer || this.chrom != chrom
@@ -171,7 +171,7 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
 
     override fun close() {
         lastRomBuf.remove()
-        super.close()
+        memBuff.close()
     }
 
     companion object {
