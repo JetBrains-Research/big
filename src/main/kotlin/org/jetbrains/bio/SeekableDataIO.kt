@@ -123,7 +123,7 @@ class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffe
 }
 
 /** A read-only mapped buffer which supports files > 2GB .*/
-class MMBRomBuffer(val mapped: MMapBuffer,
+class MMBRomBuffer(private val mapped: MMapBuffer,
                    override var position: Long = 0,
                    limit: Long = mapped.memory().length()) : RomBuffer {
 
