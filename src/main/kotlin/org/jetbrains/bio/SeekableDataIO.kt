@@ -262,6 +262,8 @@ class MMBRomBuffer(val mapped: MMapBuffer,
                         val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
                         uncompressedSize += actual
                     }
+                    // Not obligatory, but let's left thread local variable in clean state
+                    inf.reset()
                 }
                 CompressionType.SNAPPY -> {
                     uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
