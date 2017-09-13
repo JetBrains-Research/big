@@ -10,7 +10,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.Channels
 import java.nio.channels.FileChannel
-import java.nio.channels.FileChannel.MapMode
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.zip.Deflater
@@ -279,11 +278,6 @@ class MMBRomBuffer(val mapped: MMapBuffer,
             val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
             BBRomBuffer(input.order(order))
         }
-    }
-
-    companion object {
-        operator fun invoke(path: Path, order: ByteOrder)
-                = MMBRomBuffer(MMapBuffer(path, MapMode.READ_ONLY, order))
     }
 }
 

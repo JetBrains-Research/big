@@ -1,11 +1,13 @@
 package org.jetbrains.bio.big
 
+import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
 import kotlin.test.assertEquals
@@ -35,7 +37,9 @@ class RTreeIndexTest {
                 RTreeIndex.write(it, emptyList())
             }
 
-            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
+                                                ByteOrder.nativeOrder())).use { input ->
+
                 val rti = RTreeIndex.read(input, 0L)
                 val query = Interval(0, 100, 200)
                 assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
@@ -80,7 +84,10 @@ class RTreeIndexTest {
             OrderedDataOutput(path).use {
                 RTreeIndex.write(it, leaves, blockSize)
             }
-            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+
+            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
+                                    ByteOrder.nativeOrder())).use { input ->
+
                 val rti = RTreeIndex.read(input, 0)
                 for (leaf in leaves) {
                     val overlaps = rti.findOverlappingBlocks(

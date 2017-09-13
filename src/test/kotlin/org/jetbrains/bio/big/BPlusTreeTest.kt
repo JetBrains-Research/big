@@ -1,12 +1,14 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
+import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.withTempFile
 import org.junit.Test
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.util.*
 import kotlin.test.assertEquals
@@ -56,7 +58,9 @@ class BPlusTreeTest {
 
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
-        MMBRomBuffer(Examples[example], ByteOrder.nativeOrder()).let { input ->
+
+        val order = ByteOrder.nativeOrder()
+        MMBRomBuffer(MMapBuffer(Examples[example], FileChannel.MapMode.READ_ONLY, order)).use { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -122,7 +126,8 @@ class BPlusTreeTest {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            MMBRomBuffer(path, ByteOrder.nativeOrder()).let { input ->
+            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
+                                    ByteOrder.nativeOrder())).use { input ->
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)

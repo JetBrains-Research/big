@@ -1,10 +1,12 @@
 package org.jetbrains.bio
 
+import com.indeed.util.mmap.MMapBuffer
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -24,7 +26,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeInt(i)
             it.writeLong(l)
         }
-        MMBRomBuffer(path, order).let {
+        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
             assertEquals(b, it.readByte())
             assertEquals(s.toShort(), it.readShort())
             assertEquals(i, it.readInt())
@@ -39,7 +41,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeFloat(f)
             it.writeDouble(d)
         }
-        MMBRomBuffer(path, order).let {
+        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
             assertEquals(f, it.readFloat())
             assertEquals(d, it.readDouble())
         }
@@ -53,7 +55,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeString(s, s.length + 8)
             it.skipBytes(16)
         }
-        MMBRomBuffer(path, order).let {
+        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
             assertEquals(s, it.readCString())
             val b = it.readBytes(s.length + 8)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
@@ -72,7 +74,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             }
         }
 
-        MMBRomBuffer(path, order).let {
+        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
             it.with(0, Files.size(path), compression) {
                 for (i in 0 until values.size) {
                     assertEquals(values[i], readInt())
@@ -87,11 +89,12 @@ class SeekableDataIOTest(private val order: ByteOrder,
             values.forEach { orderedDataOutput.writeInt(it) }
         }
 
-        val first = MMBRomBuffer(path, order)
-        first.readInt()
-        val second = first.duplicate()
+        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use { buffer ->
+            buffer.readInt()
+            val second = buffer.duplicate()
 
-        assertEquals(values[1], second.readInt())
+            assertEquals(values[1], second.readInt())
+        }
     }
 
     private inline fun withTempFileRandomized(block: (Path, Random) -> Unit) {
