@@ -222,10 +222,6 @@ class MMBRomBuffer(val mapped: MMapBuffer,
         return value
     }
 
-    // This is important to keep lazy, otherwise the GC will be trashed
-    // by a zillion of pending finalizers.
-    private val inf by ThreadLocal.withInitial { Inflater() }
-
     /**
      * Executes a `block` on a fixed-size possibly compressed input.
      *
@@ -278,6 +274,12 @@ class MMBRomBuffer(val mapped: MMapBuffer,
             val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
             BBRomBuffer(input.order(order))
         }
+    }
+
+    companion object {
+        // This is important to keep lazy, otherwise the GC will be trashed
+        // by a zillion of pending finalizers.
+        private val inf by ThreadLocal.withInitial { Inflater() }
     }
 }
 
