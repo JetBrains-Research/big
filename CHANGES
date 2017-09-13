@@ -3,6 +3,21 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.4.2
+-------------
+
+Bugfix release, released on September 13th 2017
+
+Fixed:
+- Memory leak in compressed (method: DEFLATE) files fixed.
+
+Changed:
+- Internal caching added for big bed files. Now both big wig and big bed
+  files will work faster if subsequent queries belongs to same block.
+  You can see cache misses info in logger TRACE mode after file has been
+  closed. Cached decompressed block will be different for each thread
+  (impl based on ThreadLocal storage)
+
 Version 0.4.1
 -------------
 
