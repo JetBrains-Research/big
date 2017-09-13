@@ -22,8 +22,8 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
     data class RomBufferState(private val memBuffer: MMapBuffer?, val chrom: String,
                               val offset: Long, val size: Long) {
         fun match(memBuffer: MMapBuffer, chrom: String, offset: Long, size: Long) =
-                this.memBuffer != memBuffer || this.chrom != chrom
-                        || this.offset != offset || this.size != size
+                this.memBuffer == memBuffer && this.chrom == chrom
+                        && this.offset == offset && this.size == size
     }
 
     override fun summarizeInternal(input: MMBRomBuffer,
@@ -73,7 +73,7 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
         val chrom = chromosomes[query.chromIx]
         var localRomBuf = lastRomBuf.get()
 
-        if (localRomBuf.first.match(memBuff, chrom, dataOffset, dataSize)) {
+        if (!localRomBuf.first.match(memBuff, chrom, dataOffset, dataSize)) {
             localRomBuf = Pair(RomBufferState(input.mapped, chrom, dataOffset, dataSize),
                               input.decompress(dataOffset, dataSize, compression))
             lastRomBuf.set(localRomBuf)
