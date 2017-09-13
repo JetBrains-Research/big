@@ -13,13 +13,14 @@ import java.util.*
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile private constructor(input: MMapBuffer,
+class BigBedFile private constructor(path: String,
+                                     input: MMapBuffer,
                                      header: BigFile.Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
                                      rTree: RTreeIndex)
 :
-        BigFile<BedEntry>(input, header, zoomLevels, bPlusTree, rTree) {
+        BigFile<BedEntry>(path, input, header, zoomLevels, bPlusTree, rTree) {
 
     override fun summarizeInternal(input: MMBRomBuffer,
                                    query: ChromosomeInterval,
@@ -60,17 +61,18 @@ class BigBedFile private constructor(input: MMapBuffer,
         return (overlaps && interval intersects this) || interval in this
     }
 
-    override fun queryInternal(input: MMBRomBuffer,
-                               dataOffset: Long, dataSize: Long,
+    override fun queryInternal(decompressedBlock: RomBuffer,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<BedEntry> {
+
         val chrom = chromosomes[query.chromIx]
-        return input.with(dataOffset, dataSize, compression) {
+
+        return with(decompressedBlock) {
             val chunk = ArrayList<BedEntry>()
             do {
                 val chromIx = readInt()
                 assert(chromIx == query.chromIx) {
-                    "interval contains wrong chromosome $chromIx, expected ${query.chromIx}"
+                    "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, file: $path"
                 }
                 val startOffset = readInt()
                 val endOffset = readInt()
@@ -84,7 +86,10 @@ class BigBedFile private constructor(input: MMapBuffer,
         }
     }
 
-    override fun close() { memBuff.close() }
+    override fun close() {
+        memBuff.close()
+        super.close()
+    }
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
@@ -101,7 +106,8 @@ class BigBedFile private constructor(input: MMapBuffer,
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-            return BigBedFile(memBuffer, header, zoomLevels, bPlusTree, rTree)
+            return BigBedFile(path.toAbsolutePath().toString(),
+                              memBuffer, header, zoomLevels, bPlusTree, rTree)
         }
 
         private class BedEntrySummary {

@@ -6,6 +6,7 @@ import com.indeed.util.mmap.MMapBuffer
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
+import org.apache.commons.math3.util.Precision
 import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
 import java.io.Closeable
@@ -16,6 +17,7 @@ import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.LazyThreadSafetyMode.NONE
 
 /**
@@ -29,6 +31,7 @@ import kotlin.LazyThreadSafetyMode.NONE
  *      compressed data blocks
  */
 abstract class BigFile<T> internal constructor(
+        internal val path: String,
         internal val memBuff: MMapBuffer,
         internal val header: Header,
         internal val zoomLevels: List<ZoomLevel>,
@@ -73,6 +76,17 @@ abstract class BigFile<T> internal constructor(
     }
 
     /**
+     * Internal caching Statistics: Counter for case when cached decompressed block
+     * differs from desired
+     */
+    private val blockCacheMisses = AtomicLong()
+    /**
+     * Internal caching Statistics: Counter for case when cached decompressed block
+     * matches desired
+     */
+    private val blockCacheIns = AtomicLong()
+
+    /**
      * Splits the interval `[startOffset, endOffset)` into `numBins`
      * non-intersecting sub-intervals (aka bins) and computes a summary
      * of the data values for each bin.
@@ -98,7 +112,7 @@ abstract class BigFile<T> internal constructor(
 
         require(numBins <= query.length()) {
             "number of bins must not exceed interval length, got " +
-            "$numBins > ${query.length()}"
+            "$numBins > ${query.length()}, file $path"
         }
 
         // The 2-factor guarantees that we get at least two data points
@@ -134,7 +148,9 @@ abstract class BigFile<T> internal constructor(
         val zoomData = zRTree.findOverlappingBlocks(input, query)
                 .flatMap { (_ /* interval */, offset, size) ->
                     assert(!compression.absent || size % ZoomData.SIZE == 0L)
-                    input.with(offset, size, compression) {
+
+                    val chrom = chromosomes[query.chromIx]
+                    with(decompressAndCacheBlock(input, chrom, offset, size)) {
                         val res = ArrayList<ZoomData>()
                         do {
                             val zoomData = ZoomData.read(this)
@@ -202,15 +218,48 @@ abstract class BigFile<T> internal constructor(
     }
 
     internal fun query(input: MMBRomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
+        val chrom = chromosomes[query.chromIx]
         return rTree.findOverlappingBlocks(input, query)
-                .flatMap { queryInternal(input, it.dataOffset, it.dataSize, query, overlaps) }
+                .flatMap { (_, dataOffset, dataSize) ->
+                    queryInternal(decompressAndCacheBlock(input, chrom, dataOffset, dataSize),
+                                  query, overlaps)
+                }
+    }
+
+    private fun decompressAndCacheBlock(input: MMBRomBuffer,
+                                        chrom: String,
+                                        dataOffset: Long, dataSize: Long): RomBuffer {
+        var stateAndBlock = lastCachedBlockInfo.get()
+
+        val newState = RomBufferState(memBuff, dataOffset, dataSize, chrom)
+        if (stateAndBlock.first != newState) {
+            stateAndBlock = newState to input.decompress(dataOffset, dataSize, compression)
+            lastCachedBlockInfo.set(stateAndBlock)
+
+            blockCacheMisses.incrementAndGet()
+        } else {
+            blockCacheIns.incrementAndGet()
+        }
+
+        // we reuse block, so let's path duplicate to reader
+        return stateAndBlock.second!!.duplicate()
     }
 
     @Throws(IOException::class)
-    internal abstract fun queryInternal(input: MMBRomBuffer,
-                                        dataOffset: Long, dataSize: Long,
+    internal abstract fun queryInternal(decompressedBlock: RomBuffer,
                                         query: ChromosomeInterval,
                                         overlaps: Boolean): Sequence<T>
+
+    override fun close() {
+        lastCachedBlockInfo.remove()
+
+        val m = blockCacheMisses.get()
+        val n = m + blockCacheIns.get()
+
+        LOG.trace("BigFile closed: Cache misses ${Precision.round(100.0 * m / n, 1)}% ($m of $n), " +
+                          "file: : $path ")
+
+    }
 
     internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 5,
                                val zoomLevelCount: Int = 0,
@@ -269,8 +318,16 @@ abstract class BigFile<T> internal constructor(
         }
     }
 
+    private data class RomBufferState(private val memBuffer: MMapBuffer?,
+                                      val offset: Long, val size: Long,
+                                      val chrom: String)
+
     companion object {
         private val LOG = LogManager.getLogger(BigFile::class.java)
+
+        private val lastCachedBlockInfo: ThreadLocal<Pair<RomBufferState, RomBuffer?>> = ThreadLocal.withInitial {
+            RomBufferState(null, 0L, 0L, "") to null
+        }
 
         /**
          * Magic specifies file format and bytes order. Let's read magic as little endian.
@@ -293,7 +350,8 @@ abstract class BigFile<T> internal constructor(
             val (valid, byteOrder) = guess(magic, leMagic)
             check(valid) {
                 val bigMagic = java.lang.Integer.reverseBytes(magic)
-                "Unexpected header leMagic: Actual $leMagic doesn't match expected LE=$magic and BE=$bigMagic}"
+                "Unexpected header leMagic: Actual $leMagic doesn't match expected LE=$magic and BE=$bigMagic}," +
+                        " file: $path"
             }
             return byteOrder
         }

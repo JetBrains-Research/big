@@ -11,20 +11,14 @@ import java.util.*
 /**
  * Bigger brother of the good-old WIG format.
  */
-class BigWigFile private constructor(memBuffer: MMapBuffer,
+class BigWigFile private constructor(path: String,
+                                     memBuffer: MMapBuffer,
                                      header: Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
                                      rTree: RTreeIndex)
 :
-        BigFile<WigSection>(memBuffer, header, zoomLevels, bPlusTree, rTree) {
-
-    data class RomBufferState(private val memBuffer: MMapBuffer?, val chrom: String,
-                              val offset: Long, val size: Long) {
-        fun match(memBuffer: MMapBuffer, chrom: String, offset: Long, size: Long) =
-                this.memBuffer == memBuffer && this.chrom == chrom
-                        && this.offset == offset && this.size == size
-    }
+        BigFile<WigSection>(path, memBuffer, header, zoomLevels, bPlusTree, rTree) {
 
     override fun summarizeInternal(input: MMBRomBuffer,
                                    query: ChromosomeInterval,
@@ -66,22 +60,16 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
         return (overlaps && interval intersects this) || interval in this
     }
 
-    override fun queryInternal(input: MMBRomBuffer,
-                               dataOffset: Long, dataSize: Long,
+    override fun queryInternal(decompressedBlock: RomBuffer,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<WigSection> {
         val chrom = chromosomes[query.chromIx]
-        var localRomBuf = lastRomBuf.get()
 
-        if (!localRomBuf.first.match(memBuff, chrom, dataOffset, dataSize)) {
-            localRomBuf = Pair(RomBufferState(input.mapped, chrom, dataOffset, dataSize),
-                              input.decompress(dataOffset, dataSize, compression))
-            lastRomBuf.set(localRomBuf)
-        }
-
-        return sequenceOf(with(localRomBuf.second!!.duplicate()) {
+        return sequenceOf(with(decompressedBlock) {
             val chromIx = readInt()
-            check(chromIx == query.chromIx, { "chromosome expected: ${query.chromIx}, found: $chromIx" })
+            check(chromIx == query.chromIx, {
+                "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, file: $path"
+            })
             val start = readInt()
             readInt()   // end.
             val step = readInt()
@@ -170,17 +158,13 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
     }
 
     override fun close() {
-        lastRomBuf.remove()
         memBuff.close()
+        super.close()
     }
 
     companion object {
         /** Magic number used for determining [ByteOrder]. */
         internal val MAGIC = 0x888FFC26.toInt()
-
-        private val lastRomBuf: ThreadLocal<Pair<RomBufferState, RomBuffer?>> = ThreadLocal.withInitial {
-            RomBufferState(null,"", 0L, 0L) to null
-        }
 
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path): BigWigFile {
@@ -192,7 +176,9 @@ class BigWigFile private constructor(memBuffer: MMapBuffer,
                     .map { ZoomLevel.read(input) }
             val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
             val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-            return BigWigFile(memBuffer, header, zoomLevels, bPlusTree, rTree)
+
+            return BigWigFile(path.toAbsolutePath().toString(),
+                              memBuffer, header, zoomLevels, bPlusTree, rTree)
         }
 
         private class WigSectionSummary {
