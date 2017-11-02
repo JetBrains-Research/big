@@ -1,9 +1,11 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
+import com.google.common.primitives.Ints
 import com.google.common.primitives.Shorts
 import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
+import java.awt.Color
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
@@ -154,6 +156,7 @@ class BigBedFile private constructor(path: String,
          *                       Defaults to `8`.
          * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
+         * @param fieldsNumber Number of bed fields to serialize (3..12)
          * @@throws IOException if any of the read or write operations failed.
          */
         @Throws(IOException::class)
@@ -163,7 +166,10 @@ class BigBedFile private constructor(path: String,
                 outputPath: Path,
                 itemsPerSlot: Int = 1024, zoomLevelCount: Int = 8,
                 compression: CompressionType = CompressionType.SNAPPY,
-                order: ByteOrder = ByteOrder.nativeOrder()) {
+                order: ByteOrder = ByteOrder.nativeOrder(),
+                fieldsNumber: Byte = 12) {
+
+            check(fieldsNumber in 3..12) { "Fields number should be in 3..12 range"}
             val summary = BedEntrySummary().apply { bedEntries.forEach { this(it) } }
 
             val header = OrderedDataOutput(outputPath, order).use { output ->
@@ -181,6 +187,8 @@ class BigBedFile private constructor(path: String,
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
+
+                val buff = StringBuilder()
                 for ((chrName, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
                     val chromIx = resolver[chrName]
                     if (chromIx == null) {
@@ -189,16 +197,63 @@ class BigBedFile private constructor(path: String,
                     }
 
                     val it = items.iterator()
+
                     while (it.hasNext()) {
                         val dataOffset = output.tell()
                         var leafStart = 0
                         var leafEnd = 0
                         val current = output.with(compression) {
-                            for ((_, start, end, name, score, strand, rest) in it.asSequence().take(itemsPerSlot)) {
+                            for ((_, start, end, name, score, strand,
+                                    thickStart, thickEnd, itemRgb, rest) in it.asSequence().take(itemsPerSlot)) {
                                 writeInt(chromIx)
                                 writeInt(start)
                                 writeInt(end)
-                                writeString("$name\t$score\t$strand\t$rest")
+
+                                // Let's fill buffer lazy, src not very pretty
+                                // but it avoid extra operations when not needed
+                                // alternative - put all properties to list and add
+                                // to buffer sublist of decent size.
+                                buff.setLength(0)
+                                if (fieldsNumber >= 4) {
+                                    buff.append(name)
+
+                                    if (fieldsNumber >= 5) {
+                                        buff.append("\t$score")
+
+                                        if (fieldsNumber >= 6) {
+                                            buff.append("\t$strand")
+
+                                            if (fieldsNumber >= 7) {
+                                                buff.append("\t$thickStart")
+
+                                                if (fieldsNumber >= 8) {
+                                                    buff.append("\t$thickEnd")
+
+                                                    if (fieldsNumber >= 9) {
+                                                        if (itemRgb == 0) {
+                                                            buff.append("\t0")
+                                                        } else {
+                                                            val c = Color(itemRgb)
+                                                            buff.append("\t${Ints.join(",", c.red, c.green,
+                                                                                       c.blue)}")
+                                                        }
+
+                                                        if (fieldsNumber >= 10) {
+                                                            val restNum = fieldsNumber - 10 + 1
+                                                            val chunks = rest.split('\t',
+                                                                                    limit = restNum).iterator()
+                                                            while (chunks.hasNext()) {
+                                                                buff.append('\t').append(chunks.next())
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                writeString(buff.toString())
                                 writeByte(0)  // NUL-terminated.
 
                                 leafStart = Math.min(leafStart, start)
@@ -286,7 +341,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
                     val item = event.item
                     res.add(BedEntry(item.chrom, left, event.offset,
                                      item.name, Shorts.checkedCast(current.toLong()),
-                                     item.strand, item.rest))
+                                     item.strand, item.thickStart, item.thickEnd, item.itemRgb, item.rest))
 
                     left = event.offset
                 }

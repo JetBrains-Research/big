@@ -5,6 +5,7 @@ import org.jetbrains.bio.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import java.awt.Color
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
@@ -20,12 +21,12 @@ class BigBedFileTest {
     @Test fun bed9Format() {
         BigBedFile.read(Examples["bed9.bb"]).use { bb ->
             val items = bb.query("chr1").toList()
-            assertEquals(
-                    "BedEntry(chrom=chr1, start=0, end=9800, name=15_Quies, score=0, strand=., rest=0\t9800\t255,255,255)",
-                    items.first().toString())
-            assertEquals(
-                    "BedEntry(chrom=chr1, start=724000, end=727200, name=8_ZNF/Rpts, score=0, strand=., rest=724000\t727200\t102,205,170)",
-                    items.last().toString())
+            assertEquals(BedEntry("chr1", 0, 9800, "15_Quies", 0, '.',
+                                  0, 9800, Color(255, 255, 255).rgb),
+                         items.first())
+            assertEquals(BedEntry("chr1", 724000, 727200, "8_ZNF/Rpts", 0, '.',
+                                  724000, 727200, Color(102,205,170).rgb),
+                         items.last())
         }
     }
 
@@ -275,15 +276,121 @@ class BigBedReadWriteTest(private val order: ByteOrder,
         }
     }
 
+    @Test fun testWriteReadBed12() {
+        withTempFile("example.bed12", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["example.bed12.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+                assertEquals(bedEntries.last(),
+                             BedEntry("chr21", 9480532, 9481699, "Neg4",
+                                      0, '-', 9480532, 9481699,
+                                      Color(0, 0, 255).rgb,
+                                      "2\t933,399,\t0,9601"))
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed12NoColor() {
+        withTempFile("bed12.nocolor", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["bed12.nocolor.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+                assertEquals(bedEntries.last(),
+                             BedEntry("chr21", 2000, 6000, "cloneB",
+                                      900, '-', 2000, 6000,
+                                      0, "2\t433,399,\t0,3601"))
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed9() {
+        withTempFile("example.bed9", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed6() {
+        withTempFile("example", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed12As9() {
+        withTempFile("example", ".bb") { path ->
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).toList()
+            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order, fieldsNumber = 9)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed12As6() {
+        withTempFile("example", ".bb") { path ->
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).toList()
+            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order, fieldsNumber = 6)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries,
+                             bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testWriteReadBed12As3() {
+        withTempFile("example", ".bb") { path ->
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed3.bed"]).toList()
+            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order, fieldsNumber = 3)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
     companion object {
         @Parameterized.Parameters(name = "{0}:{1}")
         @JvmStatic fun data(): Iterable<Array<Any>> {
-            return listOf(arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY))
+            return listOf(
+                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
+                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
+                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
+                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
+                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
+                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY)
+            )
         }
     }
 }
