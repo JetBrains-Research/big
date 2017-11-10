@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.5.1
+-------------
+
+Released on November 10th 2017
+
+Changed
+- "AutoSQL queries are unsupported" warning turn off, see issue #7
+
 Version 0.5.0
 -------------
 

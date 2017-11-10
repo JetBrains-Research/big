@@ -305,7 +305,7 @@ abstract class BigFile<T> internal constructor(
                 val extendedHeaderOffset = readLong()
 
                 when {
-                    asOffset > 0 -> LOG.warn("AutoSQL queries are unsupported")
+                    // asOffset > 0 -> LOG.trace("AutoSQL queries are unsupported")
                     extendedHeaderOffset > 0 -> LOG.warn("Header extensions are unsupported")
                 }
 
