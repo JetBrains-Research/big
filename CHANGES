@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.5.2
+-------------
+
+Released on ..
+
+Fixed
+- "java.lang.IllegalArgumentException: n must be >0", see issue #34
+
 Version 0.5.1
 -------------
 

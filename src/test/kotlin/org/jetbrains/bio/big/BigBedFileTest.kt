@@ -214,6 +214,22 @@ class BigBedFileTest {
     companion object {
         private val RANDOM = Random()
     }
+
+    @Test fun testWriteReadZoomOverflow() {
+        withTempFile("example1", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["reduction_overflow.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path,
+                             zoomLevelCount = 20)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries,
+                             bbf.query("chr2", 0, 0).toList()
+                                     + bbf.query("chr22", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
 }
 
 @RunWith(Parameterized::class)

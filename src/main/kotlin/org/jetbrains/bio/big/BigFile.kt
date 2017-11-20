@@ -416,7 +416,7 @@ abstract class BigFile<T> internal constructor(
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = initial
                     for (level in 0 until bf.zoomLevels.size) {
-                        val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot)
+                        val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot, reduction / step)
                         if (zoomLevel == null) {
                             LOG.trace("${reduction}x reduction rejected")
                             break
@@ -426,6 +426,11 @@ abstract class BigFile<T> internal constructor(
                         }
 
                         reduction *= step
+
+                        if (reduction < 0) {
+                            LOG.trace("Reduction overflow ($reduction) at level $level, next levels ignored")
+                            break
+                        }
                     }
                 }
 
@@ -440,13 +445,18 @@ abstract class BigFile<T> internal constructor(
         }
 
         private fun Int.zoomAt(bf: BigFile<*>, output: OrderedDataOutput,
-                               itemsPerSlot: Int): ZoomLevel? {
+                               itemsPerSlot: Int, prevLevelReduction: Int): ZoomLevel? {
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
             val input = MMBRomBuffer(bf.memBuff)
             for ((_/* name */, chromIx, size) in bf.bPlusTree.traverse(input)) {
                 val query = Interval(chromIx, 0, size)
+
+                if (prevLevelReduction > size) {
+                    // chromosome already covered by 1 bin at prev level
+                    continue
+                }
 
                 // We can re-use pre-computed zooms, but preliminary
                 // results suggest this doesn't give a noticeable speedup.
