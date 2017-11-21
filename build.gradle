@@ -1,7 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.1.51'
-    // See https://youtrack.jetbrains.com/issue/KT-21369
-    // ext.kotlin_version = '1.1.+'
+    ext.kotlin_version = '1.1.+'
 
     repositories {
         jcenter()
@@ -9,6 +7,8 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // See https://youtrack.jetbrains.com/issue/KT-21369
+        classpath "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:0.9.8"
     }
 }
