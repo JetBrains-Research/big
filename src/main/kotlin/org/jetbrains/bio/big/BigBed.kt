@@ -1,11 +1,8 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
-import com.google.common.primitives.Ints
-import com.google.common.primitives.Shorts
 import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
-import java.awt.Color
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
@@ -32,7 +29,7 @@ class BigBedFile private constructor(path: String,
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
             for (j in edge until coverage.size) {
-                val bedEntry = coverage[j]
+                val (bedEntry, score) = coverage[j]
                 if (bedEntry.end <= bin.startOffset) {
                     edge = j + 1
                     continue
@@ -42,7 +39,7 @@ class BigBedFile private constructor(path: String,
 
                 val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
-                    summary.update(bedEntry.score.toDouble(),
+                    summary.update(score.toDouble(),
                                    interval.intersectionLength(bin))
                 }
             }
@@ -156,7 +153,6 @@ class BigBedFile private constructor(path: String,
          *                       Defaults to `8`.
          * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
-         * @param fieldsNumber Number of bed fields to serialize (3..12)
          * @@throws IOException if any of the read or write operations failed.
          */
         @Throws(IOException::class)
@@ -166,10 +162,8 @@ class BigBedFile private constructor(path: String,
                 outputPath: Path,
                 itemsPerSlot: Int = 1024, zoomLevelCount: Int = 8,
                 compression: CompressionType = CompressionType.SNAPPY,
-                order: ByteOrder = ByteOrder.nativeOrder(),
-                fieldsNumber: Byte = 12) {
+                order: ByteOrder = ByteOrder.nativeOrder()) {
 
-            check(fieldsNumber in 3..12) { "Fields number should be in 3..12 range"}
             val summary = BedEntrySummary().apply { bedEntries.forEach { this(it) } }
 
             val header = OrderedDataOutput(outputPath, order).use { output ->
@@ -188,7 +182,6 @@ class BigBedFile private constructor(path: String,
                 val leaves = ArrayList<RTreeIndexLeaf>()
                 var uncompressBufSize = 0
 
-                val buff = StringBuilder()
                 for ((chrName, items) in bedEntries.asSequence().groupingBy { it.chrom }) {
                     val chromIx = resolver[chrName]
                     if (chromIx == null) {
@@ -203,57 +196,11 @@ class BigBedFile private constructor(path: String,
                         var leafStart = 0
                         var leafEnd = 0
                         val current = output.with(compression) {
-                            for ((_, start, end, name, score, strand,
-                                    thickStart, thickEnd, itemRgb, rest) in it.asSequence().take(itemsPerSlot)) {
+                            for ((_, start, end, rest) in it.asSequence().take(itemsPerSlot)) {
                                 writeInt(chromIx)
                                 writeInt(start)
                                 writeInt(end)
-
-                                // Let's fill buffer lazy, src not very pretty
-                                // but it avoid extra operations when not needed
-                                // alternative - put all properties to list and add
-                                // to buffer sublist of decent size.
-                                buff.setLength(0)
-                                if (fieldsNumber >= 4) {
-                                    buff.append(name)
-
-                                    if (fieldsNumber >= 5) {
-                                        buff.append("\t$score")
-
-                                        if (fieldsNumber >= 6) {
-                                            buff.append("\t$strand")
-
-                                            if (fieldsNumber >= 7) {
-                                                buff.append("\t$thickStart")
-
-                                                if (fieldsNumber >= 8) {
-                                                    buff.append("\t$thickEnd")
-
-                                                    if (fieldsNumber >= 9) {
-                                                        if (itemRgb == 0) {
-                                                            buff.append("\t0")
-                                                        } else {
-                                                            val c = Color(itemRgb)
-                                                            buff.append("\t${Ints.join(",", c.red, c.green,
-                                                                                       c.blue)}")
-                                                        }
-
-                                                        if (fieldsNumber >= 10) {
-                                                            val restNum = fieldsNumber - 10 + 1
-                                                            val chunks = rest.split('\t',
-                                                                                    limit = restNum).iterator()
-                                                            while (chunks.hasNext()) {
-                                                                buff.append('\t').append(chunks.next())
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                writeString(buff.toString())
+                                writeString(rest)
                                 writeByte(0)  // NUL-terminated.
 
                                 leafStart = Math.min(leafStart, start)
@@ -312,7 +259,7 @@ private val END = 0    // must be before start.
 private val START = 1
 
 /** Computes intervals of uniform coverage. */
-internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
+internal fun Sequence<BedEntry>.aggregate(): List<Pair<BedEntry, Int>> {
     val events = flatMap {
         sequenceOf(AggregationEvent(it.start, START, it),
                    AggregationEvent(it.end, END, it))
@@ -322,7 +269,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
 
     var current = 0
     var left = 0
-    val res = ArrayList<BedEntry>()
+    val res = ArrayList<Pair<BedEntry, Int>>()
     for ((i, event) in events.withIndex()) {
         when {
             event.type == START -> {
@@ -337,11 +284,11 @@ internal fun Sequence<BedEntry>.aggregate(): List<BedEntry> {
                 // Produce a single aggregate for duplicate intervals.
                 // For ease of use we abuse the semantics of the
                 // '#score' field in 'BedEntry'.
+                // This method is required for coverage summarising, so
+                // additional fields after '#score' not used, let's skip them
                 if (event.offset > left) {
                     val item = event.item
-                    res.add(BedEntry(item.chrom, left, event.offset,
-                                     item.name, Shorts.checkedCast(current.toLong()),
-                                     item.strand, item.thickStart, item.thickEnd, item.itemRgb, item.rest))
+                    res.add(BedEntry(item.chrom, left, event.offset, "") to current)
 
                     left = event.offset
                 }

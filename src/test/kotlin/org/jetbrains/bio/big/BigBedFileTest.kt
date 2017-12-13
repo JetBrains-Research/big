@@ -21,12 +21,12 @@ class BigBedFileTest {
     @Test fun bed9Format() {
         BigBedFile.read(Examples["bed9.bb"]).use { bb ->
             val items = bb.query("chr1").toList()
-            assertEquals(BedEntry("chr1", 0, 9800, "15_Quies", 0, '.',
-                                  0, 9800, Color(255, 255, 255).rgb),
-                         items.first())
-            assertEquals(BedEntry("chr1", 724000, 727200, "8_ZNF/Rpts", 0, '.',
-                                  724000, 727200, Color(102,205,170).rgb),
-                         items.last())
+            assertEquals(ExtendedBedEntry("chr1", 0, 9800, "15_Quies", 0, '.',
+                                          0, 9800, Color(255, 255, 255).rgb),
+                         items.first().unpack())
+            assertEquals(ExtendedBedEntry("chr1", 724000, 727200, "8_ZNF/Rpts", 0, '.',
+                                          724000, 727200, Color(102, 205, 170).rgb),
+                         items.last().unpack())
         }
     }
 
@@ -97,27 +97,27 @@ class BigBedFileTest {
     }
 
     @Test fun testAggregate() {
-        assertEquals(emptyList<BedEntry>(), emptySequence<BedEntry>().aggregate())
-        assertEquals(listOf(BedEntry("chr1", 0, 100, "", 1, '.')),
+        assertEquals(emptyList<Pair<BedEntry, Int>>(), emptySequence<BedEntry>().aggregate())
+        assertEquals(listOf(BedEntry("chr1", 0, 100, "") to 1),
                      sequenceOf(BedEntry("chr1", 0, 100)).aggregate())
 
         // Duplicate intervals.
-        assertEquals(listOf(BedEntry("chr1", 0, 100, "", 2, '.')),
+        assertEquals(listOf(BedEntry("chr1", 0, 100, "") to 2),
                      sequenceOf(BedEntry("chr1", 0, 100),
                                 BedEntry("chr1", 0, 100)).aggregate())
         // Consecutive intervals.
-        assertEquals(listOf(BedEntry("chr1", 0, 100, "", 2, '.'),
-                            BedEntry("chr1", 100, 110, "", 1, '.')),
+        assertEquals(listOf(BedEntry("chr1", 0, 100, "") to 2,
+                            BedEntry("chr1", 100, 110, "") to 1),
                      sequenceOf(BedEntry("chr1", 0, 100),
                                 BedEntry("chr1", 0, 110)).aggregate())
         // Disjoint intervals.
-        assertEquals(listOf(BedEntry("chr1", 0, 100, "", 1, '.'),
-                            BedEntry("chr1", 200, 300, "", 1, '.')),
+        assertEquals(listOf(BedEntry("chr1", 0, 100, "") to 1,
+                            BedEntry("chr1", 200, 300, "") to 1),
                      sequenceOf(BedEntry("chr1", 0, 100),
                                 BedEntry("chr1", 200, 300)).aggregate())
         // Shifted intervals.
-        assertEquals(listOf(BedEntry("chr1", 100, 200, "", 1, '.'),
-                            BedEntry("chr1", 200, 300, "", 1, '.')),
+        assertEquals(listOf(BedEntry("chr1", 100, 200, "") to 1,
+                            BedEntry("chr1", 200, 300, "") to 1),
                      sequenceOf(BedEntry("chr1", 100, 200),
                                 BedEntry("chr1", 200, 300)).aggregate())
     }
@@ -202,10 +202,10 @@ class BigBedFileTest {
             BigBedFile.read(path).use { bbf ->
                 val aggregate = bedEntries.asSequence().aggregate()
                 val summaries = bbf.summarize(name, 0, 0, numBins)
-                assertEquals(aggregate.map { it.end - it.start }.sum().toLong(),
+                assertEquals(aggregate.map { (e, _) -> e.end - e.start }.sum().toLong(),
                              summaries.map { it.count }.sum())
 
-                assertEquals(aggregate.map { it.score.toLong() * (it.end - it.start) }.sum(),
+                assertEquals(aggregate.map { (e, cov) -> cov.toLong() * (e.end - e.start) }.sum(),
                              summaries.map { it.sum }.sum().toLong())
             }
         }
@@ -226,6 +226,65 @@ class BigBedFileTest {
                 assertEquals(bedEntries,
                              bbf.query("chr2", 0, 0).toList()
                                      + bbf.query("chr22", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testBedPlusBedAllFields() {
+        withTempFile("example1", ".bb") { path ->
+            val bedEntries = listOf(
+                    ExtendedBedEntry("chr1", 1, 100, ".", 0, '+',
+                                     15, 25,
+                                     Color(15, 16, 17).rgb, 2, intArrayOf(4, 5), intArrayOf(11, 20),
+                                     extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")),
+                    ExtendedBedEntry("chr1", 200, 300, ".", 800, '.',
+                                     20, 22,
+                                     0, 0,
+                                     extraFields = arrayOf("193.07668", "-1.00000", "4.91755", "171"))
+            ).map { it.pack() }
+            BigBedFile.write(bedEntries,
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(
+                        bedEntries,
+                        bbf.query("chr1", 0, 0).toList()
+                )
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testBedPlusBed3p4() {
+        withTempFile("example1", ".bb") { path ->
+            val bedEntries = listOf(
+                    BedEntry("chr1", 1, 100,
+                             rest = "34.56398\t-1.00000\t4.91755\t240"),
+                    BedEntry("chr1", 200, 300,
+                             rest = "193.07668\t-1.00000\t4.91755\t171")
+            )
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path
+            )
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr1", 0, 0).toList())
+                assertFalse(bbf.totalSummary.isEmpty())
+            }
+        }
+    }
+
+    @Test fun testBedPlusBed6p4() {
+        withTempFile("example1", ".bb") { path ->
+            val bedEntries = BedFile.read(Examples["bed6p4.bed"]).toList()
+            BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path
+            )
+
+            BigBedFile.read(path).use { bbf ->
+                assertEquals(bedEntries,
+                             bbf.query("chr1", 0, 0).toList())
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -301,11 +360,11 @@ class BigBedReadWriteTest(private val order: ByteOrder,
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
                 assertFalse(bbf.totalSummary.isEmpty())
-                assertEquals(bedEntries.last(),
-                             BedEntry("chr21", 9480532, 9481699, "Neg4",
-                                      0, '-', 9480532, 9481699,
-                                      Color(0, 0, 255).rgb,
-                                      "2\t933,399,\t0,9601"))
+                assertEquals(bedEntries.last().unpack(),
+                             ExtendedBedEntry("chr21", 9480532, 9481699, "Neg4",
+                                              0, '-', 9480532, 9481699,
+                                              Color(0, 0, 255).rgb,
+                                              2, intArrayOf(933,399), intArrayOf(0, 9601)))
             }
         }
     }
@@ -319,10 +378,10 @@ class BigBedReadWriteTest(private val order: ByteOrder,
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
                 assertFalse(bbf.totalSummary.isEmpty())
-                assertEquals(bedEntries.last(),
-                             BedEntry("chr21", 2000, 6000, "cloneB",
-                                      900, '-', 2000, 6000,
-                                      0, "2\t433,399,\t0,3601"))
+                assertEquals(bedEntries.last().unpack(),
+                             ExtendedBedEntry("chr21", 2000, 6000, "cloneB",
+                                              900, '-', 2000, 6000, 0,
+                                              2, intArrayOf(433, 399), intArrayOf(0, 3601)))
             }
         }
     }
@@ -357,8 +416,9 @@ class BigBedReadWriteTest(private val order: ByteOrder,
         withTempFile("example", ".bb") { path ->
             val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
             val bedEntries = BedFile.read(Examples["example.bed9.bed"]).toList()
-            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
-                             path, compression = compression, order = order, fieldsNumber = 9)
+            BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 9) },
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
 
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
@@ -371,8 +431,9 @@ class BigBedReadWriteTest(private val order: ByteOrder,
         withTempFile("example", ".bb") { path ->
             val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
             val bedEntries = BedFile.read(Examples["example.bed6.bed"]).toList()
-            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
-                             path, compression = compression, order = order, fieldsNumber = 6)
+            BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 6) },
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
 
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries,
@@ -386,8 +447,9 @@ class BigBedReadWriteTest(private val order: ByteOrder,
         withTempFile("example", ".bb") { path ->
             val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
             val bedEntries = BedFile.read(Examples["example.bed3.bed"]).toList()
-            BigBedFile.write(bed12Entries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
-                             path, compression = compression, order = order, fieldsNumber = 3)
+            BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 3) },
+                             Examples["hg19.chrom.sizes.gz"].chromosomes(),
+                             path, compression = compression, order = order)
 
             BigBedFile.read(path).use { bbf ->
                 assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())

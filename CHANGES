@@ -3,6 +3,31 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.6.0
+-------------
+
+Released on December 13th 2017
+
+Fixed
+- Issue #33: Encode *.bigBed files: NumberFormatException: For input
+string: "5.30862042004096
+
+Changed
+- `org.jetbrains.bio.big.BedEntry` now is minimal bed entry impl and
+represents same info as records in bed file. Obligatory fields are
+chromosome, start, end, all other fields stored as '\t' separated string.
+`BedEntry.unpack()` allow to parse as BED+ format to `ExtendedBedEntry`
+which contain all BED12 fields plus optional extended fields.
+'ExtendedBedEntry.pack()' allows to pack back to minimal
+representation.
+- Switched to Kotlin 1.2
+- Source compatibility updated to Java 8
+
+Removed:
+- In class `org.jetbrains.bio.big.BedEntry` removed all fields except
+'chrom', 'start', 'end', 'rest'
+
+
 Version 0.5.2
 -------------
 
