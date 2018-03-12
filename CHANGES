@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.5.3
+-------------
+
+Released on March 13th 2018
+
+Improved
+- Show less warnings like "R+ tree leaves are overlapping", see issue #35
+
 Version 0.5.2
 -------------
 
