@@ -248,11 +248,16 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                                   blockSize: Int): List<List<Interval>> {
             var intervals = leaves.map { it.interval }
             if (LOG.isEnabledFor(Level.WARN)) {
+                var containsIntersectedIntervalse = false
                 for (i in 1 until intervals.size) {
                     if (intervals[i] intersects intervals[i - 1]) {
-                        LOG.warn("R+ tree leaves are overlapping: " +
+                        containsIntersectedIntervalse = true
+                        LOG.debug("R+ tree leaves are overlapping: " +
                                  "${intervals[i]} ^ ${intervals[i - 1]}")
                     }
+                }
+                if (containsIntersectedIntervalse) {
+                    LOG.warn("Some R+ tree leaves are overlapping. Queries might be not efficient.")
                 }
             }
 
