@@ -3,6 +3,14 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.6.1
+-------------
+
+**Unreleased**
+
+Improved
+- Show less warnings like "R+ tree leaves are overlapping", see issue #35
+
 Version 0.6.0
 -------------
 
@@ -26,6 +34,14 @@ representation.
 Removed:
 - In class `org.jetbrains.bio.big.BedEntry` removed all fields except
 'chrom', 'start', 'end', 'rest'
+
+Version 0.5.3
+-------------
+
+Released on March 13th 2018
+
+Improved
+- Show less warnings like "R+ tree leaves are overlapping", see issue #35
 
 
 Version 0.5.2
