@@ -4,6 +4,7 @@ import com.google.common.primitives.*
 import com.indeed.util.mmap.MMapBuffer
 import org.iq80.snappy.Snappy
 import org.jetbrains.bio.big.RTreeIndex
+import org.jetbrains.bio.big.RomBufferFactory
 import java.io.Closeable
 import java.io.OutputStream
 import java.nio.ByteBuffer
@@ -17,16 +18,18 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
 /** A read-only buffer. */
-interface RomBuffer: Closeable {
-    var position: Long
-    val order: ByteOrder
+abstract class RomBuffer: Closeable {
+    abstract var position: Long
+    abstract val order: ByteOrder
+
+    protected abstract var limit: Long
 
     /**
      * Returns a new buffer sharing the data with its parent.
      *
      * @see ByteBuffer.duplicate for details.
      */
-    fun duplicate(): RomBuffer
+    abstract fun duplicate(): RomBuffer
 
     fun checkHeader(leMagic: Int) {
         val magic = readInt()
@@ -36,25 +39,25 @@ interface RomBuffer: Closeable {
         }
     }
 
-    fun readInts(size: Int): IntArray
-    fun readFloats(size: Int): FloatArray
+    abstract fun readInts(size: Int): IntArray
+    abstract fun readFloats(size: Int): FloatArray
 
-    fun readBytes(size: Int): ByteArray
-    fun readByte(): Byte
+    abstract fun readBytes(size: Int): ByteArray
+    abstract fun readByte(): Byte
 
     fun readUnsignedByte() = java.lang.Byte.toUnsignedInt(readByte())
 
-    fun readShort(): Short
+    abstract fun readShort(): Short
 
     fun readUnsignedShort() = java.lang.Short.toUnsignedInt(readShort())
 
-    fun readInt(): Int
+    abstract fun readInt(): Int
 
-    fun readLong(): Long
+    abstract fun readLong(): Long
 
-    fun readFloat(): Float
+    abstract fun readFloat(): Float
 
-    fun readDouble(): Double
+    abstract fun readDouble(): Double
 
     fun readCString(): String {
         val sb = StringBuilder()
@@ -70,14 +73,90 @@ interface RomBuffer: Closeable {
         return sb.toString()
     }
 
-    fun hasRemaining(): Boolean
+    // Real buffer often is limited by current block size, so compare with 'limit', not eof or real input size
+    fun hasRemaining() = position < limit
+
+    protected fun checkLimit() {
+        check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
+    }
+
+
+    /**
+     * Executes a `block` on a fixed-size possibly compressed input.
+     *
+     * This of this method as a way to get buffered input locally.
+     * See for example [RTreeIndex.findOverlappingBlocks].
+     */
+    internal fun <T> with(offset: Long, size: Long,
+                          compression: CompressionType = CompressionType.NO_COMPRESSION,
+                          block: RomBuffer.() -> T): T = decompress(offset, size, compression).use(block)
+
+    internal fun decompress(offset: Long, size: Long,
+                            compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
+
+        return if (compression.absent) {
+            duplicate().apply {
+                position = offset
+                limit = offset + size
+            }
+        } else {
+            val compressedBuf = duplicate().use {
+                with(it) {
+                    position = offset
+                    readBytes(com.google.common.primitives.Ints.checkedCast(size))
+                }
+            }
+
+            var uncompressedSize: Int
+            var uncompressedBuf: ByteArray
+            when (compression) {
+                CompressionType.DEFLATE -> {
+                    uncompressedSize = 0
+                    uncompressedBuf = ByteArray(2 * size.toInt())
+
+                    inf.reset()
+                    inf.setInput(compressedBuf)
+                    val step = size.toInt()
+                    while (!inf.finished()) {
+                        uncompressedBuf = Bytes.ensureCapacity(// 1.5x
+                                uncompressedBuf, uncompressedSize + step, step / 2)
+                        val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
+                        uncompressedSize += actual
+                    }
+                    // Not obligatory, but let's left thread local variable in clean state
+                    inf.reset()
+                }
+                CompressionType.SNAPPY -> {
+                    uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
+                    uncompressedBuf = ByteArray(uncompressedSize)
+                    Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
+                                      uncompressedBuf, 0)
+                }
+                CompressionType.NO_COMPRESSION -> {
+                    impossible()
+                }
+            }
+            val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
+            BBRomBuffer(input.order(order))
+        }
+    }
+
+    companion object {
+        // This is important to keep lazy, otherwise the GC will be trashed
+        // by a zillion of pending finalizers.
+        private val inf by ThreadLocal.withInitial { Inflater() }
+    }
 }
 
 /** A read-only buffer based on [ByteBuffer]. */
-class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffer {
+class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffer() {
     override var position: Long
         get() = buffer.position().toLong()
         set(value) = ignore(buffer.position(Ints.checkedCast(value)))
+
+    override var limit: Long
+        get() = buffer.limit().toLong()
+        set(value) { buffer.limit(Ints.checkedCast(value))}
 
     override val order: ByteOrder get() = buffer.order()
 
@@ -109,26 +188,35 @@ class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffe
 
     override fun readByte() = buffer.get()
 
-    override fun readShort() = buffer.getShort()
+    override fun readShort() = buffer.short
 
-    override fun readInt() = buffer.getInt()
+    override fun readInt() = buffer.int
 
-    override fun readLong() = buffer.getLong()
+    override fun readLong() = buffer.long
 
-    override fun readFloat() = buffer.getFloat()
+    override fun readFloat() = buffer.float
 
-    override fun readDouble() = buffer.getDouble()
+    override fun readDouble() = buffer.double
+}
 
-    override fun hasRemaining() = buffer.hasRemaining()
+class MMBRomBufferFactory(val path: Path, val byteOrder: ByteOrder): RomBufferFactory {
+    val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
+
+    override fun create(): RomBuffer = MMBRomBuffer(memBuffer)
+
+    override fun close() {
+        memBuffer.close()
+    }
+
 }
 
 /** A read-only mapped buffer which supports files > 2GB .*/
 class MMBRomBuffer(private val mapped: MMapBuffer,
                    override var position: Long = 0,
-                   limit: Long = mapped.memory().length()) : RomBuffer {
+                   limit: Long = mapped.memory().length()) : RomBuffer() {
 
     override val order: ByteOrder get() = mapped.memory().order
-    private var limit: Long = limit
+    override var limit: Long = limit
         set(value) {
             val length = mapped.memory().length()
             check(value <= length) {
@@ -137,8 +225,6 @@ class MMBRomBuffer(private val mapped: MMapBuffer,
             field = value
         }
 
-    override fun hasRemaining() = position < limit
-
     /**
      * Returns a new buffer sharing the data with its parent.
      *
@@ -146,10 +232,8 @@ class MMBRomBuffer(private val mapped: MMapBuffer,
      */
     override fun duplicate(): MMBRomBuffer = MMBRomBuffer(mapped, position, limit)
 
-    override fun close() { mapped.close() }
-
-    private fun checkLimit() {
-        check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
+    override fun close() {
+        /* Do nothing: BigWig file closes memory mapped buffer */
     }
 
     override fun readBytes(size: Int): ByteArray {
@@ -220,68 +304,6 @@ class MMBRomBuffer(private val mapped: MMapBuffer,
         position += Doubles.BYTES
         checkLimit()
         return value
-    }
-
-    /**
-     * Executes a `block` on a fixed-size possibly compressed input.
-     *
-     * This of this method as a way to get buffered input locally.
-     * See for example [RTreeIndex.findOverlappingBlocks].
-     */
-    internal fun <T> with(offset: Long, size: Long,
-                          compression: CompressionType = CompressionType.NO_COMPRESSION,
-                          block: RomBuffer.() -> T): T = decompress(offset, size, compression).block()
-
-    internal fun decompress(offset: Long, size: Long,
-                            compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
-
-        return if (compression.absent) {
-            duplicate().apply {
-                position = offset
-                limit = offset + size
-            }
-        } else {
-            val compressedBuf = with(duplicate()) {
-                position = offset
-                readBytes(Ints.checkedCast(size))
-            }
-
-            var uncompressedSize: Int
-            var uncompressedBuf: ByteArray
-            when (compression) {
-                CompressionType.DEFLATE -> {
-                    uncompressedSize = 0
-                    uncompressedBuf = ByteArray(2 * size.toInt())
-
-                    inf.reset()
-                    inf.setInput(compressedBuf)
-                    val step = size.toInt()
-                    while (!inf.finished()) {
-                        uncompressedBuf = Bytes.ensureCapacity(// 1.5x
-                                uncompressedBuf, uncompressedSize + step, step / 2)
-                        val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
-                        uncompressedSize += actual
-                    }
-                    // Not obligatory, but let's left thread local variable in clean state
-                    inf.reset()
-                }
-                CompressionType.SNAPPY -> {
-                    uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
-                    uncompressedBuf = ByteArray(uncompressedSize)
-                    Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
-                                      uncompressedBuf, 0)
-                }
-                CompressionType.NO_COMPRESSION -> { impossible() }
-            }
-            val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)
-            BBRomBuffer(input.order(order))
-        }
-    }
-
-    companion object {
-        // This is important to keep lazy, otherwise the GC will be trashed
-        // by a zillion of pending finalizers.
-        private val inf by ThreadLocal.withInitial { Inflater() }
     }
 }
 

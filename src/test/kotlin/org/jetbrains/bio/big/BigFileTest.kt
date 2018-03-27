@@ -2,21 +2,23 @@ package org.jetbrains.bio.big
 
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
-import org.jetbrains.bio.Examples
-import org.jetbrains.bio.MMBRomBuffer
-import org.jetbrains.bio.withTempFile
+import org.jetbrains.bio.*
 import org.junit.Assert
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.stream.Collectors
 import java.util.stream.IntStream
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 
-class BigFileTest {
+@RunWith(Parameterized::class)
+class BigFileTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testReadHeader() {
-        BigBedFile.read(Examples["example1.bb"]).use { bbf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bbf ->
             val header = bbf.header
             assertEquals(1, header.version)
             assertEquals(5, header.zoomLevelCount)
@@ -27,56 +29,59 @@ class BigFileTest {
     }
 
     @Test fun testConcurrentQuery() {
-        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
-            val input = MMBRomBuffer(bwf.memBuff)
+        BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
+            bwf.buffFactory.create().use { input ->
 
-            val (name, _/* chromIx */, _/* size */) =
-                    bwf.bPlusTree.traverse(input).first()
+                val (name, _/* chromIx */, _/* size */) =
+                        bwf.bPlusTree.traverse(input).first()
 
-            val executor = MoreExecutors.listeningDecorator(
-                    Executors.newFixedThreadPool(8))
-            val latch = CountDownLatch(8)
-            val futures = (0..7).map {
-                executor.submit {
-                    latch.countDown()
-                    assertEquals(6857, bwf.query(name).count())
-                    latch.await()
+                val executor = MoreExecutors.listeningDecorator(
+                        Executors.newFixedThreadPool(8))
+                val latch = CountDownLatch(8)
+                val futures = (0..7).map {
+                    executor.submit {
+                        latch.countDown()
+                        assertEquals(6857, bwf.query(name).count())
+                        latch.await()
+                    }
                 }
-            }
 
-            for (future in Futures.inCompletionOrder(futures)) {
-                future.get()
-            }
+                for (future in Futures.inCompletionOrder(futures)) {
+                    future.get()
+                }
 
-            executor.shutdownNow()
+                executor.shutdownNow()
+            }
         }
     }
 
     @Test fun testZoomPartitioning() {
         // In theory we can use either WIG or BED, but WIG is just simpler.
         withTempFile("example2", ".bw") { path ->
-            BigWigFile.read(Examples["example2.bw"]).use { bwf ->
-                val input = MMBRomBuffer(bwf.memBuff)
-                val (name, _/* chromIx */, size) =
-                        bwf.bPlusTree.traverse(input).first()
-                BigWigFile.write(bwf.query(name).take(32).toList(), listOf(name to size), path)
+            BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
+                bwf.buffFactory.create().use { input ->
+                    val (name, _/* chromIx */, size) =
+                            bwf.bPlusTree.traverse(input).first()
+                    BigWigFile.write(bwf.query(name).take(32), listOf(name to size), path)
+                }
             }
 
-            BigWigFile.read(path).use { bwf ->
-                val input = MMBRomBuffer(bwf.memBuff)
-                val (_/* name */, chromIx, size) =
-                        bwf.bPlusTree.traverse(input).first()
-                val query = Interval(chromIx, 0, size)
-                for ((reduction, _/* dataOffset */, indexOffset) in bwf.zoomLevels) {
-                    if (reduction == 0) {
-                        break
-                    }
+            BigWigFile.read(path, bfProvider).use { bwf ->
+                bwf.buffFactory.create().use { input ->
+                    val (_/* name */, chromIx, size) =
+                            bwf.bPlusTree.traverse(input).first()
+                    val query = Interval(chromIx, 0, size)
+                    for ((reduction, _/* dataOffset */, indexOffset) in bwf.zoomLevels) {
+                        if (reduction == 0) {
+                            break
+                        }
 
-                    val zRTree = RTreeIndex.read(input, indexOffset)
-                    val blocks = zRTree.findOverlappingBlocks(input, query).toList()
-                    for (i in blocks.indices) {
-                        for (j in i + 1 until blocks.size) {
-                            assertFalse(blocks[i].interval intersects blocks[j].interval)
+                        val zRTree = RTreeIndex.read(input, indexOffset)
+                        val blocks = zRTree.findOverlappingBlocks(input, query).toList()
+                        for (i in blocks.indices) {
+                            for (j in i + 1 until blocks.size) {
+                                assertFalse(blocks[i].interval intersects blocks[j].interval)
+                            }
                         }
                     }
                 }
@@ -84,11 +89,69 @@ class BigFileTest {
         }
     }
 
+    @Test fun testDecompressBlockCaching() {
+        BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
+            bwf.buffFactory.create().use { input ->
+                var cachedValue: Pair<BigFile.RomBufferState, RomBuffer?>?
+
+                cachedValue = BigFile.lastCachedBlockInfoValue()
+                assertEquals(cachedValue.first, BigFile.RomBufferState(null, 0, 0, ""))
+                assertEquals(cachedValue.second, null)
+
+                var decompressedInput: RomBuffer
+                decompressedInput = bwf.decompressAndCacheBlock(input, "chr21", 401, 2281)
+                check(decompressedInput is BBRomBuffer) // supposed to by byte array based buffer
+
+                assertEquals(0, decompressedInput.position)
+                decompressedInput.readByte()
+                assertEquals(1, decompressedInput.position)
+
+                cachedValue = BigFile.lastCachedBlockInfoValue()
+                assertEquals(cachedValue.first, BigFile.RomBufferState(bwf.buffFactory, 401, 2281, "chr21"))
+                assertNotNull(cachedValue.second)
+                assertEquals(0, cachedValue.second!!.position)
+
+                // read cached value & change input
+                decompressedInput = bwf.decompressAndCacheBlock(input, "chr21", 401, 2281)
+                assertEquals(0, decompressedInput.position)
+                decompressedInput.readByte()
+                assertEquals(1, decompressedInput.position)
+
+                // ensure cache pos isn't affected:
+                //
+                // get from cache:
+                decompressedInput = bwf.decompressAndCacheBlock(input, "chr21", 401, 2281)
+                assertEquals(0, decompressedInput.position)
+                // check cache:
+                cachedValue = BigFile.lastCachedBlockInfoValue()
+                assertEquals(cachedValue.first, BigFile.RomBufferState(bwf.buffFactory, 401, 2281, "chr21"))
+                assertNotNull(cachedValue.second)
+                assertEquals(0, cachedValue.second!!.position)
+
+                // read next:
+                decompressedInput = bwf.decompressAndCacheBlock(input, "chr21", 2682, 2282)
+                assertEquals(0, decompressedInput.position)
+                cachedValue = BigFile.lastCachedBlockInfoValue()
+                assertEquals(cachedValue.first, BigFile.RomBufferState(bwf.buffFactory, 2682, 2282, "chr21"))
+                assertNotNull(cachedValue.second)
+            }
+        }
+
+        val cachedValue = BigFile.lastCachedBlockInfoValue()
+        assertEquals(cachedValue.first, BigFile.RomBufferState(null, 0, 0, ""))
+        assertEquals(cachedValue.second, null)
+
+    }
+
     companion object {
+        @Parameterized.Parameters(name = "{0}")
+        @JvmStatic fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
+
         fun doTestConcurrentChrAccess(fileName: String,
                                       expected: Array<Pair<String, Int>>,
+                                      factoryProvider: RomBufferFactoryProvider,
                                       singleThreadMode: Boolean = false) {
-            BigFile.read(Examples[fileName]).use { bf ->
+            BigFile.read(Examples[fileName], factoryProvider).use { bf ->
                 val chrs = bf.chromosomes.valueCollection().toList()
                 doTestConcurrentChrAccess(chrs, expected, singleThreadMode) { name, start, end ->
                     bf.summarize(name, start, end, numBins = 10).map { it.count }.sum()
@@ -133,8 +196,9 @@ class BigFileTest {
         }
 
         fun doTestConcurrentDataAccess(fileName: String, expected: Array<Pair<Int, Int>>,
-                                       singleThreadMode: Boolean = false) {
-            BigFile.read(Examples[fileName]).use { bf ->
+                                       bfProvider: RomBufferFactoryProvider,
+                                       singleThreadMode: Boolean) {
+            BigFile.read(Examples[fileName], bfProvider).use { bf ->
                 val chrName = bf.chromosomes.valueCollection().first()
                 doTestConcurrentDataAccess(chrName, expected, singleThreadMode) { name, start, end ->
                     bf.summarize(name, start, end, numBins = 10).map { it.count }.sum()

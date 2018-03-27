@@ -2,12 +2,12 @@ package org.jetbrains.bio.big
 
 import com.google.common.collect.Iterators
 import com.google.common.primitives.Ints
-import com.indeed.util.mmap.MMapBuffer
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.commons.math3.util.Precision
 import org.apache.log4j.LogManager
+import org.jetbrains.annotations.TestOnly
 import org.jetbrains.bio.*
 import java.io.Closeable
 import java.io.FileInputStream
@@ -30,9 +30,9 @@ import kotlin.LazyThreadSafetyMode.NONE
  *   5  custom version, requires Snappy instead of DEFLATE for
  *      compressed data blocks
  */
-abstract class BigFile<T> internal constructor(
+abstract class BigFile<out T> internal constructor(
         internal val path: String,
-        internal val memBuff: MMapBuffer,
+        internal val buffFactory: RomBufferFactory,
         internal val header: Header,
         internal val zoomLevels: List<ZoomLevel>,
         internal val bPlusTree: BPlusTree,
@@ -40,7 +40,9 @@ abstract class BigFile<T> internal constructor(
 
     /** Whole-file summary. */
     val totalSummary: BigSummary by lazy(NONE) {
-        BigSummary.read(MMBRomBuffer(memBuff), header.totalSummaryOffset)
+        buffFactory.create().use {
+            BigSummary.read(it, header.totalSummaryOffset)
+        }
     }
 
     /**
@@ -51,10 +53,12 @@ abstract class BigFile<T> internal constructor(
     val chromosomes: TIntObjectMap<String> by lazy(NONE) {
         with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
-            for ((key, id) in traverse(MMBRomBuffer(memBuff))) {
-                res.put(id, key)
+            // returns sequence, but process here => resource could be closed
+            buffFactory.create().use {
+                for ((key, id) in traverse(it)) {
+                    res.put(id, key)
+                }
             }
-
             TCollections.unmodifiableMap(res)
         }
     }
@@ -103,45 +107,49 @@ abstract class BigFile<T> internal constructor(
     fun summarize(name: String, startOffset: Int = 0, endOffset: Int = 0,
                   numBins: Int = 1, index: Boolean = true): List<BigSummary> {
 
-        val input = MMBRomBuffer(memBuff)
-        val chromosome = bPlusTree.find(input, name)
-                         ?: throw NoSuchElementException(name)
+        var list: List<BigSummary> = emptyList()
+        buffFactory.create().use { input ->
 
-        val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
-        val query = Interval(chromosome.id, startOffset, properEndOffset)
+            val chromosome = bPlusTree.find(input, name)
+                    ?: throw NoSuchElementException(name)
 
-        require(numBins <= query.length()) {
-            "number of bins must not exceed interval length, got " +
-            "$numBins > ${query.length()}, file $path"
+            val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
+            val query = Interval(chromosome.id, startOffset, properEndOffset)
+
+            require(numBins <= query.length()) {
+                "number of bins must not exceed interval length, got " +
+                        "$numBins > ${query.length()}, file $path"
+            }
+
+            // The 2-factor guarantees that we get at least two data points
+            // per bin. Otherwise we might not be able to estimate SD.
+            val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
+            val sparseSummaries = if (zoomLevel == null || !index) {
+                LOG.trace("Summarizing $query from raw data")
+                summarizeInternal(input, query, numBins)
+            } else {
+                LOG.trace("Summarizing $query from ${zoomLevel.reduction}x zoom")
+                summarizeFromZoom(input, query, zoomLevel, numBins)
+            }
+
+            val emptySummary = BigSummary()
+            val summaries = Array(numBins) { emptySummary }
+            for ((i, summary) in sparseSummaries) {
+                summaries[i] = summary
+            }
+
+            list = summaries.asList()
         }
-
-        // The 2-factor guarantees that we get at least two data points
-        // per bin. Otherwise we might not be able to estimate SD.
-        val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
-        val sparseSummaries = if (zoomLevel == null || !index) {
-            LOG.trace("Summarizing $query from raw data")
-            summarizeInternal(input, query, numBins)
-        } else {
-            LOG.trace("Summarizing $query from ${zoomLevel.reduction}x zoom")
-            summarizeFromZoom(input, query, zoomLevel, numBins)
-        }
-
-        val emptySummary = BigSummary()
-        val summaries = Array(numBins) { emptySummary }
-        for ((i, summary) in sparseSummaries) {
-            summaries[i] = summary
-        }
-
-        return summaries.asList()
+        return list
     }
 
     @Throws(IOException::class)
     internal abstract fun summarizeInternal(
-            input: MMBRomBuffer,
+            input: RomBuffer,
             query: ChromosomeInterval,
             numBins: Int): Sequence<IndexedValue<BigSummary>>
 
-    private fun summarizeFromZoom(input: MMBRomBuffer,
+    private fun summarizeFromZoom(input: RomBuffer,
                                   query: ChromosomeInterval, zoomLevel: ZoomLevel,
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
@@ -205,44 +213,65 @@ abstract class BigFile<T> internal constructor(
      */
     @Throws(IOException::class)
     @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
-                            overlaps: Boolean = false): Sequence<T> {
-        val input = MMBRomBuffer(memBuff)
-        val res = bPlusTree.find(input, name)
-        return if (res == null) {
-            emptySequence()
-        } else {
-            val (_/* key */, chromIx, size) = res
-            val properEndOffset = if (endOffset == 0) size else endOffset
-            query(input, Interval(chromIx, startOffset, properEndOffset), overlaps)
+                            overlaps: Boolean = false): List<T> {
+
+        buffFactory.create().use { input ->
+            val res = bPlusTree.find(input, name)
+            return if (res == null) {
+                emptyList()
+            } else {
+                val (_/* key */, chromIx, size) = res
+                val properEndOffset = if (endOffset == 0) size else endOffset
+                query(input, Interval(chromIx, startOffset, properEndOffset), overlaps).toList()
+            }
         }
     }
 
-    internal fun query(input: MMBRomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
+    internal fun query(input: RomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
         val chrom = chromosomes[query.chromIx]
         return rTree.findOverlappingBlocks(input, query)
                 .flatMap { (_, dataOffset, dataSize) ->
-                    queryInternal(decompressAndCacheBlock(input, chrom, dataOffset, dataSize),
-                                  query, overlaps)
+                     decompressAndCacheBlock(input, chrom, dataOffset, dataSize).use { decompressedInput ->
+                         queryInternal(decompressedInput, query, overlaps)
+                     }
                 }
     }
 
-    private fun decompressAndCacheBlock(input: MMBRomBuffer,
-                                        chrom: String,
-                                        dataOffset: Long, dataSize: Long): RomBuffer {
+    internal fun decompressAndCacheBlock(input: RomBuffer,
+                                         chrom: String,
+                                         dataOffset: Long, dataSize: Long): RomBuffer {
         var stateAndBlock = lastCachedBlockInfo.get()
 
-        val newState = RomBufferState(memBuff, dataOffset, dataSize, chrom)
-        if (stateAndBlock.first != newState) {
-            stateAndBlock = newState to input.decompress(dataOffset, dataSize, compression)
-            lastCachedBlockInfo.set(stateAndBlock)
+        // LOG.trace("Decompress $chrom $dataOffset, size=$dataSize")
 
-            blockCacheMisses.incrementAndGet()
+        val newState = RomBufferState(buffFactory, dataOffset, dataSize, chrom)
+        val decompressedBlock: RomBuffer
+        if (stateAndBlock.first != newState) {
+            val newDecompressedInput = input.decompress(dataOffset, dataSize, compression)
+            stateAndBlock = newState to newDecompressedInput
+
+            // We cannot cache block if it is resource which is supposed to be closed
+            decompressedBlock = when (newDecompressedInput) {
+                is BBRomBuffer, is MMBRomBuffer -> {
+                    lastCachedBlockInfo.set(stateAndBlock)
+                    blockCacheMisses.incrementAndGet()
+
+                    // we will reuse block, so let's path duplicate to reader
+                    // in order not to affect buffer state
+                    newDecompressedInput.duplicate()
+                }
+                else -> newDecompressedInput // no buffer re-use => pass as is
+            }
         } else {
+            // if decompressed input was supposed to be close => it hasn't been cached => won't be here
             blockCacheIns.incrementAndGet()
+
+            // we reuse block, so let's path duplicate to reader
+            // in order not to affect buffer state
+            decompressedBlock = stateAndBlock.second!!.duplicate()
         }
 
-        // we reuse block, so let's path duplicate to reader
-        return stateAndBlock.second!!.duplicate()
+        return decompressedBlock
     }
 
     @Throws(IOException::class)
@@ -259,6 +288,7 @@ abstract class BigFile<T> internal constructor(
         LOG.trace("BigFile closed: Cache misses ${Precision.round(100.0 * m / n, 1)}% ($m of $n), " +
                           "file: : $path ")
 
+        buffFactory.close()
     }
 
     internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 5,
@@ -287,9 +317,9 @@ abstract class BigFile<T> internal constructor(
 
         companion object {
             /** Number of bytes used for this header. */
-            internal val BYTES = 64
+            internal const val BYTES = 64
 
-            internal fun read(input: MMBRomBuffer, magic: Int) = with(input) {
+            internal fun read(input: RomBuffer, magic: Int) = with(input) {
                 checkHeader(magic)
 
                 val version = readUnsignedShort()
@@ -318,9 +348,9 @@ abstract class BigFile<T> internal constructor(
         }
     }
 
-    private data class RomBufferState(private val memBuffer: MMapBuffer?,
-                                      val offset: Long, val size: Long,
-                                      val chrom: String)
+    internal data class RomBufferState(private val buffFactory: RomBufferFactory?,
+                                       val offset: Long, val size: Long,
+                                       val chrom: String)
 
     companion object {
         private val LOG = LogManager.getLogger(BigFile::class.java)
@@ -328,6 +358,9 @@ abstract class BigFile<T> internal constructor(
         private val lastCachedBlockInfo: ThreadLocal<Pair<RomBufferState, RomBuffer?>> = ThreadLocal.withInitial {
             RomBufferState(null, 0L, 0L, "") to null
         }
+
+        @TestOnly
+        internal fun lastCachedBlockInfoValue() = lastCachedBlockInfo.get()
 
         /**
          * Magic specifies file format and bytes order. Let's read magic as little endian.
@@ -368,11 +401,19 @@ abstract class BigFile<T> internal constructor(
             return true to ByteOrder.LITTLE_ENDIAN
         }
 
-        fun read(path: Path): BigFile<out Comparable<*>> {
+        fun defaultFactory(): (Path, ByteOrder) -> RAFBufferFactory {
+            return { p, byteOrder ->
+                RAFBufferFactory(p, byteOrder)
+            }
+        }
+
+        fun read(path: Path): BigFile<Comparable<*>> = read(path, defaultFactory())
+
+        fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigFile<Comparable<*>> {
             val magic = readLEMagic(path)
             return when {
-                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(path)
-                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(path)
+                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(path, factoryProvider)
+                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(path, factoryProvider)
                 else -> throw IllegalStateException("Unsupported file header magic: $magic")
             }
         }
@@ -449,40 +490,40 @@ abstract class BigFile<T> internal constructor(
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
-            val input = MMBRomBuffer(bf.memBuff)
-            for ((_/* name */, chromIx, size) in bf.bPlusTree.traverse(input)) {
-                val query = Interval(chromIx, 0, size)
 
-                if (prevLevelReduction > size) {
-                    // chromosome already covered by 1 bin at prev level
-                    continue
-                }
+            bf.buffFactory.create().use { input ->
+                for ((_/* name */, chromIx, size) in bf.bPlusTree.traverse(input)) {
+                    val query = Interval(chromIx, 0, size)
 
-                // We can re-use pre-computed zooms, but preliminary
-                // results suggest this doesn't give a noticeable speedup.
-                val summaries
-                        = bf.summarizeInternal(input, query, numBins = size divCeiling reduction)
-                for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {
-                    val dataOffset = output.tell()
-                    output.with(bf.compression) {
-                        for ((i, summary) in slot) {
-                            val startOffset = i * reduction
-                            val endOffset = (i + 1) * reduction
-                            val (count, minValue, maxValue, sum, sumSquares) = summary
-                            ZoomData(chromIx, startOffset, endOffset,
-                                     count.toInt(),
-                                     minValue.toFloat(), maxValue.toFloat(),
-                                     sum.toFloat(), sumSquares.toFloat()).write(this)
-                        }
+                    if (prevLevelReduction > size) {
+                        // chromosome already covered by 1 bin at prev level
+                        continue
                     }
 
-                    // Compute the bounding interval.
-                    val interval = Interval(chromIx, slot.first().index * reduction,
-                                            (slot.last().index + 1) * reduction)
-                    leaves.add(RTreeIndexLeaf(interval, dataOffset, output.tell() - dataOffset))
+                    // We can re-use pre-computed zooms, but preliminary
+                    // results suggest this doesn't give a noticeable speedup.
+                    val summaries = bf.summarizeInternal(input, query, numBins = size divCeiling reduction)
+                    for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {
+                        val dataOffset = output.tell()
+                        output.with(bf.compression) {
+                            for ((i, summary) in slot) {
+                                val startOffset = i * reduction
+                                val endOffset = (i + 1) * reduction
+                                val (count, minValue, maxValue, sum, sumSquares) = summary
+                                ZoomData(chromIx, startOffset, endOffset,
+                                         count.toInt(),
+                                         minValue.toFloat(), maxValue.toFloat(),
+                                         sum.toFloat(), sumSquares.toFloat()).write(this)
+                            }
+                        }
+
+                        // Compute the bounding interval.
+                        val interval = Interval(chromIx, slot.first().index * reduction,
+                                                (slot.last().index + 1) * reduction)
+                        leaves.add(RTreeIndexLeaf(interval, dataOffset, output.tell() - dataOffset))
+                    }
                 }
             }
-
             return if (leaves.size > 1) {
                 val zoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)

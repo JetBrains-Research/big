@@ -5,7 +5,6 @@ import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.apache.log4j.Level
 import org.apache.log4j.LogManager
-import org.jetbrains.bio.MMBRomBuffer
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
@@ -43,7 +42,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
      * `query`.
      */
     @Throws(IOException::class)
-    fun findOverlappingBlocks(input: MMBRomBuffer,
+    fun findOverlappingBlocks(input: RomBuffer,
                               query: ChromosomeInterval): Sequence<RTreeIndexLeaf> {
         return if (header.itemCount == 0L) {
             emptySequence()
@@ -52,7 +51,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         }
     }
 
-    private fun findOverlappingBlocksRecursively(input: MMBRomBuffer,
+    private fun findOverlappingBlocksRecursively(input: RomBuffer,
                                                  query: ChromosomeInterval,
                                                  offset: Long): Sequence<RTreeIndexLeaf> {
         assert(input.order == header.order)
@@ -115,9 +114,9 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
 
         companion object {
             /** Number of bytes used for this header. */
-            internal val BYTES = Ints.BYTES * 8 + Longs.BYTES * 2
+            internal const val BYTES = Ints.BYTES * 8 + Longs.BYTES * 2
             /** Magic number used for determining [ByteOrder]. */
-            private val MAGIC = 0x2468ACE0
+            private const val MAGIC = 0x2468ACE0
 
             internal fun read(input: RomBuffer, offset: Long) = with(input) {
                 val expectedOrder = order
@@ -301,7 +300,7 @@ data class RTreeIndexLeaf(val interval: Interval,
     }
 
     companion object {
-        internal val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
+        internal const val BYTES = Ints.BYTES * 4 + Longs.BYTES * 2
 
         internal fun read(input: RomBuffer) = with(input) {
             val startChromIx = readInt()
@@ -325,7 +324,7 @@ private data class RTreeIndexNode(val interval: Interval,
     }
 
     companion object {
-        internal val BYTES = Ints.BYTES * 4 + Longs.BYTES
+        internal const val BYTES = Ints.BYTES * 4 + Longs.BYTES
 
         internal fun read(input: RomBuffer) = with(input) {
             val startChromIx = readInt()

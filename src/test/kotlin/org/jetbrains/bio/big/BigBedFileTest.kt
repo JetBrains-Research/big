@@ -13,14 +13,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class BigBedFileTest {
+@RunWith(Parameterized::class)
+class BigBedFileTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testQueryCompressed() = testQuery(Examples["example1-compressed.bb"])
 
     @Test fun testQueryUncompressed() = testQuery(Examples["example1.bb"])
 
     @Test fun bed9Format() {
-        BigBedFile.read(Examples["bed9.bb"]).use { bb ->
-            val items = bb.query("chr1").toList()
+        BigBedFile.read(Examples["bed9.bb"], bfProvider).use { bb ->
+            val items = bb.query("chr1")
             assertEquals(ExtendedBedEntry("chr1", 0, 9800, "15_Quies", 0, '.',
                                           0, 9800, Color(255, 255, 255).rgb),
                          items.first().unpack())
@@ -31,13 +32,13 @@ class BigBedFileTest {
     }
 
     private fun testQuery(path: Path) {
-        val items = BedFile.read(Examples["example1.bed"]).toList()
+        val items = BedFile.read(Examples["example1.bed"]).use { it.toList() }
         testQuerySmall(path, items)
         testQueryLarge(path, items)
     }
 
     private fun testQuerySmall(path: Path, items: List<BedEntry>) {
-        BigBedFile.read(path).use { bbf ->
+        BigBedFile.read(path, bfProvider).use { bbf ->
             for (i in 0 until 100) {
                 testQuery(bbf, items, items[RANDOM.nextInt(items.size)])
             }
@@ -45,7 +46,7 @@ class BigBedFileTest {
     }
 
     private fun testQueryLarge(path: Path, items: List<BedEntry>) {
-        BigBedFile.read(path).use { bbf ->
+        BigBedFile.read(path, bfProvider).use { bbf ->
             for (i in 0 until 10) {
                 val a = items[RANDOM.nextInt(items.size)]
                 val b = items[RANDOM.nextInt(items.size)]
@@ -56,7 +57,7 @@ class BigBedFileTest {
     }
 
     private fun testQuery(bbf: BigBedFile, items: List<BedEntry>, query: BedEntry) {
-        val actual = bbf.query(query.chrom, query.start, query.end).toList()
+        val actual = bbf.query(query.chrom, query.start, query.end)
         for (item in actual) {
             assertTrue(item.start >= query.start && item.end <= query.end)
         }
@@ -74,30 +75,31 @@ class BigBedFileTest {
     @Test fun testQueryConsistencyWithOverlaps() = testQueryConsistency(true)
 
     private fun testQueryConsistency(overlaps: Boolean) {
-        BigBedFile.read(Examples["example1.bb"]).use { bbf ->
-            val input = MMBRomBuffer(bbf.memBuff)
-            val (name, chromIx, _/* size */) =
-                    bbf.bPlusTree.traverse(input).first()
-            val bedEntries = bbf.query(name).toList()
-            val i = RANDOM.nextInt(bedEntries.size)
-            val j = RANDOM.nextInt(bedEntries.size)
-            val query = Interval(chromIx,
-                                 bedEntries[Math.min(i, j)].start,
-                                 bedEntries[Math.max(i, j)].end)
-            for (bedEntry in bbf.query(name, query.startOffset, query.endOffset)) {
-                val interval = Interval(chromIx, bedEntry.start, bedEntry.end)
-                if (overlaps) {
-                    assertTrue(interval intersects query)
-                } else {
-                    assertTrue(interval in query)
-                }
+        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bbf ->
+            bbf.buffFactory.create().use { input ->
+                val (name, chromIx, _/* size */) =
+                        bbf.bPlusTree.traverse(input).first()
+                val bedEntries = bbf.query(name)
+                val i = RANDOM.nextInt(bedEntries.size)
+                val j = RANDOM.nextInt(bedEntries.size)
+                val query = Interval(chromIx,
+                                     bedEntries[Math.min(i, j)].start,
+                                     bedEntries[Math.max(i, j)].end)
+                for (bedEntry in bbf.query(name, query.startOffset, query.endOffset)) {
+                    val interval = Interval(chromIx, bedEntry.start, bedEntry.end)
+                    if (overlaps) {
+                        assertTrue(interval intersects query)
+                    } else {
+                        assertTrue(interval in query)
+                    }
 
+                }
             }
         }
     }
 
     @Test fun testAggregate() {
-        assertEquals(emptyList<Pair<BedEntry, Int>>(), emptySequence<BedEntry>().aggregate())
+        assertEquals(emptyList(), emptySequence<BedEntry>().aggregate())
         assertEquals(listOf(BedEntry("chr1", 0, 100, "") to 1),
                      sequenceOf(BedEntry("chr1", 0, 100)).aggregate())
 
@@ -123,16 +125,17 @@ class BigBedFileTest {
     }
 
     @Test fun testSummarizeWholeFile() {
-        val bbf = BigBedFile.read(Examples["example1.bb"])
-        val name = bbf.chromosomes.valueCollection().first()
-        val (expected) = bbf.summarize(name, 0, 0, numBins = 1, index = false)
-        val (summary) = bbf.summarize(name, 0, 0, numBins = 1)
+        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bbf ->
+            val name = bbf.chromosomes.valueCollection().first()
+            val (expected) = bbf.summarize(name, 0, 0, numBins = 1, index = false)
+            val (summary) = bbf.summarize(name, 0, 0, numBins = 1)
 
-        // Because zoom levels smooth the data we can only make sure
-        // that raw data estimate does not exceed the one reported
-        // via index.
-        assertTrue(summary.count >= expected.count)
-        assertTrue(summary.sum >= expected.sum)
+            // Because zoom levels smooth the data we can only make sure
+            // that raw data estimate does not exceed the one reported
+            // via index.
+            assertTrue(summary.count >= expected.count)
+            assertTrue(summary.sum >= expected.sum)
+        }
     }
 
     @Test fun testSummarizeNoOverlapsTwoBins() {
@@ -172,7 +175,8 @@ class BigBedFileTest {
     @Test fun testConcurrentChrAccess() {
         BigFileTest.doTestConcurrentChrAccess("concurrent.bb",
                                               arrayOf("chr1" to 2657021, "chr2" to 2657021,
-                                                      "chr3" to 2657021, "chr4" to 2657021))
+                                                      "chr3" to 2657021, "chr4" to 2657021),
+                                              bfProvider)
     }
     
     @Test fun testConcurrentDataAccess() {
@@ -192,14 +196,14 @@ class BigBedFileTest {
                 82 to 0, 83 to 0, 84 to 0, 85 to 0, 86 to 0, 87 to 0, 88 to 0, 89 to 0, 90 to 0,
                 91 to 0, 92 to 0, 93 to 0, 94 to 0, 95 to 0, 96 to 0, 97 to 0, 98 to 0, 99 to 0)
         
-            BigFileTest.doTestConcurrentDataAccess("concurrent.bb", expected, true)
+            BigFileTest.doTestConcurrentDataAccess("concurrent.bb", expected, bfProvider, true)
       }
 
     private fun testSummarize(bedEntries: List<BedEntry>, numBins: Int) {
         val name = bedEntries.map { it.chrom }.first()
         withTempFile("example", ".bb") { path ->
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 val aggregate = bedEntries.asSequence().aggregate()
                 val summaries = bbf.summarize(name, 0, 0, numBins)
                 assertEquals(aggregate.map { (e, _) -> e.end - e.start }.sum().toLong(),
@@ -213,19 +217,22 @@ class BigBedFileTest {
 
     companion object {
         private val RANDOM = Random()
+
+        @Parameterized.Parameters(name = "{0}")
+        @JvmStatic fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
     }
 
     @Test fun testWriteReadZoomOverflow() {
         withTempFile("example1", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["reduction_overflow.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["reduction_overflow.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path,
                              zoomLevelCount = 20)
 
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(bedEntries,
-                             bbf.query("chr2", 0, 0).toList()
-                                     + bbf.query("chr22", 0, 0).toList())
+                             bbf.query("chr2", 0, 0)
+                                     + bbf.query("chr22", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -246,10 +253,10 @@ class BigBedFileTest {
             BigBedFile.write(bedEntries,
                              Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
 
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(
                         bedEntries,
-                        bbf.query("chr1", 0, 0).toList()
+                        bbf.query("chr1", 0, 0)
                 )
                 assertFalse(bbf.totalSummary.isEmpty())
             }
@@ -268,8 +275,8 @@ class BigBedFileTest {
                              path
             )
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr1", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr1", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -277,14 +284,14 @@ class BigBedFileTest {
 
     @Test fun testBedPlusBed6p4() {
         withTempFile("example1", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["bed6p4.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["bed6p4.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path
             )
 
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(bedEntries,
-                             bbf.query("chr1", 0, 0).toList())
+                             bbf.query("chr1", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -293,16 +300,17 @@ class BigBedFileTest {
 
 @RunWith(Parameterized::class)
 class BigBedReadWriteTest(private val order: ByteOrder,
-                          private val compression: CompressionType) {
+                          private val compression: CompressionType,
+                          private val bfProvider: RomBufferFactoryProvider) {
 
     @Test fun testWriteReadSmall() {
         withTempFile("small", ".bb") { path ->
             val bedEntries = listOf(BedEntry("chr21", 0, 100))
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
             }
         }
     }
@@ -312,7 +320,7 @@ class BigBedReadWriteTest(private val order: ByteOrder,
             BigBedFile.write(emptyList<BedEntry>(),
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
         }
@@ -323,7 +331,7 @@ class BigBedReadWriteTest(private val order: ByteOrder,
             BigBedFile.write(listOf(BedEntry("chr1", 100, 200), BedEntry("chr2", 50, 150)),
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
         }
@@ -340,12 +348,12 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteRead() {
         withTempFile("example1", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["example1.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example1.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -353,12 +361,12 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed12() {
         withTempFile("example.bed12", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["example.bed12.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed12.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
                 assertEquals(bedEntries.last().unpack(),
                              ExtendedBedEntry("chr21", 9480532, 9481699, "Neg4",
@@ -371,12 +379,12 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed12NoColor() {
         withTempFile("bed12.nocolor", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["bed12.nocolor.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["bed12.nocolor.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
                 assertEquals(bedEntries.last().unpack(),
                              ExtendedBedEntry("chr21", 2000, 6000, "cloneB",
@@ -388,12 +396,12 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed9() {
         withTempFile("example.bed9", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -401,12 +409,12 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed6() {
         withTempFile("example", ".bb") { path ->
-            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).toList()
+            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).use { it.toList() }
             BigBedFile.write(bedEntries, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -414,14 +422,14 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed12As9() {
         withTempFile("example", ".bb") { path ->
-            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
-            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).toList()
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).use { it.toList() }
+            val bedEntries = BedFile.read(Examples["example.bed9.bed"]).use { it.toList() }
             BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 9) },
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -429,15 +437,15 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed12As6() {
         withTempFile("example", ".bb") { path ->
-            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
-            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).toList()
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).use { it.toList() }
+            val bedEntries = BedFile.read(Examples["example.bed6.bed"]).use { it.toList() }
             BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 6) },
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
+            BigBedFile.read(path, bfProvider).use { bbf ->
                 assertEquals(bedEntries,
-                             bbf.query("chr21", 0, 0).toList())
+                             bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
@@ -445,30 +453,21 @@ class BigBedReadWriteTest(private val order: ByteOrder,
 
     @Test fun testWriteReadBed12As3() {
         withTempFile("example", ".bb") { path ->
-            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).toList()
-            val bedEntries = BedFile.read(Examples["example.bed3.bed"]).toList()
+            val bed12Entries = BedFile.read(Examples["example.bed12.bed"]).use { it.toList() }
+            val bedEntries = BedFile.read(Examples["example.bed3.bed"]).use { it.toList() }
             BigBedFile.write(bed12Entries.map { it.unpack().pack(fieldsNumber = 3) },
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
 
-            BigBedFile.read(path).use { bbf ->
-                assertEquals(bedEntries, bbf.query("chr21", 0, 0).toList())
+            BigBedFile.read(path, bfProvider).use { bbf ->
+                assertEquals(bedEntries, bbf.query("chr21", 0, 0))
                 assertFalse(bbf.totalSummary.isEmpty())
             }
         }
     }
 
     companion object {
-        @Parameterized.Parameters(name = "{0}:{1}")
-        @JvmStatic fun data(): Iterable<Array<Any>> {
-            return listOf(
-                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
-                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
-                    arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
-                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
-                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
-                    arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY)
-            )
-        }
+        @Parameterized.Parameters(name = "{0}:{1}:{2}")
+        @JvmStatic fun data(): Iterable<Array<Any>> = allBigFileParamsSets()
     }
 }

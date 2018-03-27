@@ -1,6 +1,9 @@
 package org.jetbrains.bio
 
+import org.jetbrains.bio.big.*
+import sun.awt.OSInfo
 import java.io.IOException
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -35,4 +38,50 @@ internal inline fun withTempFile(prefix: String, suffix: String,
             path.toFile().deleteOnExit()
         }
     }
+}
+
+abstract class RomBufferFactoryProvider(private val title: String) {
+    abstract operator fun invoke(path: Path, byteOrder: ByteOrder): RomBufferFactory
+    override fun toString() = title
+}
+
+fun romFactoryProviders(): List<RomBufferFactoryProvider> {
+    val providers: MutableList<RomBufferFactoryProvider> =  mutableListOf(
+            object : RomBufferFactoryProvider("RAFBufferFactory") {
+                override fun invoke(path: Path, byteOrder: ByteOrder) =
+                        RAFBufferFactory(path, byteOrder)
+            }
+    )
+    if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
+        providers.add(object : RomBufferFactoryProvider("MMBRomBufferFactory") {
+            override fun invoke(path: Path, byteOrder: ByteOrder) =
+                    MMBRomBufferFactory(path, byteOrder)
+        })
+    }
+    return providers
+}
+
+fun BigBedFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
+        BigBedFile.read(path) { path, byteOrder ->
+            provider(path, byteOrder)
+        }
+
+fun BigWigFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
+        BigWigFile.read(path) { path, byteOrder ->
+            provider(path, byteOrder)
+        }
+
+fun BigFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
+        BigFile.read(path) { path, byteOrder ->
+            provider(path, byteOrder)
+        }
+
+fun allBigFileParamsSets(): Iterable<Array<Any>> {
+    val params = mutableListOf<Array<Any>>()
+    for (factoryProvider in romFactoryProviders()) {
+        for (byteOrder in listOf(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)) {
+            CompressionType.values().mapTo(params) { arrayOf(byteOrder, it, factoryProvider) }
+        }
+    }
+    return params
 }

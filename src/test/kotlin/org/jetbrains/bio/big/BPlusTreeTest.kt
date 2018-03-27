@@ -2,11 +2,10 @@ package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
 import com.indeed.util.mmap.MMapBuffer
-import org.jetbrains.bio.Examples
-import org.jetbrains.bio.MMBRomBuffer
-import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.withTempFile
+import org.jetbrains.bio.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -15,9 +14,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class BPlusTreeTest {
+@RunWith(Parameterized::class)
+class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testReadHeader() {
-        BigBedFile.read(Examples["example1.bb"]).use { bf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bf ->
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
@@ -27,15 +27,16 @@ class BPlusTreeTest {
     }
 
     @Test fun testFind() {
-        BigBedFile.read(Examples["example1.bb"]).use { bf ->
-            val input = MMBRomBuffer(bf.memBuff)
-            var leaf = bf.bPlusTree.find(input, "chr1")
-            assertNull(leaf)
+        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bf ->
+            bf.buffFactory.create().use { input ->
+                var leaf = bf.bPlusTree.find(input, "chr1")
+                assertNull(leaf)
 
-            leaf = bf.bPlusTree.find(input, "chr21")
-            assertNotNull(leaf)
-            assertEquals(0, leaf!!.id)
-            assertEquals(48129895, leaf.size)
+                leaf = bf.bPlusTree.find(input, "chr21")
+                assertNotNull(leaf)
+                assertEquals(0, leaf!!.id)
+                assertEquals(48129895, leaf.size)
+            }
         }
     }
 
@@ -59,8 +60,7 @@ class BPlusTreeTest {
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
 
-        val order = ByteOrder.nativeOrder()
-        MMBRomBuffer(MMapBuffer(Examples[example], FileChannel.MapMode.READ_ONLY, order)).use { input ->
+        bfProvider(Examples[example], ByteOrder.nativeOrder()).create().use { input ->
             val bpt = BPlusTree.read(input, offset)
             for (key in chromosomes) {
                 assertNotNull(bpt.find(input, key))
@@ -126,8 +126,7 @@ class BPlusTreeTest {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
-                                    ByteOrder.nativeOrder())).use { input ->
+            bfProvider(path, ByteOrder.nativeOrder()).create().use { input ->
                 val bpt = BPlusTree.read(input, 0)
                 for (item in items) {
                     val res = bpt.find(input, item.key)
@@ -142,5 +141,9 @@ class BPlusTreeTest {
 
     companion object {
         private val RANDOM = Random()
+
+        @Parameterized.Parameters(name = "{0}")
+        @JvmStatic fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
     }
+
 }

@@ -1,12 +1,15 @@
 package org.jetbrains.bio.tdf
 
 import com.google.common.primitives.Ints
-import com.indeed.util.mmap.MMapBuffer
-import org.jetbrains.bio.*
+import org.jetbrains.bio.CompressionType
+import org.jetbrains.bio.RomBuffer
+import org.jetbrains.bio.big.RAFBufferFactory
+import org.jetbrains.bio.big.RomBufferFactory
+import org.jetbrains.bio.divCeiling
+import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
@@ -26,7 +29,7 @@ import java.util.*
  * @since 0.2.2
  */
 data class TdfFile private constructor(
-        private val memBuff: MMapBuffer,
+        private val buffFactory: RomBufferFactory,
         private val header: Header,
         private val index: TdfMasterIndex,
         /** Window functions supported by the data, e.g. `"mean"`. */
@@ -101,9 +104,11 @@ data class TdfFile private constructor(
                 CompressionType.NO_COMPRESSION
             }
 
-            MMBRomBuffer(memBuff).with(position, tileSizes[tileNumber].toLong(),
-                                       compression = compression) {
-                TdfTile.read(this, trackNames.size)
+            buffFactory.create().use { input ->
+                input.with(position, tileSizes[tileNumber].toLong(),
+                                           compression = compression) {
+                    TdfTile.read(this, trackNames.size)
+                }
             }
         }
     }
@@ -121,8 +126,9 @@ data class TdfFile private constructor(
         }
 
         val (offset, size) = index.datasets[name]!!
-        val input = MMBRomBuffer(memBuff)
-        return input.with(offset, size.toLong()) { TdfDataset.read(this) }
+        return buffFactory.create().use { input ->
+            input.with(offset, size.toLong()) { TdfDataset.read(this) }
+        }
     }
 
     fun getGroup(name: String): TdfGroup {
@@ -131,8 +137,9 @@ data class TdfFile private constructor(
         }
 
         val (offset, size) = index.groups[name]!!
-        val input = MMBRomBuffer(memBuff)
-        return input.with(offset, size.toLong()) { TdfGroup.read(this) }
+        return buffFactory.create().use { input ->
+            input.with(offset, size.toLong()) { TdfGroup.read(this) }
+        }
     }
 
     /**
@@ -179,28 +186,36 @@ data class TdfFile private constructor(
         }
     }
 
-    override fun close() { memBuff.close() }
+    override fun close() { buffFactory.close() }
 
     companion object {
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): TdfFile {
-            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, ByteOrder.LITTLE_ENDIAN)
-            val input = MMBRomBuffer(memBuffer)
-            val header = Header.read(input)
-            val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
-            val trackType = TrackType.read(input)
-            val trackLine = input.readCString().trim()
-            val trackNames = input.getSequenceOf { input.readCString() }.toList()
-            val build = input.readCString()
-            val compressed = (input.readInt() and 0x1) != 0
-            // Make sure we haven't read anything extra.
-            check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
-            val index = input.with(header.indexOffset, header.indexSize.toLong()) {
-                TdfMasterIndex.read(this)
-            }
+        @JvmStatic
+        fun read(path: Path) = read(path) { p, byteOrder ->
+            RAFBufferFactory(p, byteOrder)
+        }
 
-            return TdfFile(memBuffer, header, index, windowFunctions, trackType,
-                           trackLine, trackNames, build, compressed)
+        @Throws(IOException::class)
+        @JvmStatic
+        fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): TdfFile {
+            val buffFactory = factoryProvider(path, ByteOrder.LITTLE_ENDIAN)
+            buffFactory.create().use { input ->
+                val header = Header.read(input)
+                val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
+                val trackType = TrackType.read(input)
+                val trackLine = input.readCString().trim()
+                val trackNames = input.getSequenceOf { input.readCString() }.toList()
+                val build = input.readCString()
+                val compressed = (input.readInt() and 0x1) != 0
+                // Make sure we haven't read anything extra.
+                check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
+                val index = input.with(header.indexOffset, header.indexSize.toLong()) {
+                    TdfMasterIndex.read(this)
+                }
+
+                return TdfFile(buffFactory, header, index, windowFunctions, trackType,
+                               trackLine, trackNames, build, compressed)
+            }
         }
     }
 }

@@ -6,17 +6,26 @@ import com.google.common.collect.ComparisonChain
 import com.google.common.primitives.Ints
 import org.jetbrains.bio.bufferedReader
 import java.awt.Color
+import java.io.Closeable
 import java.io.IOException
 import java.lang.Integer.min
 import java.nio.file.Path
 import java.util.*
 
-class BedFile(private val path: Path) : Iterable<BedEntry> {
-    override fun iterator() = path.bufferedReader().lines().map { line ->
-        val chunks = line.split('\t', limit = 4)
-        BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
-                 if (chunks.size == 3) "" else chunks[3])
-    }.iterator()!!
+class BedFile(val path: Path) : Iterable<BedEntry>, Closeable {
+    private val reader = path.bufferedReader()
+
+    override fun iterator(): Iterator<BedEntry> {
+        return reader.lines().map { line ->
+            val chunks = line.split('\t', limit = 4)
+            BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
+                     if (chunks.size == 3) "" else chunks[3])
+        }.iterator()
+    }
+
+    override fun close() {
+        reader.close()
+    }
 
     companion object {
         @Throws(IOException::class)

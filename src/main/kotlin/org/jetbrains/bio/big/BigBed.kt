@@ -1,11 +1,9 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.ComparisonChain
-import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
@@ -13,15 +11,15 @@ import java.util.*
  * Just like BED only BIGGER.
  */
 class BigBedFile private constructor(path: String,
-                                     input: MMapBuffer,
+                                     buffFactory: RomBufferFactory,
                                      header: BigFile.Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
                                      rTree: RTreeIndex)
 :
-        BigFile<BedEntry>(path, input, header, zoomLevels, bPlusTree, rTree) {
+        BigFile<BedEntry>(path, buffFactory, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun summarizeInternal(input: MMBRomBuffer,
+    override fun summarizeInternal(input: RomBuffer,
                                    query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val coverage = query(input, query, overlaps = true).aggregate()
@@ -63,7 +61,6 @@ class BigBedFile private constructor(path: String,
     override fun queryInternal(decompressedBlock: RomBuffer,
                                query: ChromosomeInterval,
                                overlaps: Boolean): Sequence<BedEntry> {
-
         val chrom = chromosomes[query.chromIx]
 
         return with(decompressedBlock) {
@@ -85,28 +82,28 @@ class BigBedFile private constructor(path: String,
         }
     }
 
-    override fun close() {
-        memBuff.close()
-        super.close()
-    }
-
     companion object {
         /** Magic number used for determining [ByteOrder]. */
-        internal val MAGIC = 0x8789F2EB.toInt()
+        internal const val MAGIC = 0x8789F2EB.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): BigBedFile {
-            val byteOrder = getByteOrder(path, MAGIC)
-            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
-            val input = MMBRomBuffer(memBuffer)
+        @JvmStatic fun read(path: Path) = read(path, defaultFactory())
 
-            val header = Header.read(input, MAGIC)
-            val zoomLevels = (0 until header.zoomLevelCount)
-                    .map { ZoomLevel.read(input) }
-            val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
-            val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-            return BigBedFile(path.toAbsolutePath().toString(),
-                              memBuffer, header, zoomLevels, bPlusTree, rTree)
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigBedFile {
+            val byteOrder = getByteOrder(path, MAGIC)
+
+            val buffFactory = factoryProvider(path, byteOrder)
+
+            buffFactory.create().use { input ->
+                val header = Header.read(input, MAGIC)
+                val zoomLevels = (0 until header.zoomLevelCount)
+                        .map { ZoomLevel.read(input) }
+                val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+                val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+                return BigBedFile(path.toAbsolutePath().toString(),
+                                  buffFactory, header, zoomLevels, bPlusTree, rTree)
+            }
         }
 
         private class BedEntrySummary {
@@ -255,8 +252,8 @@ private class AggregationEvent(val offset: Int, val type: Int,
             .result()
 }
 
-private val END = 0    // must be before start.
-private val START = 1
+private const val END = 0    // must be before start.
+private const val START = 1
 
 /** Computes intervals of uniform coverage. */
 internal fun Sequence<BedEntry>.aggregate(): List<Pair<BedEntry, Int>> {
@@ -265,7 +262,7 @@ internal fun Sequence<BedEntry>.aggregate(): List<Pair<BedEntry, Int>> {
                    AggregationEvent(it.end, END, it))
     }.toMutableList()
 
-    Collections.sort(events)
+    events.sort()
 
     var current = 0
     var left = 0

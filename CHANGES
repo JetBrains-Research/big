@@ -3,13 +3,21 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
-Version 0.6.1
+Version 0.7.0
 -------------
 
 **Unreleased**
 
+Fixed
+- Windows support #36, using RandomAccessFile (https://www.unidata.ucar.edu/software/thredds/v4.3/netcdf-java project)
+ instead of memory mapped buffer. The previous impl works only on Mac/Linux, is available using
+ MMBRomBufferFactory in Big*.read() methods
+
 Improved
 - Show less warnings like "R+ tree leaves are overlapping", see issue #35
+
+Fixed
+- BedFile was made closeable
 
 Version 0.6.0
 -------------

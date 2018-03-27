@@ -12,7 +12,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class BigWigFileTest {
+@RunWith(Parameterized::class)
+class BigWigFileTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testCompressedExample2() {
         assertVariableStep(Examples["example2.bw"],
                            "chr21", 9411191, 50f, 48119895, 60f)
@@ -41,7 +42,7 @@ class BigWigFileTest {
     private fun assertVariableStep(path: Path, chromosome: String,
                                    position1: Int, value1: Float,
                                    position2: Int, value2: Float) {
-        val steps = assertChromosome(path, chromosome)
+        val steps = readAndCheckChromosome(path, chromosome)
         assertVariableStep(steps.first(), steps.last(),
                            position1, value1, position2, value2)
     }
@@ -49,23 +50,22 @@ class BigWigFileTest {
     private fun assertFixedStep(path: Path, chromosome: String,
                                 position1: Int, value1: Float,
                                 position2: Int, value2: Float) {
-        val steps = assertChromosome(path, chromosome)
+        val steps = readAndCheckChromosome(path, chromosome)
         assertFixedStep(steps.first(), steps.last(),
                         position1, value1, position2, value2)
     }
 
-    private fun assertChromosome(path: Path, chromosome: String): List<WigSection> {
-        return BigWigFile.read(path).use { bwf ->
-            val chromosomes = bwf.chromosomes
+    private fun readAndCheckChromosome(path: Path, chromosome: String) =
+            BigWigFile.read(path, bfProvider).use { bwf ->
+                val chromosomes = bwf.chromosomes
 
-            assertEquals(1, chromosomes.size())
-            assertEquals(chromosome, chromosomes.values().first())
+                assertEquals(1, chromosomes.size())
+                assertEquals(chromosome, chromosomes.values().first())
 
-            val steps = bwf.query(chromosome, 0, 0).toList()
-            assertTrue(steps.isNotEmpty())
-            steps
-        }
-    }
+                val steps = bwf.query(chromosome, 0, 0)
+                assertTrue(steps.isNotEmpty())
+                steps
+            }
 
     private fun assertVariableStep(firstStep: WigSection, lastStep: WigSection,
                                    position1: Int, value1: Float,
@@ -92,7 +92,7 @@ class BigWigFileTest {
     }
 
     @Test fun testSummarizeWholeFile() {
-        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+        BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val (expected) = bwf.summarize(name, 0, 0, numBins = 1, index = false)
             val (summary) = bwf.summarize(name, 0, 0, numBins = 1)
@@ -106,7 +106,7 @@ class BigWigFileTest {
     }
 
     @Test fun testSummarizeSingleBpBins() {
-        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+        BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val summaries = bwf.summarize(name, 0, 100, numBins = 100)
             assertEquals(100, summaries.size)
@@ -114,7 +114,7 @@ class BigWigFileTest {
     }
 
     @Test(expected = IllegalArgumentException::class) fun testSummarizeTooManyBins() {
-        BigWigFile.read(Examples["example2.bw"]).use { bwf ->
+        BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             bwf.summarize(name, 0, 100, numBins = 200)
         }
@@ -139,7 +139,7 @@ class BigWigFileTest {
         val name = wigSections.map { it.chrom }.first()
         withTempFile("example", ".bw") { path ->
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
-            BigWigFile.read(path).use { bbf ->
+            BigWigFile.read(path, bfProvider).use { bbf ->
                 val summaries = bbf.summarize(name, 0, 0, numBins, index = index)
                 val expected = wigSections.map { it.query().map { it.score }.sum() }.sum().toDouble()
                 val actual = summaries.map { it.sum }.sum()
@@ -155,9 +155,9 @@ class BigWigFileTest {
 
     @Test fun testQueryPartialBedGraph() {
         withTempFile("bed_graph", ".bw") { path ->
-            BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+            BigWigFile.read(Examples["fixed_step.bw"], bfProvider).use { bwf ->
                 val name = bwf.chromosomes.valueCollection().first()
-                BigWigFile.write(bwf.query(name).map { it.toBedGraph() }.toList(),
+                BigWigFile.write(bwf.query(name).map { it.toBedGraph() },
                                  Examples["hg19.chrom.sizes.gz"].chromosomes(),
                                  path)
             }
@@ -167,7 +167,7 @@ class BigWigFileTest {
     }
 
     @Test fun testQueryLeftEndAligned() {
-        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+        BigWigFile.read(Examples["fixed_step.bw"], bfProvider).use { bwf ->
             assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
@@ -176,12 +176,12 @@ class BigWigFileTest {
                     ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400700, 410000)
-                    .flatMap { it.query() }.toList())
+                    .flatMap { it.query().toList() })
         }
     }
 
     @Test fun testQueryRightEndAligned() {
-        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+        BigWigFile.read(Examples["fixed_step.bw"], bfProvider).use { bwf ->
             assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
@@ -190,23 +190,23 @@ class BigWigFileTest {
                     ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400620, 400801)
-                    .flatMap { it.query() }.toList())
+                    .flatMap { it.query().toList() })
         }
     }
 
     @Test fun testQueryInnerRange() {
-        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+        BigWigFile.read(Examples["fixed_step.bw"], bfProvider).use { bwf ->
             assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
             val expected = listOf(ScoredInterval(400700, 400701, 22.0f))
             assertEquals(expected, bwf.query("chr3", 400620, 400800)
-                    .flatMap { it.query() }.toList())
+                    .flatMap { it.query().toList() })
         }
     }
 
     @Test fun testQueryOuterRange() {
-        BigWigFile.read(Examples["fixed_step.bw"]).use { bwf ->
+        BigWigFile.read(Examples["fixed_step.bw"], bfProvider).use { bwf ->
             assertEquals("FixedStepSection{chr3, start=400600, end=400801, step=100, span=1}",
                          bwf.query("chr3").first().toString())
 
@@ -216,7 +216,7 @@ class BigWigFileTest {
                     ScoredInterval(400800, 400801, 33.0f)
             )
             assertEquals(expected, bwf.query("chr3", 400000, 410000)
-                    .flatMap { it.query() }.toList())
+                    .flatMap { it.query().toList() })
         }
     }
 
@@ -227,7 +227,7 @@ class BigWigFileTest {
         section.add(33.0f)
 
         BigWigFile.write(listOf(section), Examples["hg19.chrom.sizes.gz"].chromosomes(), path)
-        BigWigFile.read(path).use { bwf ->
+        BigWigFile.read(path, bfProvider).use { bwf ->
             assertEquals("FixedStepSection{chr3, start=400600, end=400850, step=100, span=50}",
                          bwf.query("chr3").first().toString())
 
@@ -239,18 +239,18 @@ class BigWigFileTest {
 
             assertEquals(expected,
                          bwf.query("chr3", 400600, 410000, overlaps = false)
-                                 .flatMap { it.query() }.toList())
+                                 .flatMap { it.query().toList() })
             assertEquals(expected,
                          bwf.query("chr3", 400615, 410000, overlaps = true)
-                                 .flatMap { it.query() }.toList())
+                                 .flatMap { it.query().toList() })
             assertEquals(expected.subList(1, expected.size),
                          bwf.query("chr3", 400715, 410000, overlaps = true)
-                                 .flatMap { it.query() }.toList())
+                                 .flatMap { it.query().toList() })
         }
     }
 
     private fun testQueryPartial(path: Path) {
-        BigWigFile.read(path).use { bwf ->
+        BigWigFile.read(path, bfProvider).use { bwf ->
             val name = bwf.chromosomes.valueCollection().first()
             val expected = bwf.query(name, 0, 0).first()
             assertEquals(expected,
@@ -275,7 +275,8 @@ class BigWigFileTest {
     @Test fun testConcurrentChrAccess() {
         BigFileTest.doTestConcurrentChrAccess("concurrent.bw",
                                               arrayOf("chr1" to 2657021, "chr2" to 2657021,
-                                                      "chr3" to 2657021, "chr4" to 2657021))
+                                                      "chr3" to 2657021, "chr4" to 2657021),
+                                              bfProvider)
     }
 
     @Test fun testConcurrentDataAccess() {
@@ -294,26 +295,27 @@ class BigWigFileTest {
                    74 to 12612, 75 to 14219, 76 to 6654, 77 to 0, 78 to 0, 79 to 0, 80 to 0, 81 to 0,
                    82 to 0, 83 to 0, 84 to 0, 85 to 0, 86 to 0, 87 to 0, 88 to 0, 89 to 0, 90 to 0,
                    91 to 0, 92 to 0, 93 to 0, 94 to 0, 95 to 0, 96 to 0, 97 to 0, 98 to 0, 99 to 0)
-           BigFileTest.doTestConcurrentDataAccess("concurrent.bw", expected)
+           BigFileTest.doTestConcurrentDataAccess("concurrent.bw", expected, bfProvider, true)
     }
 
     private fun testQueryConsistency(overlaps: Boolean) {
-           BigWigFile.read(Examples["example2.bw"]).use { bwf ->
-               val input = MMBRomBuffer(bwf.memBuff)
-               val (name, chromIx, _/* size */) = bwf.bPlusTree.traverse(input).first()
-               val wigItems = bwf.query(name).flatMap { it.query().asSequence() }.toList()
-               val i = RANDOM.nextInt(wigItems.size)
-               val j = RANDOM.nextInt(wigItems.size)
-               val query = Interval(chromIx,
-                                    wigItems[Math.min(i, j)].start,
-                                    wigItems[Math.max(i, j)].end)
-               for (section in bwf.query(name, query.startOffset, query.endOffset)) {
-                   for (wigItem in section.query()) {
-                       val interval = Interval(chromIx, wigItem.start, wigItem.end)
-                       if (overlaps) {
-                           assertTrue(interval intersects query)
-                       } else {
-                           assertTrue(interval in query)
+           BigWigFile.read(Examples["example2.bw"], bfProvider).use { bwf ->
+               bwf.buffFactory.create().use { input ->
+                   val (name, chromIx, _/* size */) = bwf.bPlusTree.traverse(input).first()
+                   val wigItems = bwf.query(name).asSequence().flatMap { it.query().asSequence() }.toList()
+                   val i = RANDOM.nextInt(wigItems.size)
+                   val j = RANDOM.nextInt(wigItems.size)
+                   val query = Interval(chromIx,
+                                        wigItems[Math.min(i, j)].start,
+                                        wigItems[Math.max(i, j)].end)
+                   for (section in bwf.query(name, query.startOffset, query.endOffset)) {
+                       for (wigItem in section.query()) {
+                           val interval = Interval(chromIx, wigItem.start, wigItem.end)
+                           if (overlaps) {
+                               assertTrue(interval intersects query)
+                           } else {
+                               assertTrue(interval in query)
+                           }
                        }
                    }
                }
@@ -331,19 +333,23 @@ class BigWigFileTest {
 
             return surrogate
         }
+
+        @Parameterized.Parameters(name = "{0}")
+        @JvmStatic fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
     }
 }
 
 @RunWith(Parameterized::class)
 class BigWigReadWriteTest(private val order: ByteOrder,
-                          private val compression: CompressionType) {
+                          private val compression: CompressionType,
+                          private val bfProvider: RomBufferFactoryProvider) {
 
     @Test fun testWriteReadNoData() {
         withTempFile("empty", ".bw") { path ->
             BigWigFile.write(emptyList<WigSection>(),
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigWigFile.read(path).use { bbf ->
+            BigWigFile.read(path, bfProvider).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
         }
@@ -354,7 +360,7 @@ class BigWigReadWriteTest(private val order: ByteOrder,
             BigWigFile.write(listOf(VariableStepSection("chr21")),
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigWigFile.read(path).use { bbf ->
+            BigWigFile.read(path, bfProvider).use { bbf ->
                 assertEquals(0, bbf.query("chr21", 0, 0).count())
             }
         }
@@ -374,7 +380,7 @@ class BigWigReadWriteTest(private val order: ByteOrder,
             BigWigFile.write(listOf(section1, section2),
                              Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigWigFile.read(path).use { bbf ->
+            BigWigFile.read(path, bfProvider).use { bbf ->
                 assertEquals(1, bbf.query("chr19", 0, 0).count())
                 assertEquals(1, bbf.query("chr21", 0, 0).count())
             }
@@ -404,22 +410,15 @@ class BigWigReadWriteTest(private val order: ByteOrder,
             val wigSections = WigFile(Examples["example.wig"]).toList()
             BigWigFile.write(wigSections, Examples["hg19.chrom.sizes.gz"].chromosomes(),
                              path, compression = compression, order = order)
-            BigWigFile.read(path).use { bwf ->
-                assertEquals(wigSections, bwf.query("chr19", 0, 0).toList())
+            BigWigFile.read(path, bfProvider).use { bwf ->
+                assertEquals(wigSections, bwf.query("chr19", 0, 0))
                 assertFalse(bwf.totalSummary.isEmpty())
             }
         }
     }
 
     companion object {
-        @Parameterized.Parameters(name = "{0}:{1}")
-        @JvmStatic fun data(): Iterable<Array<Any>> {
-            return listOf(arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY))
-        }
+        @Parameterized.Parameters(name = "{0}:{1}:{2}")
+        @JvmStatic fun data(): Iterable<Array<Any>> = allBigFileParamsSets()
     }
 }

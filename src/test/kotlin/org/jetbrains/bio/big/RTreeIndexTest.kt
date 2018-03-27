@@ -1,19 +1,17 @@
 package org.jetbrains.bio.big
 
-import com.indeed.util.mmap.MMapBuffer
-import org.jetbrains.bio.Examples
-import org.jetbrains.bio.MMBRomBuffer
-import org.jetbrains.bio.OrderedDataOutput
-import org.jetbrains.bio.withTempFile
+import org.jetbrains.bio.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class RTreeIndexTest {
+@RunWith(Parameterized::class)
+class RTreeIndexTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testReadHeader() {
         exampleFile.use { bbf ->
             val rti = bbf.rTree
@@ -37,8 +35,7 @@ class RTreeIndexTest {
                 RTreeIndex.write(it, emptyList())
             }
 
-            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
-                                                ByteOrder.nativeOrder())).use { input ->
+            bfProvider(path, ByteOrder.nativeOrder()).create().use { input ->
 
                 val rti = RTreeIndex.read(input, 0L)
                 val query = Interval(0, 100, 200)
@@ -55,9 +52,10 @@ class RTreeIndexTest {
             val right = left + RANDOM.nextInt(items.size - left)
             val query = Interval(0, items[left].start, items[right].end)
 
-            val input = MMBRomBuffer(bbf.memBuff)
-            for (block in rti.findOverlappingBlocks(input, query)) {
-                assertTrue(block.interval intersects query)
+            bbf.buffFactory.create().use { input ->
+                for (block in rti.findOverlappingBlocks(input, query)) {
+                    assertTrue(block.interval intersects query)
+                }
             }
         }
     }
@@ -85,8 +83,7 @@ class RTreeIndexTest {
                 RTreeIndex.write(it, leaves, blockSize)
             }
 
-            MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY,
-                                    ByteOrder.nativeOrder())).use { input ->
+            bfProvider(path, ByteOrder.nativeOrder()).create().use { input ->
 
                 val rti = RTreeIndex.read(input, 0)
                 for (leaf in leaves) {
@@ -99,15 +96,17 @@ class RTreeIndexTest {
         }
     }
 
-    private val exampleFile: BigBedFile get() {
-        return BigBedFile.read(Examples["example1.bb"])
-    }
+    private val exampleFile: BigBedFile get() = BigBedFile.read(Examples["example1.bb"], bfProvider)
 
     private val exampleItems: List<BedEntry> by lazy(NONE) {
-        BedFile.read(Examples["example1.bed"]).toList()
+        BedFile.read(Examples["example1.bed"]).use { it.toList() }
     }
 
     companion object {
         private val RANDOM = Random()
-    }
+
+        @Parameterized.Parameters(name = "{0}")
+        @JvmStatic
+        fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
+      }
 }

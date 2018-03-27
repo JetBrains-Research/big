@@ -1,12 +1,10 @@
 package org.jetbrains.bio
 
-import com.indeed.util.mmap.MMapBuffer
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -14,8 +12,9 @@ import kotlin.test.assertEquals
 
 @RunWith(Parameterized::class)
 class SeekableDataIOTest(private val order: ByteOrder,
-                         private val compression: CompressionType) {
-    @Test fun testWriteReadIntegral() = withTempFileRandomized() { path, r ->
+                         private val compression: CompressionType,
+                         private val factoryProvider: RomBufferFactoryProvider) {
+    @Test fun testWriteReadIntegral() = withTempFileRandomized { path, r ->
         val b = r.nextInt().toByte()
         val s = r.nextInt(Short.MAX_VALUE.toInt())
         val i = r.nextInt()
@@ -26,7 +25,8 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeInt(i)
             it.writeLong(l)
         }
-        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
+
+        factoryProvider(path, order).create().use {
             assertEquals(b, it.readByte())
             assertEquals(s.toShort(), it.readShort())
             assertEquals(i, it.readInt())
@@ -41,7 +41,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeFloat(f)
             it.writeDouble(d)
         }
-        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
+        factoryProvider(path, order).create().use {
             assertEquals(f, it.readFloat())
             assertEquals(d, it.readDouble())
         }
@@ -55,7 +55,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             it.writeString(s, s.length + 8)
             it.skipBytes(16)
         }
-        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
+        factoryProvider(path, order).create().use {
             assertEquals(s, it.readCString())
             val b = it.readBytes(s.length + 8)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
@@ -74,7 +74,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             }
         }
 
-        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use {
+        factoryProvider(path, order).create().use {
             it.with(0, Files.size(path), compression) {
                 for (i in 0 until values.size) {
                     assertEquals(values[i], readInt())
@@ -89,7 +89,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
             values.forEach { orderedDataOutput.writeInt(it) }
         }
 
-        MMBRomBuffer(MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)).use { buffer ->
+        factoryProvider(path, order).create().use { buffer ->
             buffer.readInt()
             val second = buffer.duplicate()
 
@@ -107,14 +107,7 @@ class SeekableDataIOTest(private val order: ByteOrder,
     companion object {
         private val RANDOM = Random()
 
-        @Parameters(name = "{0}:{1}")
-        @JvmStatic fun data(): Iterable<Array<Any>> {
-            return listOf(arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.BIG_ENDIAN, CompressionType.SNAPPY),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.NO_COMPRESSION),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.DEFLATE),
-                          arrayOf(ByteOrder.LITTLE_ENDIAN, CompressionType.SNAPPY))
-        }
+        @Parameters(name = "{0}:{1}:{2}")
+        @JvmStatic fun data(): Iterable<Array<Any>> = allBigFileParamsSets()
     }
 }

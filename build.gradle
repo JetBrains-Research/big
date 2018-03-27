@@ -26,6 +26,11 @@ compileTestKotlin { kotlinOptions.jvmTarget = sourceCompatibility }
 
 repositories {
     jcenter()
+
+    maven {
+        url "https://artifacts.unidata.ucar.edu/repository/unidata-all/"
+    }
+
 }
 
 dependencies {
@@ -35,6 +40,7 @@ dependencies {
     compile 'org.apache.commons:commons-math3:3.+'
     compile 'org.iq80.snappy:snappy:0.4'
     compile 'com.indeed:util-mmap:1.0.+'
+    compile 'edu.ucar:netcdf4:4.6.+'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     testCompile 'junit:junit:4.+'

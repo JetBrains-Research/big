@@ -1,10 +1,8 @@
 package org.jetbrains.bio.big
 
-import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Path
 import java.util.*
 
@@ -12,15 +10,15 @@ import java.util.*
  * Bigger brother of the good-old WIG format.
  */
 class BigWigFile private constructor(path: String,
-                                     memBuffer: MMapBuffer,
+                                     buffFactory: RomBufferFactory,
                                      header: Header,
                                      zoomLevels: List<ZoomLevel>,
                                      bPlusTree: BPlusTree,
                                      rTree: RTreeIndex)
 :
-        BigFile<WigSection>(path, memBuffer, header, zoomLevels, bPlusTree, rTree) {
+        BigFile<WigSection>(path, buffFactory, header, zoomLevels, bPlusTree, rTree) {
 
-    override fun summarizeInternal(input: MMBRomBuffer,
+    override fun summarizeInternal(input: RomBuffer,
                                    query: ChromosomeInterval,
                                    numBins: Int): Sequence<IndexedValue<BigSummary>> {
         val wigItems = query(input, query, overlaps = true).flatMap { it.query() }.toList()
@@ -157,28 +155,29 @@ class BigWigFile private constructor(path: String,
         })
     }
 
-    override fun close() {
-        memBuff.close()
-        super.close()
-    }
-
     companion object {
         /** Magic number used for determining [ByteOrder]. */
         internal val MAGIC = 0x888FFC26.toInt()
 
-        @Throws(IOException::class)
-        @JvmStatic fun read(path: Path): BigWigFile {
-            val byteOrder = getByteOrder(path, MAGIC)
-            val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
-            val input = MMBRomBuffer(memBuffer)
-            val header = Header.read(input, MAGIC)
-            val zoomLevels = (0 until header.zoomLevelCount)
-                    .map { ZoomLevel.read(input) }
-            val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
-            val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
 
-            return BigWigFile(path.toAbsolutePath().toString(),
-                              memBuffer, header, zoomLevels, bPlusTree, rTree)
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path) = read(path, defaultFactory())
+
+        @Throws(IOException::class)
+        @JvmStatic fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigWigFile {
+            val byteOrder = getByteOrder(path, MAGIC)
+            val buffFactory = factoryProvider(path, byteOrder)
+
+            buffFactory.create().use { input ->
+                val header = Header.read(input, MAGIC)
+                val zoomLevels = (0 until header.zoomLevelCount)
+                        .map { ZoomLevel.read(input) }
+                val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+                val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+
+                return BigWigFile(path.toAbsolutePath().toString(),
+                                  buffFactory, header, zoomLevels, bPlusTree, rTree)
+            }
         }
 
         private class WigSectionSummary {
