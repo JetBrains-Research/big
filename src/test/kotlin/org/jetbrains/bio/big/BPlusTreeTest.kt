@@ -1,13 +1,11 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
-import com.indeed.util.mmap.MMapBuffer
 import org.jetbrains.bio.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.util.*
 import kotlin.test.assertEquals
