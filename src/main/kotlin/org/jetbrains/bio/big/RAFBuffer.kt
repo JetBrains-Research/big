@@ -1,7 +1,7 @@
 package org.jetbrains.bio.big
 
+import org.jetbrains.bio.RandomAccessFile
 import org.jetbrains.bio.RomBuffer
-import ucar.unidata.io.RandomAccessFile
 import java.nio.ByteOrder
 import java.nio.file.Path
 
@@ -18,7 +18,7 @@ class RAFBuffer(private val path: Path,
                 position: Long = 0L,
                 limit: Long = -1) : RomBuffer() {
 
-    private val randomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), "r", 128000).apply {
+    private val randomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), 128000).apply {
         order(order)
         seek(position)
     }
