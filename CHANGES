@@ -9,12 +9,14 @@ Version 0.7.0
 **Unreleased**
 
 Fixed
-- RandomAccessFile (https://www.unidata.ucar.edu) copied to project and rewritten in Kotlin so as not to depend on
- heavy netcdf-java library. For simplicity writing operations were removed from file.
+- RandomAccessFile (https://www.unidata.ucar.edu) copied to project and
+  rewritten in Kotlin so as not to depend on heavy netcdf-java library.
+  For simplicity writing operations were removed from file.
 
-- Windows support #36, using RandomAccessFile (https://www.unidata.ucar.edu/software/thredds/v4.3/netcdf-java project)
- instead of memory mapped buffer. The previous impl works only on Mac/Linux, is available using
- MMBRomBufferFactory in Big*.read() methods
+- Windows support #36, using RandomAccessFile
+ (https://www.unidata.ucar.edu/software/thredds/v4.3/netcdf-java project)
+ instead of memory mapped buffer. The previous impl (works only on
+ Mac/Linux) is available using `MMBRomBufferFactory` in `Big*.read()`.
 
 Improved
 - Show less warnings like "R+ tree leaves are overlapping", see issue #35
