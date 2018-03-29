@@ -21,9 +21,17 @@ Fixed
 Improved
 - Show less warnings like "R+ tree leaves are overlapping", see issue #35
 
-Fixed
+Changed
 - BedFile was made closeable
-
+- Default `name` field value in `ExtendedBedEntry` was changed to ".".
+  also while parsing empty name value is converted to ".".
+- Bed entry pack/unpack methods now supports custom delimiter and
+- `ExtendedBedEntry.unpack()` method supports `omitEmptyStrings` option,
+  which treats several consecutive separators as one, e.g. if TAB
+  delimiter was converted by error to sequence of whitespace characters.
+- Score range [0..1000] check disable because MACS2 output may contain
+  scores > 1000
+  
 Version 0.6.0
 -------------
 

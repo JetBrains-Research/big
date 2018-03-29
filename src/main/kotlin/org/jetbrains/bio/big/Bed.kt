@@ -56,20 +56,27 @@ data class BedEntry(
      * Parses minimal representation
      * @param fieldsNumber Expected BED format fields number to parse (3..12)
      * @param extraFieldsNumber BED+ format extra fields number to parse, if null parse all extra fields
+     * @param delimiter Custom delimiter for malformed data
+     * @param omitEmptyStrings Treat several consecutive separators as one
      */
-    fun unpack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null): ExtendedBedEntry {
+    fun unpack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
+               delimiter: Char = '\t',
+               omitEmptyStrings: Boolean = false): ExtendedBedEntry {
 
         check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
+
         // This impl parsed only BED9 and adds 9..12 fields to 'rest' string
+        val limit = fieldsNumber.toInt() - 3 + 1
         val it = when {
             rest.isEmpty() -> emptyArray<String>().iterator()
-            else -> rest.split('\t',
-                               limit = fieldsNumber.toInt() - 3 + 1).iterator()
+            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).split(rest).iterator()
+            else -> rest.split(delimiter, limit = limit).iterator()
         }
+
         // If line is shorter than suggested fields number do not throw an error
         // it could be ok for default behaviour, when user not sure how much fields
         // do we actually have
-        val name = if (fieldsNumber >= 4 && it.hasNext()) it.next() else ""
+        val name = if (fieldsNumber >= 4 && it.hasNext()) it.next() else "."
         val score = if (fieldsNumber >= 5 && it.hasNext()) it.next().toShort() else 0
         val strand = if (fieldsNumber >= 6 && it.hasNext()) it.next().first() else '.'
         val thickStart = if (fieldsNumber >= 7 && it.hasNext()) it.next().toInt() else 0
@@ -100,7 +107,12 @@ data class BedEntry(
             if (extraStr.isEmpty()) {
                 null
             } else {
-                val extraFields = extraStr.split("\t", limit = (extraFieldsNumber ?: -1) + 1)
+                val limit = (extraFieldsNumber ?: -1) + 1
+                val extraFields = if (omitEmptyStrings) {
+                    Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).splitToList(extraStr)
+                } else {
+                    extraStr.split(delimiter, limit = limit)
+                }
                 if (extraFieldsNumber == null) {
                     extraFields.toTypedArray()
                 } else {
@@ -110,7 +122,10 @@ data class BedEntry(
         } else {
             null
         }
-        return ExtendedBedEntry(chrom, start, end, name, score, strand, thickStart, thickEnd, color,
+
+        return ExtendedBedEntry(chrom, start, end,
+                                if (name == "") "." else name,
+                                score, strand, thickStart, thickEnd, color,
                                 blockCount, blockSizes, blockStarts, extraFields)
     }
 
@@ -139,7 +154,7 @@ data class ExtendedBedEntry(
         /** 0-based end offset (exclusive). */
         val end: Int,
         /** Name of feature. */
-        val name: String = "",
+        val name: String = ".",
         /** A number from [0, 1000] that controls shading of item. */
         val score: Short = 0,
 
@@ -160,9 +175,11 @@ data class ExtendedBedEntry(
         val extraFields: Array<String>? = null) {
 
     init {
-        require(score in 0..1000) {
-            "Unexpected score: $score"
-        }
+        // Unfortunately MACS2 generates *.bed files with score > 1000
+        // let's ignore this check:
+        // require(score in 0..1000) {
+        //     "Unexpected score: $score"
+        // }
 
         require(strand == '+' || strand == '-' || strand == '.') {
             "Unexpected strand value: $strand"
@@ -227,14 +244,17 @@ data class ExtendedBedEntry(
      * Convert to BedEntry
      * @param fieldsNumber BED format fields number to serialize (3..12)
      * @param extraFieldsNumber BED+ format extra fields number to serialize, if null serialize all extra fields
+     * @param delimiter Custom delimiter for malformed data
      */
-    fun pack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null): BedEntry {
+    fun pack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
+             delimiter: Char = '\t'): BedEntry {
         check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
 
         val rest = ArrayList<String>()
 
         if (fieldsNumber >= 4) {
-            rest.add(name)
+            // Empty string will lead to incorrect results
+            rest.add(if (name.isNotEmpty()) name else ".")
         }
         if (fieldsNumber >= 5) {
             rest.add("$score")
@@ -294,6 +314,6 @@ data class ExtendedBedEntry(
             }
         }
 
-        return BedEntry(chrom, start, end, rest.joinToString("\t"))
+        return BedEntry(chrom, start, end, rest.joinToString(delimiter.toString()))
     }
 }

@@ -127,6 +127,16 @@ class BedEntryTest {
         e.pack(fieldsNumber = 13)
     }
 
+    @Test fun packBedCustomDelimiter() {
+        val e = ExtendedBedEntry(
+                "chr1", 10, 30, "be", 5, '+', 15, 25,
+                Color(15, 16, 17).rgb, 2, intArrayOf(4, 5), intArrayOf(11, 20),
+                arrayOf("val1", "4.55"))
+
+        assertEquals(BedEntry("chr1", 10, 30, "be;5;+;val1;4.55"),
+                     e.pack(fieldsNumber = 6, extraFieldsNumber = 2, delimiter = ';'))
+    }
+
     @Test(expected = IllegalStateException::class)
     fun packWrongSizes() {
         ExtendedBedEntry("chr1", 10, 30, blockCount = 2,
@@ -144,7 +154,7 @@ class BedEntryTest {
     @Test fun packNoColor() {
         val e = ExtendedBedEntry("chr1", 10, 30, itemRgb = 0)
 
-        assertEquals(BedEntry("chr1", 10, 30, "\t0\t.\t0\t0\t0"),
+        assertEquals(BedEntry("chr1", 10, 30, ".\t0\t.\t0\t0\t0"),
                      e.pack(fieldsNumber = 9, extraFieldsNumber = 0))
 
     }
@@ -152,7 +162,7 @@ class BedEntryTest {
     @Test fun packNoBlocks() {
         val e = ExtendedBedEntry("chr1", 10, 30)
 
-        assertEquals(BedEntry("chr1", 10, 30, "\t0\t.\t0\t0\t0\t0\t.\t."),
+        assertEquals(BedEntry("chr1", 10, 30, ".\t0\t.\t0\t0\t0\t0\t.\t."),
                      e.pack(fieldsNumber = 12, extraFieldsNumber = 0))
 
     }
@@ -221,7 +231,7 @@ class BedEntryTest {
 
     @Test fun unpackBedEmptyName() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
-        assertEquals(ExtendedBedEntry("chr1", 1, 100, "", 4, '+'),
+        assertEquals(ExtendedBedEntry("chr1", 1, 100, ".", 4, '+'),
                      bedEntry.unpack(fieldsNumber = 6)
         )
     }
@@ -257,7 +267,7 @@ class BedEntryTest {
     }
     @Test fun unpackNoExtraFieldsWhenNeeded() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
-        assertEquals(ExtendedBedEntry("chr1", 1, 100, "", 4, '+'),
+        assertEquals(ExtendedBedEntry("chr1", 1, 100, ".", 4, '+'),
                      bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 1)
         )
     }
@@ -279,4 +289,22 @@ class BedEntryTest {
     fun unpackBed13() {
         BedEntry("chr1", 1, 100, "").unpack(fieldsNumber = 13)
     }
+
+    @Test fun unpackBed3p4CustomDelimiter() {
+        val bedEntry = BedEntry("chr1", 1, 100, "34.56398;-1.00000;4.91755;240")
+        assertEquals(ExtendedBedEntry("chr1", 1, 100,
+                                      extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")),
+                     bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4, delimiter = ';')
+        )
+    }
+
+    @Test fun unpackBed3p4OmitEmptyStrings() {
+        val bedEntry = BedEntry("chr1", 1, 100, "34.56398    -1.00000    4.91755    240")
+        assertEquals(ExtendedBedEntry("chr1", 1, 100,
+                                      extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")),
+                     bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4,
+                                     delimiter = ' ', omitEmptyStrings = true)
+        )
+    }
+
 }
