@@ -1041,7 +1041,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         raf.seek(pos)
         val n = raf.read(b, offset, len)
 
-        if (debugAccessField) {
+        if (debugAccess) {
             if (logRead)
                 LOG.debug(" **read_ " + location + " = " + len + " bytes at " + pos + "; block = " + pos / buffer.size)
             seeksCounter.incrementAndGet()
@@ -1152,7 +1152,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
 
         /* Debugging, do not use.
         */
-        var debugAccessField = false
+        var debugAccess = false
             set(value) {
                 if (value) {
                     seeksCounter = AtomicInteger()
