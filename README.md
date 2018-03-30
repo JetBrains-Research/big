@@ -1,4 +1,4 @@
-# big [![Build Status](https://travis-ci.org/JetBrains-Research/big.svg?branch=master)](https://travis-ci.org/JetBrains-Research/big) [![Build status](https://ci.appveyor.com/api/projects/status/e9q4o6rgdfhyy6ry?svg=true)](https://ci.appveyor.com/project/superbobry/big) [![Build status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Epigenome_Tools_Big)/statusIcon)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Epigenome_Tools_Big&guest=1)
+# big [![Build Status](https://travis-ci.org/JetBrains-Research/big.svg?branch=master)](https://travis-ci.org/JetBrains-Research/big) [![Build status](https://ci.appveyor.com/api/projects/status/e9q4o6rgdfhyy6ry?svg=true)](https://ci.appveyor.com/project/superbobry/big) [![Build status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Epigenome_Tools_Big)/statusIcon.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Epigenome_Tools_Big&guest=1)
 
 `big` implements high performance classes for reading and writing BigWIG,
 BigBED and TDF. You can use `big` in any programming language running on the
