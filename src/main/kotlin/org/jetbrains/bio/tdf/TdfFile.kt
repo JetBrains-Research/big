@@ -3,8 +3,8 @@ package org.jetbrains.bio.tdf
 import com.google.common.primitives.Ints
 import org.jetbrains.bio.CompressionType
 import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.big.RAFBufferFactory
-import org.jetbrains.bio.big.RomBufferFactory
+import org.jetbrains.bio.RAFBufferFactory
+import org.jetbrains.bio.RomBufferFactory
 import org.jetbrains.bio.divCeiling
 import org.jetbrains.bio.mapUnboxed
 import java.io.Closeable

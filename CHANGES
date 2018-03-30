@@ -11,6 +11,12 @@ Version 0.7.1
 Changed
 - Use maxHeapSize = "1024m" option for tests. Seems by default on
   windows heap size in about 256m and it isn't enough for tests
+- `RAFBufferFactory`, `RAFBuffer`, `RomBufferFactory` moved to
+  `org.jetbrains.bio` package
+- `RAFBufferFactory` supports buffer size option for underlying
+  random access file
+- By default `RAFBufferFactory` uses default Random Access File
+  buffers size (8092 bytes) instead of 125 kb.
 
 Version 0.7.0
 -------------

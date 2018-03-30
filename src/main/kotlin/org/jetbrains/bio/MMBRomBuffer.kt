@@ -2,7 +2,6 @@ package org.jetbrains.bio
 
 import com.google.common.primitives.*
 import com.indeed.util.mmap.MMapBuffer
-import org.jetbrains.bio.big.RomBufferFactory
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.file.Path

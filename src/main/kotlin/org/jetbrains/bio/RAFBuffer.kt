@@ -1,12 +1,16 @@
-package org.jetbrains.bio.big
+package org.jetbrains.bio
 
-import org.jetbrains.bio.RandomAccessFile
-import org.jetbrains.bio.RomBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
 
-class RAFBufferFactory(private val path: Path, private val byteOrder: ByteOrder): RomBufferFactory {
-    override fun create(): RomBuffer = RAFBuffer(path, byteOrder)
+/**
+ * @param path File path
+ * @param byteOrder Byte order
+ * @param bufferSize Random access file buffer size in bytes, use -1 for default value
+ */
+class RAFBufferFactory(private val path: Path, private val byteOrder: ByteOrder,
+                       val bufferSize: Int = -1): RomBufferFactory {
+    override fun create(): RomBuffer = RAFBuffer(path, byteOrder, bufferSize = bufferSize)
 
     override fun close() {
         // Do nothing
@@ -16,9 +20,10 @@ class RAFBufferFactory(private val path: Path, private val byteOrder: ByteOrder)
 class RAFBuffer(private val path: Path,
                 override val order: ByteOrder,
                 position: Long = 0L,
-                limit: Long = -1) : RomBuffer() {
+                limit: Long = -1,
+                val bufferSize: Int = -1) : RomBuffer() {
 
-    private val randomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), 128000).apply {
+    private val randomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), bufferSize).apply {
         order(order)
         seek(position)
     }
@@ -37,7 +42,7 @@ class RAFBuffer(private val path: Path,
         get() = randomAccessFile.filePointer
         set(position) { randomAccessFile.seek(position) }
 
-    override fun duplicate() = RAFBuffer(path, order, position, limit)
+    override fun duplicate() = RAFBuffer(path, order, position, limit, bufferSize)
 
     override fun readInts(size: Int): IntArray {
         val dst = IntArray(size)

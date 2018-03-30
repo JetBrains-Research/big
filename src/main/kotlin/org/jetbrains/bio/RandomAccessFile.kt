@@ -97,8 +97,9 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
 
     /**
      * The buffer used for reading the data.
+     * Will be set to null on file close
      */
-    protected lateinit var buffer: ByteArray
+    protected var buffer: ByteArray? = null
 
     /**
      * The offset in bytes of the start of the buffer, from the start of the file.
@@ -134,7 +135,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
      * Internal buffer size in bytes. If writing, call flush() first.
      */
     var bufferSize: Int
-        get() = buffer.size
+        get() = buffer!!.size
         set(bufferSize) {
             bufferStart = 0
             dataEnd = 0
@@ -202,6 +203,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         // Close the underlying file object.
         randomAccessFile!!.close()
         randomAccessFile = null  // help the gc
+        buffer = null // help the gc
     }
 
     /**
@@ -230,7 +232,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         bufferStart = pos
         filePointer = pos
 
-        dataSize = read_(pos, buffer, 0, buffer.size)
+        dataSize = read_(pos, buffer!!, 0, buffer!!.size)
 
         if (dataSize <= 0) {
             dataSize = 0
@@ -285,7 +287,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
             filePointer < dataEnd -> {
                 val pos = (filePointer - bufferStart).toInt()
                 filePointer++
-                (buffer[pos].toInt() and 0xff)
+                (buffer!![pos].toInt() and 0xff)
 
 
             }
@@ -333,7 +335,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
             len
         else
             bytesAvailable
-        System.arraycopy(buffer, (filePointer - bufferStart).toInt(), b, off, copyLength)
+        System.arraycopy(buffer!!, (filePointer - bufferStart).toInt(), b, off, copyLength)
         filePointer += copyLength.toLong()
 
         // If there is more to copy...
@@ -342,7 +344,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
 
             // If the amount remaining is more than a buffer's length, read it
             // directly from the file.
-            if (extraCopy > buffer.size) {
+            if (extraCopy > buffer!!.size) {
                 extraCopy = read_(filePointer, b, off + copyLength, len - copyLength)
 
                 // ...or read a new buffer full, and copy as much as possible...
@@ -353,7 +355,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
                         dataSize
                     else
                         extraCopy
-                    System.arraycopy(buffer, 0, b, off + copyLength, extraCopy)
+                    System.arraycopy(buffer!!, 0, b, off + copyLength, extraCopy)
                 } else {
                     extraCopy = -1
                 }
@@ -1043,7 +1045,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
 
         if (debugAccess) {
             if (logRead)
-                LOG.debug(" **read_ " + location + " = " + len + " bytes at " + pos + "; block = " + pos / buffer.size)
+                LOG.debug(" **read_ " + location + " = " + len + " bytes at " + pos + "; block = " + pos / buffer!!.size)
             seeksCounter.incrementAndGet()
             bytesReadCounter.addAndGet(len.toLong())
         }
