@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.7.1
 -------------
 
-**Unreleased**
+Released on April 31th 2017
 
 Changed
 - Use maxHeapSize = "1024m" option for tests. Seems by default on
