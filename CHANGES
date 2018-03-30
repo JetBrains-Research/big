@@ -3,6 +3,15 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.7.1
+-------------
+
+**Unreleased**
+
+Changed
+- Use maxHeapSize = "1024m" option for tests. Seems by default on
+  windows heap size in about 256m and it isn't enough for tests
+
 Version 0.7.0
 -------------
 
