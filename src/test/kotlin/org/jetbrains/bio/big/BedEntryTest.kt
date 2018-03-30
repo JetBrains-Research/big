@@ -307,4 +307,13 @@ class BedEntryTest {
         )
     }
 
+    @Test fun unpackBedDotDefaultValues() {
+        assertEquals(ExtendedBedEntry("chr1", 1, 100),
+                     BedEntry("chr1", 1, 100, ".\t.\t.\t.\t.\t.\t.\t.\t.").unpack())
+
+        assertEquals(ExtendedBedEntry("chr1", 1, 100, extraFields = arrayOf(".")),
+                     BedEntry("chr1", 1, 100, ".\t.\t.\t.\t.\t.\t.\t.\t.\t.").unpack())
+        assertEquals(ExtendedBedEntry("chr1", 1, 100, extraFields = arrayOf(".", ".")),
+                     BedEntry("chr1", 1, 100, ".\t.\t.\t.\t.\t.\t.\t.\t.\t.\t.").unpack())
+    }
 }

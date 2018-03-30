@@ -31,6 +31,7 @@ Changed
   delimiter was converted by error to sequence of whitespace characters.
 - Score range [0..1000] check disable because MACS2 output may contain
   scores > 1000
+- `ExtendedBedEntry.unpack()` parses '.' values as fields default values
   
 Version 0.6.0
 -------------

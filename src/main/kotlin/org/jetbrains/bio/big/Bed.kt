@@ -77,13 +77,31 @@ data class BedEntry(
         // it could be ok for default behaviour, when user not sure how much fields
         // do we actually have
         val name = if (fieldsNumber >= 4 && it.hasNext()) it.next() else "."
-        val score = if (fieldsNumber >= 5 && it.hasNext()) it.next().toShort() else 0
+        val score = when {
+            fieldsNumber >= 5 && it.hasNext() -> {
+                val chunk = it.next()
+                if (chunk == ".") 0 else chunk.toShort()
+            }
+            else -> 0
+        }
         val strand = if (fieldsNumber >= 6 && it.hasNext()) it.next().first() else '.'
-        val thickStart = if (fieldsNumber >= 7 && it.hasNext()) it.next().toInt() else 0
-        val thickEnd = if (fieldsNumber >= 8 && it.hasNext()) it.next().toInt() else 0
+        val thickStart = when {
+            fieldsNumber >= 7 && it.hasNext() -> {
+                val chunk = it.next()
+                if (chunk == ".") 0 else chunk.toInt()
+            }
+            else -> 0
+        }
+        val thickEnd = when {
+            fieldsNumber >= 8 && it.hasNext() -> {
+                val chunk = it.next()
+                if (chunk == ".") 0 else chunk.toInt()
+            }
+            else -> 0
+        }
         val color = if (fieldsNumber >= 9 && it.hasNext()) {
             val value = it.next()
-            if (value == "0") {
+            if (value == "0" || value == ".") {
                 0
             } else {
                 val chunks = value.split(',', limit = 3)
@@ -92,7 +110,13 @@ data class BedEntry(
         } else {
             0
         }
-        val blockCount = if (fieldsNumber >= 10 && it.hasNext()) it.next().toInt() else 0
+        val blockCount = when {
+            fieldsNumber >= 10 && it.hasNext() -> {
+                val chunk = it.next()
+                if (chunk == ".") 0 else chunk.toInt()
+            }
+            else -> 0
+        }
         val blockSizes = if (fieldsNumber >= 11 && it.hasNext()) {
             val value = it.next()
             if (blockCount > 0) value.splitToInts(blockCount) else null
