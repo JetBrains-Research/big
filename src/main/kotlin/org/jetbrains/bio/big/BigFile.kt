@@ -336,7 +336,7 @@ abstract class BigFile<out T> internal constructor(
 
                 when {
                     // asOffset > 0 -> LOG.trace("AutoSQL queries are unsupported")
-                    extendedHeaderOffset > 0 -> LOG.warn("Header extensions are unsupported")
+                    extendedHeaderOffset > 0 -> LOG.debug("Header extensions are unsupported")
                 }
 
                 Header(order, magic, version, zoomLevelCount, chromTreeOffset,
