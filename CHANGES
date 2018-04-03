@@ -10,6 +10,7 @@ Released on <Unreleased>
 
 Changed
 - Show 'Header extensions are unsupported' only in debug log
+- Use `RomBufferFactory` to detect file endianness
 
 
 Version 0.7.1

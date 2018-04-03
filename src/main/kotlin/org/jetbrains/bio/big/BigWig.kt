@@ -165,7 +165,7 @@ class BigWigFile private constructor(path: String,
 
         @Throws(IOException::class)
         @JvmStatic fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigWigFile {
-            val byteOrder = getByteOrder(path, MAGIC)
+            val byteOrder = getByteOrder(path, MAGIC, factoryProvider)
             val buffFactory = factoryProvider(path, byteOrder)
 
             buffFactory.create().use { input ->

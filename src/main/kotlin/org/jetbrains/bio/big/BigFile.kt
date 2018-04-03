@@ -1,7 +1,6 @@
 package org.jetbrains.bio.big
 
 import com.google.common.collect.Iterators
-import com.google.common.primitives.Ints
 import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
@@ -10,9 +9,7 @@ import org.apache.log4j.LogManager
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.bio.*
 import java.io.Closeable
-import java.io.FileInputStream
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
@@ -365,21 +362,17 @@ abstract class BigFile<out T> internal constructor(
         /**
          * Magic specifies file format and bytes order. Let's read magic as little endian.
          */
-        private fun readLEMagic(path: Path): Int {
-            FileInputStream(path.toFile()).channel.use { fc ->
-                val buf = ByteBuffer.allocate(Ints.BYTES)
-                buf.order(ByteOrder.LITTLE_ENDIAN)
-                fc.read(buf)
-                buf.position(0)
-                return buf.int
-            }
-        }
+        private fun readLEMagic(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory) =
+                factoryProvider(path, ByteOrder.LITTLE_ENDIAN).create().use {
+                    it.readInt()
+                }
 
         /**
          * Determines byte order using expected magic field value
          */
-        internal fun getByteOrder(path: Path, magic: Int): ByteOrder {
-            val leMagic = readLEMagic(path)
+        internal fun getByteOrder(path: Path, magic: Int,
+                                  factoryProvider: (Path, ByteOrder) -> RomBufferFactory): ByteOrder {
+            val leMagic = readLEMagic(path, factoryProvider)
             val (valid, byteOrder) = guess(magic, leMagic)
             check(valid) {
                 val bigMagic = java.lang.Integer.reverseBytes(magic)
@@ -410,7 +403,7 @@ abstract class BigFile<out T> internal constructor(
         fun read(path: Path): BigFile<Comparable<*>> = read(path, defaultFactory())
 
         fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigFile<Comparable<*>> {
-            val magic = readLEMagic(path)
+            val magic = readLEMagic(path, factoryProvider)
             return when {
                 guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(path, factoryProvider)
                 guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(path, factoryProvider)
