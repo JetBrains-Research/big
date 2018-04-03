@@ -13,7 +13,7 @@ abstract class RomBuffer: Closeable {
     abstract var position: Long
     abstract val order: ByteOrder
 
-    protected abstract var limit: Long
+    abstract var limit: Long
 
     /**
      * Returns a new buffer sharing the data with its parent.

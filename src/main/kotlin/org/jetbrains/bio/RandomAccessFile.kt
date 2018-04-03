@@ -79,14 +79,15 @@ import kotlin.collections.HashSet
  * 
  * @param location File location or name
  */
-open class RandomAccessFile(val location: String, bufferSize: Int = defaultBufferSize)
+open class RandomAccessFile protected constructor(bufferSize: Int = defaultBufferSize)
     : DataInput, Closeable {
 
     /**
      * The underlying java.io.RandomAccessFile
      */
-    var randomAccessFile: java.io.RandomAccessFile?
+    var randomAccessFile: java.io.RandomAccessFile? = null
     var fileChannel: java.nio.channels.FileChannel? = null
+    var location: String? = null
 
     /**
      * Current position in the file, where the next read or
@@ -146,39 +147,47 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         }
 
 
+    constructor(location: String, bufferSize: Int = defaultBufferSize): this(bufferSize) {
+        this.location = location
+    }
+
     init {
-        this.bufferSize = if (bufferSize < 0) defaultBufferSize else bufferSize
-        if (debugLeaks) {
-            _allFiles.add(location)
-        }
+        val loc = this.location
+        if (loc != null) {
 
-        try {
-            randomAccessFile = java.io.RandomAccessFile(location, "r")
-        } catch (ex: IOException) {
-            if (ex.message == "Too many open files") {
-                LOG.error(ex)
-                try {
-                    Thread.sleep(100)
-                } catch (e: InterruptedException) {
-                    LOG.warn(ex)
+            this.bufferSize = if (bufferSize < 0) defaultBufferSize else bufferSize
+            if (debugLeaks) {
+                _allFiles.add(loc)
+            }
+
+            try {
+                randomAccessFile = java.io.RandomAccessFile(loc, "r")
+            } catch (ex: IOException) {
+                if (ex.message == "Too many open files") {
+                    LOG.error(ex)
+                    try {
+                        Thread.sleep(100)
+                    } catch (e: InterruptedException) {
+                        LOG.warn(ex)
+                    }
+
+                    // Windows having trouble keeping up ??
+                    randomAccessFile = java.io.RandomAccessFile(loc, "r")
+                } else {
+                    throw ex
                 }
-
-                // Windows having trouble keeping up ??
-                randomAccessFile = java.io.RandomAccessFile(location, "r")
-            } else {
-                throw ex
             }
-        }
 
-        if (debugLeaks) {
-            _openedFiles.add(location)
-            maxOpenedFilesCounter.set(Math.max(openedFiles.size, maxOpenedFilesCounter.get()))
-            totalOpenedFilesCounter.getAndIncrement()
-            if (logOpen) {
-                LOG.debug("  open " + location)
-            }
-            if (openedFiles.size > 1000) {
-                LOG.warn("RandomAccessFile debugLeaks")
+            if (debugLeaks) {
+                _openedFiles.add(loc)
+                maxOpenedFilesCounter.set(Math.max(openedFiles.size, maxOpenedFilesCounter.get()))
+                totalOpenedFilesCounter.getAndIncrement()
+                if (logOpen) {
+                    LOG.debug("  open " + loc)
+                }
+                if (openedFiles.size > 1000) {
+                    LOG.warn("RandomAccessFile debugLeaks")
+                }
             }
         }
     }
@@ -193,7 +202,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
     override fun close() {
         if (debugLeaks) {
             _openedFiles.remove(location)
-            if (logOpen) LOG.debug("  close " + location)
+            if (logOpen) LOG.debug("  close $location")
         }
 
         if (randomAccessFile == null) {
@@ -228,7 +237,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
     }
 
     @Throws(IOException::class)
-    protected fun readBuffer(pos: Long) {
+    protected open fun readBuffer(pos: Long) {
         bufferStart = pos
         filePointer = pos
 
@@ -252,7 +261,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
      * @throws IOException if an I/O error occurrs.
      */
     @Throws(IOException::class)
-    fun length() =
+    open fun length() =
             // GRIB has closed the data raf
             if (randomAccessFile == null) -1L else randomAccessFile!!.length()
 
@@ -386,7 +395,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
      * @throws IOException if an I/O error occurs.
      */
     @Throws(IOException::class)
-    fun readToByteChannel(dest: WritableByteChannel, offset: Long, nbytes: Long): Long {
+    open fun readToByteChannel(dest: WritableByteChannel, offset: Long, nbytes: Long): Long {
         var offset = offset
 
         if (fileChannel == null)
@@ -1038,7 +1047,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
      * @throws IOException on io error
      */
     @Throws(IOException::class)
-    protected fun read_(pos: Long, b: ByteArray, offset: Int, len: Int): Int {
+    protected open fun read_(pos: Long, b: ByteArray, offset: Int, len: Int): Int {
         val raf = randomAccessFile ?: error("File is closed: $location")
         raf.seek(pos)
         val n = raf.read(b, offset, len)
@@ -1046,8 +1055,8 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         if (debugAccess) {
             if (logRead)
                 LOG.debug(" **read_ " + location + " = " + len + " bytes at " + pos + "; block = " + pos / buffer!!.size)
-            seeksCounter.incrementAndGet()
-            bytesReadCounter.addAndGet(len.toLong())
+            _seeksCounter.incrementAndGet()
+            _bytesReadCounter.addAndGet(len.toLong())
         }
 
         return n
@@ -1060,7 +1069,7 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
      * @return a string representation of the state of the object.
      */
     override fun toString(): String {
-        return location
+        return "$location"
         /* return "fp=" + filePosition + ", bs=" + bufferStart + ", de="
             + dataEnd + ", ds=" + dataSize + ", bl=" + buffer.length
             + ", readonly=" + readonly + ", bm=" + bufferModified; */
@@ -1094,7 +1103,10 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
                 field = value
             }
 
-        protected var _allFiles: MutableSet<String> = HashSet(1)
+        /**
+         * Internal field only for RAF inheritors
+         */
+        var _allFiles: MutableSet<String> = HashSet(1)
         /**
          * Debugging, do not use.
          *
@@ -1104,7 +1116,10 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
             get() = _allFiles.toList().sorted()
 
 
-        protected var _openedFiles: MutableList<String>
+        /**
+         * Internal field only for RAF inheritors
+         */
+        var _openedFiles: MutableList<String>
                 // could keep map on file hashcode
                 = Collections.synchronizedList(ArrayList())
         /**
@@ -1133,32 +1148,38 @@ open class RandomAccessFile(val location: String, bufferSize: Int = defaultBuffe
         val maxOpenFileCount: Int
             get() = maxOpenedFilesCounter.get()
 
-        private var bytesReadCounter: AtomicLong = AtomicLong()
+        /**
+         * Internal field only for RAF inheritors
+         */
+        var _bytesReadCounter: AtomicLong = AtomicLong()
         /**
          * Debugging, do not use.
          *
          * @return number of bytes read
          */
-        val debugNbytes: Long
-            get() = bytesReadCounter.toLong()
+        val bytesRead: Long
+            get() = _bytesReadCounter.toLong()
 
 
-        private var seeksCounter: AtomicInteger = AtomicInteger()
+        /**
+         * Internal field only for RAF inheritors
+         */
+        var _seeksCounter: AtomicInteger = AtomicInteger()
         /**
          * Debugging, do not use.
          *
          * @return number of seeks performed
          */
-        val debugNseeks: Int
-            get() = seeksCounter.toInt()
+        val seeksCount: Int
+            get() = _seeksCounter.toInt()
 
         /* Debugging, do not use.
         */
         var debugAccess = false
             set(value) {
                 if (value) {
-                    seeksCounter = AtomicInteger()
-                    bytesReadCounter = AtomicLong()
+                    _seeksCounter = AtomicInteger()
+                    _bytesReadCounter = AtomicLong()
                 }
                 field = value
             }
