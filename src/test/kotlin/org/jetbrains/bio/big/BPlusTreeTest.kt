@@ -110,6 +110,11 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
         testWriteRead(4, getExampleItems("f2.chrom.sizes"))
     }
 
+    @Test fun testTrimToString() {
+        assertEquals("foo", "foo".toByteArray().let { it.trimToString(it.size) })
+        assertEquals("foo", "foo\u0000extra".toByteArray().let { it.trimToString(it.size) })
+    }
+
     private fun getExampleItems(example: String): List<BPlusLeaf> {
         val lines = Files.readAllLines(Examples[example])
         return (0 until lines.size).map { i ->

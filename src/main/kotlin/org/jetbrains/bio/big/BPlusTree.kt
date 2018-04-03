@@ -288,7 +288,10 @@ data class BPlusLeaf(
             val keyBuf = readBytes(keySize)
             val chromId = readInt()
             val chromSize = readInt()
-            BPlusLeaf(String(keyBuf).trimEnd { it == '\u0000' }, chromId, chromSize)
+
+            BPlusLeaf(keyBuf.trimToString(keySize), chromId, chromSize)
+            //TODO: benchmark
+//            BPlusLeaf(String(keyBuf).trimEnd { it == '\u0000' }, chromId, chromSize)
         }
     }
 }
@@ -311,7 +314,21 @@ private data class BPlusNode(
         internal fun read(input: RomBuffer, keySize: Int) = with(input) {
             val keyBuf = readBytes(keySize)
             val childOffset = readLong()
-            BPlusNode(String(keyBuf).trimEnd { it == '\u0000' }, childOffset)
+            BPlusNode(keyBuf.trimToString(keySize), childOffset)
+            //TODO: benchmark
+//            BPlusNode(String(keyBuf).trimEnd { it == '\u0000' }, childOffset)
         }
     }
+}
+
+private val NULL_BYTE = 0.toByte()
+fun ByteArray.trimToString(keySize: Int): String {
+    var nameLen = keySize
+    for (i in 0 until keySize) {
+        if (this[i] == NULL_BYTE) {
+            nameLen = i
+            break
+        }
+    }
+    return String(this, 0, nameLen)
 }
