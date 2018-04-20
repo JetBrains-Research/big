@@ -49,17 +49,17 @@ abstract class NamedRomBufferFactoryProvider(private val title: String) {
 
 fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
     val providers: MutableList<NamedRomBufferFactoryProvider> = mutableListOf(
-            object : NamedRomBufferFactoryProvider("RAFBufferFactory") {
+            object : NamedRomBufferFactoryProvider("EndianSynchronizedBufferFactory") {
                 override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
-                        RAFBufferFactory(Paths.get(path), byteOrder)
+                        EndianSynchronizedBufferFactory.create(path, byteOrder)
             },
 
-            object : NamedRomBufferFactoryProvider("EndianSeekableBufferFactory") {
+            object : NamedRomBufferFactoryProvider("EndianBufferFactory") {
                 override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
                         EndianBufferFactory.create(path, byteOrder)
             },
 
-            object : NamedRomBufferFactoryProvider("EndianSeekableBufferThreadSafeFactory") {
+            object : NamedRomBufferFactoryProvider("EndianThreadSafeBufferFactory") {
                 override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
                         EndianThreadSafeBufferFactory(path, byteOrder)
             }
@@ -74,15 +74,11 @@ fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
 
 fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
     val providers: MutableList<NamedRomBufferFactoryProvider> = mutableListOf(
-            object : NamedRomBufferFactoryProvider("RAFBufferFactory") {
-                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
-                        RAFBufferFactory(Paths.get(path), byteOrder)
-            },
-            object : NamedRomBufferFactoryProvider("EndianSeekableBufferThreadSafeFactory") {
+            object : NamedRomBufferFactoryProvider("EndianThreadSafeBufferFactory") {
                 override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
                         EndianThreadSafeBufferFactory(path, byteOrder)
             },
-            object : NamedRomBufferFactoryProvider("EndianBufferThreadSafeFactory") {
+            object : NamedRomBufferFactoryProvider("EndianSynchronizedBufferFactory") {
                 override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
                         EndianSynchronizedBufferFactory.create(path, byteOrder)
             }

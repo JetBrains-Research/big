@@ -1,7 +1,6 @@
 package org.jetbrains.bio
 
 import htsjdk.samtools.seekablestream.SeekableStreamFactory
-import org.jetbrains.bio.BetterSeekableBufferedStreamU.Companion.DEFAULT_BUFFER_SIZE
 import java.nio.ByteOrder
 
 /**

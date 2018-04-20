@@ -13,7 +13,6 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.LazyThreadSafetyMode.NONE
@@ -474,7 +473,7 @@ abstract class BigFile<out T> internal constructor(
         }
 
         fun defaultFactory(): RomBufferFactoryProvider = { p, byteOrder ->
-            RAFBufferFactory(Paths.get(p), byteOrder)
+            EndianSynchronizedBufferFactory.create(p, byteOrder)
         }
 
         @Throws(IOException::class)

@@ -24,6 +24,11 @@ Changed
 - Show 'Header extensions are unsupported' only in debug log
 - Use `RomBufferFactory` to detect file endianness
 
+Removed:
+- `RandomAccessFile` based factory and rom buffer
+ removed. Please use `EndianBufferFactory`, `EndianThreadSafeBufferFactory`
+ or `EndianSynchronizedBufferFactory` factories instead.  
+
 Version 0.7.1
 -------------
 

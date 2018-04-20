@@ -8,7 +8,6 @@ import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -193,7 +192,7 @@ data class TdfFile private constructor(
         @Throws(IOException::class)
         @JvmStatic
         fun read(path: Path) = read(path.toString()) { p, byteOrder ->
-            RAFBufferFactory(Paths.get(p), byteOrder)
+            EndianSynchronizedBufferFactory.create(p, byteOrder)
         }
 
         @Throws(IOException::class)
