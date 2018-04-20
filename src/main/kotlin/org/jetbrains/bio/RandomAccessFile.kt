@@ -79,9 +79,9 @@ import kotlin.collections.HashSet
  * 
  * @param location File location or name
  */
-open class RandomAccessFile protected constructor(bufferSize: Int = defaultBufferSize)
-    : DataInput, Closeable {
-
+@Deprecated("Use SeekableStream API instead")
+open class RandomAccessFile protected constructor() : EndianSeekableDataInput, Closeable {
+    override fun position() = randomAccessFile!!.filePointer
     /**
      * The underlying java.io.RandomAccessFile
      */
@@ -146,48 +146,47 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
             endOfFile = false
         }
 
+    override var order: ByteOrder
+        get() = if (bigEndian) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
+        set(value) {
+            order(value)
+        }
 
-    constructor(location: String, bufferSize: Int = defaultBufferSize): this(bufferSize) {
+    constructor(location: String, bufferSize: Int = defaultBufferSize) : this() {
         this.location = location
-    }
 
-    init {
-        val loc = this.location
-        if (loc != null) {
+        this.bufferSize = if (bufferSize < 0) defaultBufferSize else bufferSize
+        if (debugLeaks) {
+            _allFiles.add(location)
+        }
 
-            this.bufferSize = if (bufferSize < 0) defaultBufferSize else bufferSize
-            if (debugLeaks) {
-                _allFiles.add(loc)
+        try {
+            randomAccessFile = java.io.RandomAccessFile(location, "r")
+        } catch (ex: IOException) {
+            if (ex.message == "Too many open files") {
+                LOG.error(ex)
+                try {
+                    Thread.sleep(100)
+                } catch (e: InterruptedException) {
+                    LOG.warn(ex)
+                }
+
+                // Windows having trouble keeping up ??
+                randomAccessFile = java.io.RandomAccessFile(location, "r")
+            } else {
+                throw ex
             }
+        }
 
-            try {
-                randomAccessFile = java.io.RandomAccessFile(loc, "r")
-            } catch (ex: IOException) {
-                if (ex.message == "Too many open files") {
-                    LOG.error(ex)
-                    try {
-                        Thread.sleep(100)
-                    } catch (e: InterruptedException) {
-                        LOG.warn(ex)
-                    }
-
-                    // Windows having trouble keeping up ??
-                    randomAccessFile = java.io.RandomAccessFile(loc, "r")
-                } else {
-                    throw ex
-                }
+        if (debugLeaks) {
+            _openedFiles.add(location)
+            maxOpenedFilesCounter.set(Math.max(openedFiles.size, maxOpenedFilesCounter.get()))
+            totalOpenedFilesCounter.getAndIncrement()
+            if (logOpen) {
+                LOG.debug("  open $location")
             }
-
-            if (debugLeaks) {
-                _openedFiles.add(loc)
-                maxOpenedFilesCounter.set(Math.max(openedFiles.size, maxOpenedFilesCounter.get()))
-                totalOpenedFilesCounter.getAndIncrement()
-                if (logOpen) {
-                    LOG.debug("  open " + loc)
-                }
-                if (openedFiles.size > 1000) {
-                    LOG.warn("RandomAccessFile debugLeaks")
-                }
+            if (openedFiles.size > 1000) {
+                LOG.warn("RandomAccessFile debugLeaks")
             }
         }
     }
@@ -222,7 +221,7 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
      * @throws IOException if an I/O error occurrs.
      */
     @Throws(IOException::class)
-    fun seek(pos: Long) {
+    override fun seek(pos: Long) {
         if (pos < 0)
             throw java.io.IOException("Negative seek offset")
 
@@ -261,7 +260,7 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
      * @throws IOException if an I/O error occurrs.
      */
     @Throws(IOException::class)
-    open fun length() =
+    override fun length() =
             // GRIB has closed the data raf
             if (randomAccessFile == null) -1L else randomAccessFile!!.length()
 
@@ -423,7 +422,7 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
      * @throws IOException if an I/O error occurrs.
      */
     @Throws(IOException::class)
-    fun read(b: ByteArray, off: Int, len: Int) = readBytes(b, off, len)
+    override fun read(b: ByteArray, off: Int, len: Int) = readBytes(b, off, len)
 
     /**
      * Read up to `b.length( )` bytes into an array. This
@@ -436,21 +435,6 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
      */
     @Throws(IOException::class)
     fun read(b: ByteArray) = readBytes(b, 0, b.size)
-
-    /**
-     * Read fully count number of bytes
-     *
-     * @param count how many bytes tp read
-     * @return a byte array of length count, fully read in
-     * @throws IOException if an I/O error occurrs.
-     */
-    @Throws(IOException::class)
-    fun readBytes(count: Int): ByteArray {
-        val b = ByteArray(count)
-        readFully(b)
-        return b
-    }
-
 
     /**
      * Reads `b.length` bytes from this file into the byte
@@ -748,21 +732,6 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
     }
 
     /**
-     * Read an array of ints
-     *
-     * @param pa    read into this array
-     * @param start starting at pa[start]
-     * @param n     read this many elements
-     * @throws IOException on read error
-     */
-    @Throws(IOException::class)
-    fun readInt(pa: IntArray, start: Int, n: Int) {
-        for (i in 0 until n) {
-            pa[start + i] = readInt()
-        }
-    }
-
-    /**
      * Reads a signed 64-bit integer from this file. This method reads eight
      * bytes from the file. If the bytes read, in order, are
      * `b1`, `b2`, `b3`,
@@ -802,22 +771,6 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
     }
 
     /**
-     * Read an array of longs
-     *
-     * @param pa    read into this array
-     * @param start starting at pa[start]
-     * @param n     read this many elements
-     * @throws IOException on read error
-     */
-    @Throws(IOException::class)
-    fun readLong(pa: LongArray, start: Int, n: Int) {
-        for (i in 0 until n) {
-            pa[start + i] = readLong()
-        }
-    }
-
-
-    /**
      * Reads a `float` from this file. This method reads an
      * `int` value as if by the `readInt` method
      * and then converts that `int` to a `float`
@@ -842,22 +795,6 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
     }
 
     /**
-     * Read an array of floats
-     *
-     * @param pa    read into this array
-     * @param start starting at pa[start]
-     * @param n     read this many elements
-     * @throws IOException on read error
-     */
-    @Throws(IOException::class)
-    fun readFloat(pa: FloatArray, start: Int, n: Int) {
-        for (i in 0 until n) {
-            pa[start + i] = java.lang.Float.intBitsToFloat(readInt())
-        }
-    }
-
-
-    /**
      * Reads a `double` from this file. This method reads a
      * `long` value as if by the `readLong` method
      * and then converts that `long` to a `double`
@@ -880,22 +817,6 @@ open class RandomAccessFile protected constructor(bufferSize: Int = defaultBuffe
     override fun readDouble(): Double {
         return java.lang.Double.longBitsToDouble(readLong())
     }
-
-    /**
-     * Read an array of doubles
-     *
-     * @param pa    read into this array
-     * @param start starting at pa[start]
-     * @param n     read this many elements
-     * @throws IOException on read error
-     */
-    @Throws(IOException::class)
-    fun readDouble(pa: DoubleArray, start: Int, n: Int) {
-        for (i in 0 until n) {
-            pa[start + i] = java.lang.Double.longBitsToDouble(readLong())
-        }
-    }
-
 
     /**
      * Reads the next line of text from this file.  This method successively

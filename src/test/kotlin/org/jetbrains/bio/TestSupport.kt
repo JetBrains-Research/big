@@ -1,6 +1,8 @@
 package org.jetbrains.bio
 
-import org.jetbrains.bio.big.*
+import org.jetbrains.bio.big.BigBedFile
+import org.jetbrains.bio.big.BigFile
+import org.jetbrains.bio.big.BigWigFile
 import sun.awt.OSInfo
 import java.io.IOException
 import java.nio.ByteOrder
@@ -40,43 +42,90 @@ internal inline fun withTempFile(prefix: String, suffix: String,
     }
 }
 
-abstract class RomBufferFactoryProvider(private val title: String) {
-    abstract operator fun invoke(path: Path, byteOrder: ByteOrder): RomBufferFactory
+abstract class NamedRomBufferFactoryProvider(private val title: String) {
+    abstract operator fun invoke(path: String, byteOrder: ByteOrder, limit: Long = -1L): RomBufferFactory
     override fun toString() = title
 }
 
-fun romFactoryProviders(): List<RomBufferFactoryProvider> {
-    val providers: MutableList<RomBufferFactoryProvider> =  mutableListOf(
-            object : RomBufferFactoryProvider("RAFBufferFactory") {
-                override fun invoke(path: Path, byteOrder: ByteOrder) =
-                        RAFBufferFactory(path, byteOrder)
+fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
+    val providers: MutableList<NamedRomBufferFactoryProvider> = mutableListOf(
+            object : NamedRomBufferFactoryProvider("RAFBufferFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        RAFBufferFactory(Paths.get(path), byteOrder)
+            },
+
+            object : NamedRomBufferFactoryProvider("EndianSeekableBufferFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        EndianBufferFactory.create(path, byteOrder)
+            },
+
+            object : NamedRomBufferFactoryProvider("EndianSeekableBufferThreadSafeFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        EndianThreadSafeBufferFactory(path, byteOrder)
             }
     )
     if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
-        providers.add(object : RomBufferFactoryProvider("MMBRomBufferFactory") {
-            override fun invoke(path: Path, byteOrder: ByteOrder) =
-                    MMBRomBufferFactory(path, byteOrder)
+        providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
+            override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
         })
     }
     return providers
 }
 
-fun BigBedFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
-        BigBedFile.read(path) { path, byteOrder ->
-            provider(path, byteOrder)
+fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
+    val providers: MutableList<NamedRomBufferFactoryProvider> = mutableListOf(
+            object : NamedRomBufferFactoryProvider("RAFBufferFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        RAFBufferFactory(Paths.get(path), byteOrder)
+            },
+            object : NamedRomBufferFactoryProvider("EndianSeekableBufferThreadSafeFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        EndianThreadSafeBufferFactory(path, byteOrder)
+            },
+            object : NamedRomBufferFactoryProvider("EndianBufferThreadSafeFactory") {
+                override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) =
+                        EndianSynchronizedBufferFactory.create(path, byteOrder)
+            }
+    )
+    if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
+        providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
+            override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
+        })
+    }
+    return providers.flatMap { fp ->
+        arrayOf(true, false).map { prefetch ->
+            arrayOf(fp, prefetch)
+        }
+    }
+}
+
+fun romFactoryProviderParams(): List<Array<Any>> = romFactoryProviders().map { arrayOf<Any>(it) }
+
+fun romFactoryProviderAndPrefetchParams(): List<Array<Any>> = romFactoryProviders().flatMap { fp ->
+    arrayOf(true, false).map { prefetch ->
+        arrayOf(fp, prefetch)
+    }
+}
+
+fun BigBedFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
+                              prefetch: Boolean) =
+        BigBedFile.read(path.toString(), prefetch) { src, byteOrder ->
+            provider(src, byteOrder)
         }
 
-fun BigWigFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
-        BigWigFile.read(path) { path, byteOrder ->
-            provider(path, byteOrder)
+fun BigWigFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
+                              prefetch: Boolean) =
+        BigWigFile.read(path.toString(), prefetch) { src, byteOrder ->
+            provider(src, byteOrder)
         }
 
-fun BigFile.Companion.read(path: Path, provider: RomBufferFactoryProvider) =
-        BigFile.read(path) { path, byteOrder ->
-            provider(path, byteOrder)
+fun BigFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
+                           prefetch: Boolean = false) =
+        BigFile.read(path.toString(), prefetch) { src, byteOrder ->
+            provider(src, byteOrder)
         }
 
-fun allBigFileParamsSets(): Iterable<Array<Any>> {
+fun romFactoryByteOrderCompressionParamsSets(): Iterable<Array<Any>> {
     val params = mutableListOf<Array<Any>>()
     for (factoryProvider in romFactoryProviders()) {
         for (byteOrder in listOf(ByteOrder.BIG_ENDIAN, ByteOrder.LITTLE_ENDIAN)) {
@@ -84,4 +133,10 @@ fun allBigFileParamsSets(): Iterable<Array<Any>> {
         }
     }
     return params
+}
+
+fun allBigFileParams(): List<Array<Any>> = romFactoryByteOrderCompressionParamsSets().flatMap {
+    arrayOf(true, false).map { prefetch ->
+        it + prefetch
+    }
 }

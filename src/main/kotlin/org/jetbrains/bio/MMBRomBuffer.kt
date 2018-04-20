@@ -3,13 +3,13 @@ package org.jetbrains.bio
 import com.google.common.primitives.*
 import com.indeed.util.mmap.MMapBuffer
 import java.nio.ByteOrder
-import java.nio.channels.FileChannel
-import java.nio.file.Path
 
 /** A read-only mapped buffer which supports files > 2GB .*/
-class MMBRomBuffer(private val mapped: MMapBuffer,
-                   override var position: Long = 0,
-                   limit: Long = mapped.memory().length()) : RomBuffer() {
+open class MMBRomBuffer(
+        private val mapped: MMapBuffer,
+        override var position: Long = 0,
+        limit: Long = mapped.memory().length()
+) : RomBuffer() {
 
     override val order: ByteOrder get() = mapped.memory().order
     override var limit: Long = limit
@@ -26,7 +26,7 @@ class MMBRomBuffer(private val mapped: MMapBuffer,
      *
      * @see ByteBuffer.duplicate for details.
      */
-    override fun duplicate(): MMBRomBuffer = MMBRomBuffer(mapped, position, limit)
+    override fun duplicate(position: Long, limit: Long) = MMBRomBuffer(mapped, position, limit)
 
     override fun close() {
         /* Do nothing: BigWig file closes memory mapped buffer */
@@ -101,15 +101,4 @@ class MMBRomBuffer(private val mapped: MMapBuffer,
         checkLimit()
         return value
     }
-}
-
-class MMBRomBufferFactory(val path: Path, val byteOrder: ByteOrder): RomBufferFactory {
-    private val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, byteOrder)
-
-    override fun create(): RomBuffer = MMBRomBuffer(memBuffer)
-
-    override fun close() {
-        memBuffer.close()
-    }
-
 }

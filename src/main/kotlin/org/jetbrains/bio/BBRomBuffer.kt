@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /** A read-only buffer based on [ByteBuffer]. */
-class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffer() {
+open class BBRomBuffer internal constructor(private val buffer: ByteBuffer) : RomBuffer() {
     override var position: Long
         get() = buffer.position().toLong()
         set(value) = ignore(buffer.position(Ints.checkedCast(value)))
@@ -22,10 +22,13 @@ class BBRomBuffer internal constructor(private val buffer: ByteBuffer): RomBuffe
      *
      * @see ByteBuffer.duplicate for details.
      */
-    override fun duplicate() = BBRomBuffer(buffer.duplicate().apply {
+    override fun duplicate(position: Long, limit: Long) = BBRomBuffer(buffer.duplicate().apply {
         order(buffer.order())
         position(Ints.checkedCast(position))
-    })
+    }).apply {
+        this.position = position
+        this.limit = limit
+    }
 
     override fun close() { /* Do nothing */ }
 

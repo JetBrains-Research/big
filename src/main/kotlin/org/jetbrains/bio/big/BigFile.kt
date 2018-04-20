@@ -13,10 +13,12 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.LazyThreadSafetyMode.NONE
 
+typealias RomBufferFactoryProvider = (String, ByteOrder) -> RomBufferFactory
 /**
  * A common superclass for Big files.
  *
@@ -30,17 +32,26 @@ import kotlin.LazyThreadSafetyMode.NONE
 abstract class BigFile<out T> internal constructor(
         internal val path: String,
         internal val buffFactory: RomBufferFactory,
-        internal val header: Header,
-        internal val zoomLevels: List<ZoomLevel>,
-        internal val bPlusTree: BPlusTree,
-        internal val rTree: RTreeIndex) : Closeable {
+        magic: Int,
+        prefetch: Boolean
+) : Closeable {
+
+    internal lateinit var header: Header
+    internal lateinit var zoomLevels: List<ZoomLevel>
+    internal lateinit var bPlusTree: BPlusTree
+    internal lateinit var rTree: RTreeIndex
+
+    // Kotlin doesn't allow do this val and init in constructor
+    private var prefetechedTotalSummary: BigSummary? = null
 
     /** Whole-file summary. */
     val totalSummary: BigSummary by lazy(NONE) {
-        buffFactory.create().use {
+        prefetechedTotalSummary ?: buffFactory.create().use {
             BigSummary.read(it, header.totalSummaryOffset)
         }
     }
+
+    private var prefetchedChromosomes: TIntObjectMap<String>? = null
 
     /**
      * An in-memory mapping of chromosome IDs to chromosome names.
@@ -48,7 +59,7 @@ abstract class BigFile<out T> internal constructor(
      * Because sometimes (always) you don't need a B+ tree for that.
      */
     val chromosomes: TIntObjectMap<String> by lazy(NONE) {
-        with(bPlusTree) {
+        prefetchedChromosomes ?: with(bPlusTree) {
             val res = TIntObjectHashMap<String>(header.itemCount)
             // returns sequence, but process here => resource could be closed
             buffFactory.create().use {
@@ -57,6 +68,61 @@ abstract class BigFile<out T> internal constructor(
                 }
             }
             TCollections.unmodifiableMap(res)
+        }
+    }
+
+    internal var prefetchedLevel2RTreeIndex: Map<ZoomLevel, RTreeIndex>? = null
+    internal var prefetchedChr2Leaf: Map<String, BPlusLeaf?>? = null
+
+    init {
+        buffFactory.create().use { input ->
+            header = Header.read(input, magic)
+            zoomLevels = (0 until header.zoomLevelCount).map { ZoomLevel.read(input) }
+            bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+
+            // if do prefetch input and file not empty:
+            if (prefetch) {
+                // stored in the beginning of file near header
+                prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
+
+                // stored in the beginning of file near header
+                prefetchedChromosomes = with(bPlusTree) {
+                    val res = TIntObjectHashMap<String>(this.header.itemCount)
+                    // returns sequence, but process here => resource could be closed
+                    for ((key, id) in traverse(input)) {
+                        res.put(id, key)
+                    }
+                    TCollections.unmodifiableMap(res)
+                }
+
+                // stored in the beginning of file near header
+                prefetchedChr2Leaf = prefetchedChromosomes!!.valueCollection().map {
+                    it to bPlusTree.find(input, it)
+                }.toMap()
+
+                // stored not in the beginning of file
+                prefetchedLevel2RTreeIndex = zoomLevels.mapNotNull {
+                    if (it.reduction == 0) {
+                        null
+                    } else {
+                        require(it.indexOffset != 0L) {
+                            "Zoom index offset expected to be not zero."
+                        }
+                        require(it.dataOffset != 0L) {
+                            "Zoom data offset expected to be not zero."
+                        }
+
+                        val zRTree = RTreeIndex.read(input, it.indexOffset)
+                        zRTree.prefetchBlocksIndex(input, true)
+                        it to zRTree
+                    }
+                }.toMap()
+            }
+
+            // this point not to the beginning of file => read it here using new buffer
+            // in buffered stream
+            rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+
         }
     }
 
@@ -107,8 +173,10 @@ abstract class BigFile<out T> internal constructor(
         var list: List<BigSummary> = emptyList()
         buffFactory.create().use { input ->
 
-            val chromosome = bPlusTree.find(input, name)
-                    ?: throw NoSuchElementException(name)
+            val chromosome = when {
+                prefetchedChr2Leaf != null -> prefetchedChr2Leaf!![name]
+                else -> bPlusTree.find(input, name)
+            } ?: throw NoSuchElementException(name)
 
             val properEndOffset = if (endOffset == 0) chromosome.size else endOffset
             val query = Interval(chromosome.id, startOffset, properEndOffset)
@@ -149,7 +217,11 @@ abstract class BigFile<out T> internal constructor(
     private fun summarizeFromZoom(input: RomBuffer,
                                   query: ChromosomeInterval, zoomLevel: ZoomLevel,
                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val zRTree = RTreeIndex.read(input, zoomLevel.indexOffset)
+        val zRTree = when {
+            prefetchedLevel2RTreeIndex != null -> prefetchedLevel2RTreeIndex!![zoomLevel]!!
+            else -> RTreeIndex.read(input, zoomLevel.indexOffset)
+        }
+
         val zoomData = zRTree.findOverlappingBlocks(input, query)
                 .flatMap { (_ /* interval */, offset, size) ->
                     assert(!compression.absent || size % ZoomData.SIZE == 0L)
@@ -213,7 +285,11 @@ abstract class BigFile<out T> internal constructor(
                             overlaps: Boolean = false): List<T> {
 
         buffFactory.create().use { input ->
-            val res = bPlusTree.find(input, name)
+            val res = when {
+                prefetchedChr2Leaf != null -> prefetchedChr2Leaf!![name]
+                else -> bPlusTree.find(input, name)
+            }
+
             return if (res == null) {
                 emptyList()
             } else {
@@ -255,7 +331,7 @@ abstract class BigFile<out T> internal constructor(
 
                     // we will reuse block, so let's path duplicate to reader
                     // in order not to affect buffer state
-                    newDecompressedInput.duplicate()
+                    newDecompressedInput.duplicate(newDecompressedInput.position, newDecompressedInput.limit)
                 }
                 else -> newDecompressedInput // no buffer re-use => pass as is
             }
@@ -265,7 +341,8 @@ abstract class BigFile<out T> internal constructor(
 
             // we reuse block, so let's path duplicate to reader
             // in order not to affect buffer state
-            decompressedBlock = stateAndBlock.second!!.duplicate()
+            val block = stateAndBlock.second!!
+            decompressedBlock = block.duplicate(block.position, block.limit)
         }
 
         return decompressedBlock
@@ -362,7 +439,7 @@ abstract class BigFile<out T> internal constructor(
         /**
          * Magic specifies file format and bytes order. Let's read magic as little endian.
          */
-        private fun readLEMagic(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory) =
+        private fun readLEMagic(path: String, factoryProvider: RomBufferFactoryProvider) =
                 factoryProvider(path, ByteOrder.LITTLE_ENDIAN).create().use {
                     it.readInt()
                 }
@@ -370,8 +447,8 @@ abstract class BigFile<out T> internal constructor(
         /**
          * Determines byte order using expected magic field value
          */
-        internal fun getByteOrder(path: Path, magic: Int,
-                                  factoryProvider: (Path, ByteOrder) -> RomBufferFactory): ByteOrder {
+        internal fun getByteOrder(path: String, magic: Int,
+                                  factoryProvider: RomBufferFactoryProvider): ByteOrder {
             val leMagic = readLEMagic(path, factoryProvider)
             val (valid, byteOrder) = guess(magic, leMagic)
             check(valid) {
@@ -394,19 +471,19 @@ abstract class BigFile<out T> internal constructor(
             return true to ByteOrder.LITTLE_ENDIAN
         }
 
-        fun defaultFactory(): (Path, ByteOrder) -> RAFBufferFactory {
-            return { p, byteOrder ->
-                RAFBufferFactory(p, byteOrder)
-            }
+        fun defaultFactory(): RomBufferFactoryProvider = { p, byteOrder ->
+            RAFBufferFactory(Paths.get(p), byteOrder)
         }
 
-        fun read(path: Path): BigFile<Comparable<*>> = read(path, defaultFactory())
+        fun read(path: Path): BigFile<Comparable<*>> = read(path.toString(),
+                                                            factoryProvider = defaultFactory())
 
-        fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigFile<Comparable<*>> {
-            val magic = readLEMagic(path, factoryProvider)
+        fun read(src: String, prefetch: Boolean = false,
+                 factoryProvider: RomBufferFactoryProvider): BigFile<Comparable<*>> {
+            val magic = readLEMagic(src, factoryProvider)
             return when {
-                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(path, factoryProvider)
-                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(path, factoryProvider)
+                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(src, prefetch, factoryProvider)
+                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(src, prefetch, factoryProvider)
                 else -> throw IllegalStateException("Unsupported file header magic: $magic")
             }
         }

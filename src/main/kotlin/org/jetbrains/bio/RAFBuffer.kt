@@ -8,27 +8,22 @@ import java.nio.file.Path
  * @param byteOrder Byte order
  * @param bufferSize Random access file buffer size in bytes, use -1 for default value
  */
-class RAFBufferFactory(private val path: Path, private val byteOrder: ByteOrder,
-                       val bufferSize: Int = -1): RomBufferFactory {
-    override fun create(): RomBuffer = RAFBuffer(path, byteOrder, bufferSize = bufferSize)
+@Deprecated("Use HeavyweightRomBuffer or LightweightRomBuffer buffer")
+open class RAFBuffer(
+        private val path: Path,
+        override val order: ByteOrder,
+        position: Long = 0L,
+        limit: Long = -1,
+        val bufferSize: Int = -1,
+        raf: RandomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), bufferSize)
+) : RomBuffer() {
 
-    override fun close() {
-        // Do nothing
-    }
-}
-
-class RAFBuffer(private val path: Path,
-                override val order: ByteOrder,
-                position: Long = 0L,
-                limit: Long = -1,
-                val bufferSize: Int = -1) : RomBuffer() {
-
-    private val randomAccessFile = RandomAccessFile(path.toAbsolutePath().toString(), bufferSize).apply {
+    private val randomAccessFile = raf.apply {
         order(order)
         seek(position)
     }
 
-    private val maxLength =  randomAccessFile.length()
+    private val maxLength = randomAccessFile.length()
     override var limit: Long = if (limit != -1L) limit else maxLength
         set(value) {
             val length = maxLength
@@ -42,18 +37,18 @@ class RAFBuffer(private val path: Path,
         get() = randomAccessFile.filePointer
         set(position) { randomAccessFile.seek(position) }
 
-    override fun duplicate() = RAFBuffer(path, order, position, limit, bufferSize)
+    override fun duplicate(position: Long, limit: Long) = RAFBuffer(path, order, position, limit, bufferSize)
 
     override fun readInts(size: Int): IntArray {
         val dst = IntArray(size)
-        randomAccessFile.readInt(dst,0, size)
+        randomAccessFile.readInt(dst, 0, size)
         checkLimit()
         return dst
     }
 
     override fun readFloats(size: Int): FloatArray {
         val dst = FloatArray(size)
-        randomAccessFile.readFloat(dst,0, size)
+        randomAccessFile.readFloat(dst, 0, size)
         checkLimit()
         return dst
     }
@@ -104,5 +99,4 @@ class RAFBuffer(private val path: Path,
     override fun close() {
         randomAccessFile.close()
     }
-
 }

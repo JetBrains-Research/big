@@ -18,9 +18,10 @@ abstract class RomBuffer: Closeable {
     /**
      * Returns a new buffer sharing the data with its parent.
      *
+     * @position:
      * @see ByteBuffer.duplicate for details.
      */
-    abstract fun duplicate(): RomBuffer
+    abstract fun duplicate(position: Long, limit: Long): RomBuffer
 
     fun checkHeader(leMagic: Int) {
         val magic = readInt()
@@ -29,6 +30,11 @@ abstract class RomBuffer: Closeable {
             "Unexpected header magic: Actual $magic doesn't match expected LE=$leMagic (BE=$bigMagic)"
         }
     }
+
+    /**
+     * Override this method, throw cancelled exception to stop buffer
+     */
+    protected open fun checkCanceled() {}
 
     abstract fun readInts(size: Int): IntArray
     abstract fun readFloats(size: Int): FloatArray
@@ -86,14 +92,12 @@ abstract class RomBuffer: Closeable {
                             compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
 
         return if (compression.absent) {
-            duplicate().apply {
-                position = offset
-                limit = offset + size
-            }
+            checkCanceled()
+            duplicate(offset, offset + size)
         } else {
-            val compressedBuf = duplicate().use {
+            checkCanceled()
+            val compressedBuf = duplicate(offset, limit).use {
                 with(it) {
-                    position = offset
                     readBytes(com.google.common.primitives.Ints.checkedCast(size))
                 }
             }
@@ -109,6 +113,7 @@ abstract class RomBuffer: Closeable {
                     inf.setInput(compressedBuf)
                     val step = size.toInt()
                     while (!inf.finished()) {
+                        checkCanceled()
                         uncompressedBuf = Bytes.ensureCapacity(// 1.5x
                                 uncompressedBuf, uncompressedSize + step, step / 2)
                         val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)

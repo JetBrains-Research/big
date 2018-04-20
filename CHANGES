@@ -8,11 +8,21 @@ Version 0.8.0
 
 Released on <Unreleased>
 
+New
+- HTTP/HTTPS urls support for BigWig, BigBed, TDF files. Server is
+supposed to support accept-ranges http header
+- New buffer factories for files/urls reading based on **hts-jdk** 
+`SeekableStream`:
+  * Without concurrent BigFile access support: `EndianBufferFactory`
+  * With concurrent BigFile access support: `EndianSynchronizedBufferFactory`, 
+   `EndianThreadSafeBufferFactory`
+- `RomBuffer#checkCanceled()` extension to abort big file reading
+ operation
+
 Changed
 - Show 'Header extensions are unsupported' only in debug log
 - Use `RomBufferFactory` to detect file endianness
 - TODO: benchmark: trimToString
-
 
 Version 0.7.1
 -------------

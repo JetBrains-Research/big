@@ -1,9 +1,10 @@
 package org.jetbrains.bio
 
-/**
- * @author Roman.Chernyatchik
- */
-interface RomBufferFactory {
+import java.io.Closeable
+import java.nio.ByteOrder
+
+interface RomBufferFactory : Closeable {
+    var order: ByteOrder
     fun create(): RomBuffer
-    fun close()
+    override fun close()
 }

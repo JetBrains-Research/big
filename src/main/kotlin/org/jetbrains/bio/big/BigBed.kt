@@ -10,14 +10,12 @@ import java.util.*
 /**
  * Just like BED only BIGGER.
  */
-class BigBedFile private constructor(path: String,
-                                     buffFactory: RomBufferFactory,
-                                     header: BigFile.Header,
-                                     zoomLevels: List<ZoomLevel>,
-                                     bPlusTree: BPlusTree,
-                                     rTree: RTreeIndex)
-:
-        BigFile<BedEntry>(path, buffFactory, header, zoomLevels, bPlusTree, rTree) {
+class BigBedFile private constructor(
+        path: String,
+        buffFactory: RomBufferFactory,
+        magic: Int,
+        prefetch: Boolean
+) : BigFile<BedEntry>(path, buffFactory, magic, prefetch) {
 
     override fun summarizeInternal(input: RomBuffer,
                                    query: ChromosomeInterval,
@@ -87,24 +85,16 @@ class BigBedFile private constructor(path: String,
         internal const val MAGIC = 0x8789F2EB.toInt()
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path) = read(path, defaultFactory())
+        @JvmStatic
+        fun read(path: Path) = read(path.toString(), factoryProvider = defaultFactory())
 
         @Throws(IOException::class)
-        @JvmStatic fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): BigBedFile {
-            val byteOrder = getByteOrder(path, MAGIC, factoryProvider)
-
-            val buffFactory = factoryProvider(path, byteOrder)
-
-            buffFactory.create().use { input ->
-                val header = Header.read(input, MAGIC)
-                val zoomLevels = (0 until header.zoomLevelCount)
-                        .map { ZoomLevel.read(input) }
-                val bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
-                val rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-                return BigBedFile(path.toAbsolutePath().toString(),
-                                  buffFactory, header, zoomLevels, bPlusTree, rTree)
-            }
-        }
+        @JvmStatic
+        fun read(src: String, prefetch: Boolean = false, factoryProvider: RomBufferFactoryProvider) = BigBedFile(
+                src,
+                factoryProvider(src, getByteOrder(src, MAGIC, factoryProvider)),
+                MAGIC, prefetch
+        )
 
         private class BedEntrySummary {
             val chromosomes = HashSet<String>()
@@ -153,7 +143,9 @@ class BigBedFile private constructor(path: String,
          * @@throws IOException if any of the read or write operations failed.
          */
         @Throws(IOException::class)
-        @JvmStatic @JvmOverloads fun write(
+        @JvmStatic
+        @JvmOverloads
+        fun write(
                 bedEntries: Iterable<BedEntry>,
                 chromSizes: Iterable<Pair<String, Int>>,
                 outputPath: Path,

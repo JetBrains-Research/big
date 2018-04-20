@@ -1,16 +1,13 @@
 package org.jetbrains.bio.tdf
 
 import com.google.common.primitives.Ints
-import org.jetbrains.bio.CompressionType
-import org.jetbrains.bio.RomBuffer
-import org.jetbrains.bio.RAFBufferFactory
-import org.jetbrains.bio.RomBufferFactory
-import org.jetbrains.bio.divCeiling
-import org.jetbrains.bio.mapUnboxed
+import org.jetbrains.bio.*
+import org.jetbrains.bio.big.RomBufferFactoryProvider
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -191,15 +188,17 @@ data class TdfFile private constructor(
     companion object {
         @Throws(IOException::class)
         @JvmStatic
-        fun read(path: Path) = read(path) { p, byteOrder ->
-            RAFBufferFactory(p, byteOrder)
+        fun read(path: Path) = read(path.toString()) { p, byteOrder ->
+            RAFBufferFactory(Paths.get(p), byteOrder)
         }
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(path: Path, factoryProvider: (Path, ByteOrder) -> RomBufferFactory): TdfFile {
-            val buffFactory = factoryProvider(path, ByteOrder.LITTLE_ENDIAN)
+        fun read(src: String, factoryProvider: RomBufferFactoryProvider): TdfFile {
+            val buffFactory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
             buffFactory.create().use { input ->
+
+                //TODO: investigate IO usage, e.g. for http urls support
                 val header = Header.read(input)
                 val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
                 val trackType = TrackType.read(input)

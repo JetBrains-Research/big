@@ -1,10 +1,13 @@
 package org.jetbrains.bio
 
+import com.google.common.io.LittleEndianDataOutputStream
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
 import org.iq80.snappy.Snappy
 import java.io.Closeable
+import java.io.DataOutput
+import java.io.DataOutputStream
 import java.io.OutputStream
 import java.nio.ByteOrder
 import java.nio.channels.Channels
@@ -17,11 +20,18 @@ import java.util.zip.DeflaterOutputStream
 /**
  * A stripped-down byte order-aware complement to [java.io.DataOutputStream].
  */
-class OrderedDataOutput(private val output: OutputStream,
-                        private val offset: Long,
-                        val order: ByteOrder)
-:
-        Closeable, AutoCloseable {
+class OrderedDataOutput(
+        output: OutputStream,
+        private val offset: Long,
+        val order: ByteOrder
+) : Closeable, AutoCloseable {
+
+    val output = DataOutputStream(output)
+    val endianOutput: DataOutput = if (order == ByteOrder.BIG_ENDIAN) {
+        this.output
+    } else {
+        LittleEndianDataOutputStream(this.output)
+    }
 
     fun skipBytes(count: Int) {
         assert(count >= 0) { "count must be >=0" }
@@ -30,61 +40,24 @@ class OrderedDataOutput(private val output: OutputStream,
     }
 
     fun writeByte(v: Int) {
-        output.write(v)
+        endianOutput.write(v)
         ack(1)
     }
 
     fun writeBoolean(v: Boolean) = writeByte(if (v) 1 else 0)
 
     fun writeShort(v: Int) {
-        if (order == ByteOrder.BIG_ENDIAN) {
-            output.write((v ushr 8) and 0xff)
-            output.write((v ushr 0) and 0xff)
-        } else {
-            output.write((v ushr 0) and 0xff)
-            output.write((v ushr 8) and 0xff)
-        }
-
+        endianOutput.writeShort(v)
         ack(Shorts.BYTES)
     }
 
     fun writeInt(v: Int) {
-        if (order == ByteOrder.BIG_ENDIAN) {
-            output.write((v ushr 24) and 0xff)
-            output.write((v ushr 16) and 0xff)
-            output.write((v ushr  8) and 0xff)
-            output.write((v ushr  0) and 0xff)
-        } else {
-            output.write((v ushr  0) and 0xff)
-            output.write((v ushr  8) and 0xff)
-            output.write((v ushr 16) and 0xff)
-            output.write((v ushr 24) and 0xff)
-        }
-
+        endianOutput.writeInt(v)
         ack(Ints.BYTES)
     }
 
     fun writeLong(v: Long) {
-        if (order == ByteOrder.BIG_ENDIAN) {
-            output.write((v ushr 56).toInt() and 0xff)
-            output.write((v ushr 48).toInt() and 0xff)
-            output.write((v ushr 40).toInt() and 0xff)
-            output.write((v ushr 32).toInt() and 0xff)
-            output.write((v ushr 24).toInt() and 0xff)
-            output.write((v ushr 16).toInt() and 0xff)
-            output.write((v ushr  8).toInt() and 0xff)
-            output.write((v ushr  0).toInt() and 0xff)
-        } else {
-            output.write((v ushr  0).toInt() and 0xff)
-            output.write((v ushr  8).toInt() and 0xff)
-            output.write((v ushr 16).toInt() and 0xff)
-            output.write((v ushr 24).toInt() and 0xff)
-            output.write((v ushr 32).toInt() and 0xff)
-            output.write((v ushr 40).toInt() and 0xff)
-            output.write((v ushr 48).toInt() and 0xff)
-            output.write((v ushr 56).toInt() and 0xff)
-        }
-
+        endianOutput.writeLong(v)
         ack(Longs.BYTES)
     }
 

@@ -13,9 +13,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 @RunWith(Parameterized::class)
-class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
+class BPlusTreeTest(private val bfProvider: NamedRomBufferFactoryProvider) {
     @Test fun testReadHeader() {
-        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider, false).use { bf ->
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
@@ -25,7 +25,7 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
     }
 
     @Test fun testFind() {
-        BigBedFile.read(Examples["example1.bb"], bfProvider).use { bf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider, false).use { bf ->
             bf.buffFactory.create().use { input ->
                 var leaf = bf.bPlusTree.find(input, "chr1")
                 assertNull(leaf)
@@ -58,13 +58,15 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
     private fun testFindAllExample(example: String, chromosomes: Array<String>) {
         val offset = 628L  // magic!
 
-        bfProvider(Examples[example], ByteOrder.nativeOrder()).create().use { input ->
-            val bpt = BPlusTree.read(input, offset)
-            for (key in chromosomes) {
-                assertNotNull(bpt.find(input, key))
-            }
+        bfProvider(Examples[example].toString(), ByteOrder.nativeOrder()).use { f ->
+            f.create().use { input ->
+                val bpt = BPlusTree.read(input, offset)
+                for (key in chromosomes) {
+                    assertNotNull(bpt.find(input, key))
+                }
 
-            assertNull(bpt.find(input, "chrV"))
+                assertNull(bpt.find(input, "chrV"))
+            }
         }
     }
 
@@ -113,6 +115,7 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
     @Test fun testTrimToString() {
         assertEquals("foo", "foo".toByteArray().let { it.trimToString(it.size) })
         assertEquals("foo", "foo\u0000extra".toByteArray().let { it.trimToString(it.size) })
+        assertEquals("chr14", byteArrayOf(99, 104, 114, 49, 52, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0).let { it.trimToString(it.size) })
     }
 
     private fun getExampleItems(example: String): List<BPlusLeaf> {
@@ -129,15 +132,17 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
                 BPlusTree.write(output, items, blockSize)
             }
 
-            bfProvider(path, ByteOrder.nativeOrder()).create().use { input ->
-                val bpt = BPlusTree.read(input, 0)
-                for (item in items) {
-                    val res = bpt.find(input, item.key)
-                    assertNotNull(res)
-                    assertEquals(item, res)
-                }
+            bfProvider(path.toString(), ByteOrder.nativeOrder()).use { f ->
+                f.create().use { input ->
+                    val bpt = BPlusTree.read(input, 0)
+                    for (item in items) {
+                        val res = bpt.find(input, item.key)
+                        assertNotNull(res)
+                        assertEquals(item, res)
+                    }
 
-                assertEquals(items.toSet(), bpt.traverse(input).toSet())
+                    assertEquals(items.toSet(), bpt.traverse(input).toSet())
+                }
             }
         }
     }
@@ -146,7 +151,8 @@ class BPlusTreeTest(private val bfProvider: RomBufferFactoryProvider) {
         private val RANDOM = Random()
 
         @Parameterized.Parameters(name = "{0}")
-        @JvmStatic fun data() = romFactoryProviders().map { arrayOf<Any>(it) }
+        @JvmStatic
+        fun data() = romFactoryProviderParams()
     }
 
 }
