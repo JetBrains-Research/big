@@ -29,11 +29,13 @@ class SeekableDataIOTest(
             it.writeLong(l)
         }
 
-        factoryProvider(path.toString(), order).create().use {
+        factoryProvider(path.toString(), order).use {
+            it.create().use {
             assertEquals(b, it.readByte())
             assertEquals(s.toShort(), it.readShort())
             assertEquals(i, it.readInt())
             assertEquals(l, it.readLong())
+            }
         }
     }
 
@@ -45,9 +47,11 @@ class SeekableDataIOTest(
             it.writeFloat(f)
             it.writeDouble(d)
         }
-        factoryProvider(path.toString(), order).create().use {
+        factoryProvider(path.toString(), order).use {
+            it.create().use {
             assertEquals(f, it.readFloat())
             assertEquals(d, it.readDouble())
+        }
         }
     }
 
@@ -60,13 +64,15 @@ class SeekableDataIOTest(
             it.writeString(s, s.length + 8)
             it.skipBytes(16)
         }
-        factoryProvider(path.toString(), order).create().use {
+        factoryProvider(path.toString(), order).use {
+            it.create().use {
             assertEquals(s, it.readCString())
             val b = it.readBytes(s.length + 8)
             assertEquals(s, String(b).trimEnd { it == '\u0000' })
 
             for (i in 0 until 16) {
                 assertEquals(0.toByte(), it.readByte())
+            }
             }
         }
     }
@@ -80,11 +86,13 @@ class SeekableDataIOTest(
             }
         }
 
-        factoryProvider(path.toString(), order).create().use {
+        factoryProvider(path.toString(), order).use {
+            it.create().use {
             it.with(0, Files.size(path), compression) {
                 for (i in 0 until values.size) {
                     assertEquals(values[i], readInt())
                 }
+            }
             }
         }
     }
@@ -96,11 +104,13 @@ class SeekableDataIOTest(
             values.forEach { orderedDataOutput.writeInt(it) }
         }
 
-        factoryProvider(path.toString(), order).create().use { buffer ->
+        factoryProvider(path.toString(), order).use {
+            it.create().use { buffer ->
             buffer.readInt()
             val second = buffer.duplicate(buffer.position, buffer.limit)
 
             assertEquals(values[1], second.readInt())
+            }
         }
     }
 
