@@ -2,6 +2,7 @@ package org.jetbrains.bio.tdf
 
 import com.google.common.primitives.Ints
 import org.jetbrains.bio.*
+import org.jetbrains.bio.big.BigFile.Companion.defaultFactory
 import org.jetbrains.bio.big.RomBufferFactoryProvider
 import java.io.Closeable
 import java.io.IOException
@@ -40,7 +41,9 @@ data class TdfFile private constructor(
         /** Genome build, e.g. `"hg38"`. */
         val build: String,
         /** Whether the data sections are compressed with DEFLATE. */
-        val compressed: Boolean) : Closeable {
+        val compressed: Boolean,
+        /** Throw cancelled exception to abort operation **/
+        private val cancelledChecker: (() -> Unit)?) : Closeable {
 
     val version: Int get() = header.version
 
@@ -60,6 +63,7 @@ data class TdfFile private constructor(
         val startTile = startOffset / dataset.tileWidth
         val endTile = endOffset divCeiling dataset.tileWidth
         return (startTile..Math.min(dataset.tileCount - 1, endTile)).mapNotNull {
+            cancelledChecker?.invoke()
             getTile(dataset, it)
         }
     }
@@ -194,7 +198,14 @@ data class TdfFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, factoryProvider: RomBufferFactoryProvider): TdfFile {
+        fun read(path: Path, cancelledChecker: (() -> Unit)? = null) = read(path.toString(), cancelledChecker)
+
+        @Throws(IOException::class)
+        @JvmStatic
+        fun read(src: String,
+                 cancelledChecker: (() -> Unit)? = null,
+                 factoryProvider: RomBufferFactoryProvider = defaultFactory()
+        ): TdfFile {
             val buffFactory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
             buffFactory.create().use { input ->
 
@@ -213,7 +224,7 @@ data class TdfFile private constructor(
                 }
 
                 return TdfFile(buffFactory, header, index, windowFunctions, trackType,
-                               trackLine, trackNames, build, compressed)
+                        trackLine, trackNames, build, compressed, cancelledChecker)
             }
         }
     }

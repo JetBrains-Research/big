@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /** A read-only buffer based on [ByteBuffer]. */
-open class BBRomBuffer internal constructor(private val buffer: ByteBuffer) : RomBuffer() {
+class BBRomBuffer internal constructor(private val buffer: ByteBuffer) : RomBuffer() {
     override var position: Long
         get() = buffer.position().toLong()
         set(value) = ignore(buffer.position(Ints.checkedCast(value)))

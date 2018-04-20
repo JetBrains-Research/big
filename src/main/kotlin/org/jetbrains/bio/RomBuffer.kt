@@ -31,11 +31,6 @@ abstract class RomBuffer: Closeable {
         }
     }
 
-    /**
-     * Override this method, throw cancelled exception to stop buffer
-     */
-    protected open fun checkCanceled() {}
-
     abstract fun readInts(size: Int): IntArray
     abstract fun readFloats(size: Int): FloatArray
 
@@ -92,10 +87,8 @@ abstract class RomBuffer: Closeable {
                             compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
 
         return if (compression.absent) {
-            checkCanceled()
             duplicate(offset, offset + size)
         } else {
-            checkCanceled()
             val compressedBuf = duplicate(offset, limit).use {
                 with(it) {
                     readBytes(com.google.common.primitives.Ints.checkedCast(size))
@@ -113,7 +106,6 @@ abstract class RomBuffer: Closeable {
                     inf.setInput(compressedBuf)
                     val step = size.toInt()
                     while (!inf.finished()) {
-                        checkCanceled()
                         uncompressedBuf = Bytes.ensureCapacity(// 1.5x
                                 uncompressedBuf, uncompressedSize + step, step / 2)
                         val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)

@@ -55,7 +55,7 @@ class BigFileTest(
                         }
 
                         val zRTree = RTreeIndex.read(input, indexOffset)
-                        val blocks = zRTree.findOverlappingBlocks(input, query).toList()
+                        val blocks = zRTree.findOverlappingBlocks(input, query, null).toList()
                         for (i in blocks.indices) {
                             for (j in i + 1 until blocks.size) {
                                 assertFalse(blocks[i].interval intersects blocks[j].interval)

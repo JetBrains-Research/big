@@ -16,13 +16,13 @@ supposed to support accept-ranges http header
   * Without concurrent BigFile access support: `EndianBufferFactory`
   * With concurrent BigFile access support: `EndianSynchronizedBufferFactory`, 
    `EndianThreadSafeBufferFactory`
-- `RomBuffer#checkCanceled()` extension to abort big file reading
- operation
+- Big files `read` and `write` methods accepts `cancelledChecker` closure to 
+  abort current operation, e.g. if you need to render another range.
+   Just throw exception in this closure.
 
 Changed
 - Show 'Header extensions are unsupported' only in debug log
 - Use `RomBufferFactory` to detect file endianness
-- TODO: benchmark: trimToString
 
 Version 0.7.1
 -------------

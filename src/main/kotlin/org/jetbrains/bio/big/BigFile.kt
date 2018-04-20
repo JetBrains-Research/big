@@ -33,7 +33,8 @@ abstract class BigFile<out T> internal constructor(
         internal val path: String,
         internal val buffFactory: RomBufferFactory,
         magic: Int,
-        prefetch: Boolean
+        prefetch: Boolean,
+        private val cancelledChecker: (() -> Unit)?
 ) : Closeable {
 
     internal lateinit var header: Header
@@ -113,7 +114,7 @@ abstract class BigFile<out T> internal constructor(
                         }
 
                         val zRTree = RTreeIndex.read(input, it.indexOffset)
-                        zRTree.prefetchBlocksIndex(input, true)
+                        zRTree.prefetchBlocksIndex(input, true, cancelledChecker)
                         it to zRTree
                     }
                 }.toMap()
@@ -222,7 +223,7 @@ abstract class BigFile<out T> internal constructor(
             else -> RTreeIndex.read(input, zoomLevel.indexOffset)
         }
 
-        val zoomData = zRTree.findOverlappingBlocks(input, query)
+        val zoomData = zRTree.findOverlappingBlocks(input, query, cancelledChecker)
                 .flatMap { (_ /* interval */, offset, size) ->
                     assert(!compression.absent || size % ZoomData.SIZE == 0L)
 
@@ -302,11 +303,12 @@ abstract class BigFile<out T> internal constructor(
 
     internal fun query(input: RomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
         val chrom = chromosomes[query.chromIx]
-        return rTree.findOverlappingBlocks(input, query)
+        return rTree.findOverlappingBlocks(input, query, cancelledChecker)
                 .flatMap { (_, dataOffset, dataSize) ->
-                     decompressAndCacheBlock(input, chrom, dataOffset, dataSize).use { decompressedInput ->
-                         queryInternal(decompressedInput, query, overlaps)
-                     }
+                    cancelledChecker?.invoke()
+                    decompressAndCacheBlock(input, chrom, dataOffset, dataSize).use { decompressedInput ->
+                        queryInternal(decompressedInput, query, overlaps)
+                    }
                 }
     }
 
@@ -475,15 +477,20 @@ abstract class BigFile<out T> internal constructor(
             RAFBufferFactory(Paths.get(p), byteOrder)
         }
 
-        fun read(path: Path): BigFile<Comparable<*>> = read(path.toString(),
-                                                            factoryProvider = defaultFactory())
+        @Throws(IOException::class)
+        @JvmStatic
+        fun read(path: Path, cancelledChecker: (() -> Unit)? = null): BigFile<Comparable<*>> = read(path.toString(), cancelledChecker = cancelledChecker)
 
+        @Throws(IOException::class)
+        @JvmStatic
         fun read(src: String, prefetch: Boolean = false,
-                 factoryProvider: RomBufferFactoryProvider): BigFile<Comparable<*>> {
+                 cancelledChecker: (() -> Unit)? = null,
+                 factoryProvider: RomBufferFactoryProvider = defaultFactory()
+        ): BigFile<Comparable<*>> {
             val magic = readLEMagic(src, factoryProvider)
             return when {
-                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(src, prefetch, factoryProvider)
-                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(src, prefetch, factoryProvider)
+                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(src, prefetch, cancelledChecker, factoryProvider)
+                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(src, prefetch, cancelledChecker, factoryProvider)
                 else -> throw IllegalStateException("Unsupported file header magic: $magic")
             }
         }

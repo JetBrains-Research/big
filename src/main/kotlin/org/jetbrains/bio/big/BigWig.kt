@@ -13,8 +13,9 @@ class BigWigFile private constructor(
         path: String,
         buffFactory: RomBufferFactory,
         magic: Int,
-        prefetch: Boolean
-) : BigFile<WigSection>(path, buffFactory, magic, prefetch) {
+        prefetch: Boolean,
+        cancelledChecker: (() -> Unit)?
+) : BigFile<WigSection>(path, buffFactory, magic, prefetch, cancelledChecker) {
 
     override fun summarizeInternal(input: RomBuffer,
                                    query: ChromosomeInterval,
@@ -160,14 +161,18 @@ class BigWigFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(path: Path) = read(path.toString(), factoryProvider = defaultFactory())
+        fun read(path: Path, cancelledChecker: (() -> Unit)? = null) = read(path.toString(), cancelledChecker = cancelledChecker)
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Boolean = false, factoryProvider: RomBufferFactoryProvider) = BigWigFile(
+        fun read(src: String, prefetch: Boolean = false,
+                 cancelledChecker: (() -> Unit)? = null,
+                 factoryProvider: RomBufferFactoryProvider = defaultFactory()
+        ) = BigWigFile(
                 src,
                 factoryProvider(src, getByteOrder(src, MAGIC, factoryProvider)),
-                MAGIC, prefetch)
+                MAGIC, prefetch, cancelledChecker
+        )
 
         private class WigSectionSummary {
             val chromosomes = HashSet<String>()
@@ -225,7 +230,8 @@ class BigWigFile private constructor(
                 chromSizes: Iterable<Pair<String, Int>>,
                 outputPath: Path, zoomLevelCount: Int = 8,
                 compression: CompressionType = CompressionType.SNAPPY,
-                order: ByteOrder = ByteOrder.nativeOrder()) {
+                order: ByteOrder = ByteOrder.nativeOrder(),
+                cancelledChecker: (() -> Unit)? = null) {
             val summary = WigSectionSummary().apply { wigSections.forEach { this(it) } }
 
             val header = OrderedDataOutput(outputPath, order).use { output ->
@@ -243,7 +249,12 @@ class BigWigFile private constructor(
                 val resolver = unsortedChromosomes.map { it.key to it.id }.toMap()
                 val leaves = ArrayList<RTreeIndexLeaf>(wigSections.map { it.size }.sum())
                 var uncompressBufSize = 0
+
+                cancelledChecker?.invoke()
+
                 for ((name, sections) in wigSections.asSequence().groupingBy { it.chrom }) {
+                    cancelledChecker?.invoke()
+
                     val chromIx = resolver[name]
                     if (chromIx == null) {
                         sections.forEach {}  // Consume.
@@ -270,6 +281,7 @@ class BigWigFile private constructor(
                     }
                 }
 
+                cancelledChecker?.invoke()
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = 1)
                 BigFile.Header(

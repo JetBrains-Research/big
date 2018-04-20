@@ -12,9 +12,9 @@ import java.nio.ByteOrder
  * All i/o operations delegation is made in synchronized sections to ensure that seek and read operations
  * performed by `LightweightRomBuffer` for underlying `EndianSeekableDataInput` stream are consistent.
  */
-open class SynchronizedStreamAccessRomBuffer(
+class SynchronizedStreamAccessRomBuffer(
         private val input: EndianSeekableDataInput,
-        final override val order: ByteOrder,
+        override val order: ByteOrder,
         private val lock: Any = input,
         private val maxLength: Long = input.length(),
         position: Long = 0,

@@ -45,11 +45,11 @@ class RTreeIndexTest(
 
                     val rti = RTreeIndex.read(input, 0L)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true)
+                        rti.prefetchBlocksIndex(input, true, null)
                     }
 
                     val query = Interval(0, 100, 200)
-                    assertTrue(rti.findOverlappingBlocks(input, query).toList().isEmpty())
+                    assertTrue(rti.findOverlappingBlocks(input, query, {}).toList().isEmpty())
                 }
             }
         }
@@ -67,7 +67,7 @@ class RTreeIndexTest(
             val query = Interval(0, items[left].start, items[right].end)
 
             bbf.buffFactory.create().use { input ->
-                for (block in rti.findOverlappingBlocks(input, query)) {
+                for (block in rti.findOverlappingBlocks(input, query, null)) {
                     assertTrue(block.interval intersects query)
                 }
             }
@@ -104,11 +104,12 @@ class RTreeIndexTest(
                 f.create().use { input ->
                     val rti = RTreeIndex.read(input, 0)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true)
+                        rti.prefetchBlocksIndex(input, true, null)
                     }
                     for (leaf in leaves) {
                         val overlaps = rti.findOverlappingBlocks(
-                                input, leaf.interval as ChromosomeInterval).toList()
+                                input, leaf.interval as ChromosomeInterval, null
+                        ).toList()
                         assertTrue(overlaps.isNotEmpty())
                         assertEquals(leaf, overlaps.first())
                     }
@@ -135,7 +136,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetch() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, false)
+            rti.prefetchBlocksIndex(input, false, null)
 
             assertNotNull(rti.rootNode)
 
@@ -150,12 +151,12 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             assertEquals(200, (root.children[1].node as RTreeNodeRef).dataOffset)
             assertEquals("0:[1137275; 2102048)", root.children[1].interval.toString())
 
-            val expandOneLevel = root.children[0].resolve(input, rti, false)
+            val expandOneLevel = root.children[0].resolve(input, rti, false, null)
             assertTrue(expandOneLevel is RTReeNodeIntermediate)
             assertTrue(((expandOneLevel as RTReeNodeIntermediate).children[2]).node is RTreeNodeRef)
             assertEquals("0:[768454; 1137275)", expandOneLevel.children[2].interval.toString())
 
-            val expandAll = root.children[0].resolve(input, rti, true)
+            val expandAll = root.children[0].resolve(input, rti, true, null)
             assertTrue(expandAll is RTReeNodeIntermediate)
             assertFalse(((expandAll as RTReeNodeIntermediate).children[2]).node is RTreeNodeRef)
             assertEquals("0:[768454; 1137275)",
@@ -166,7 +167,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetchExpandAll() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, true)
+            rti.prefetchBlocksIndex(input, true, null)
 
             assertNotNull(rti.rootNode)
 
@@ -181,7 +182,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             assertFalse(root.children[1].node is RTreeNodeRef)
             assertEquals("0:[1137275; 2102048)", root.children[1].interval.toString())
 
-            val childNode = child0.resolve(input, rti, false)
+            val childNode = child0.resolve(input, rti, false, null)
             assertTrue(childNode is RTReeNodeIntermediate)
             assertEquals("0:[0; 1137275)", child0.interval.toString())
 //            assertEquals("0:[0; 1137275)", (childNode as RTReeNodeIntermediate).interval!!.toString())
