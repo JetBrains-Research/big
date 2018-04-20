@@ -294,6 +294,17 @@ class RomBufferTest(
     }
 
     @Test
+    fun checkLimitUnLimited() {
+        fp("", byteOrder).use { factory ->
+            factory.create().use { rb1 ->
+                rb1.limit = -1
+                rb1.position = 2
+                assertEquals(4.toByte(), rb1.readByte())
+            }
+        }
+    }
+
+    @Test
     fun subbufferPosition() {
         fp("", byteOrder, 10).use { factory ->
             factory.create().use { rb1 ->

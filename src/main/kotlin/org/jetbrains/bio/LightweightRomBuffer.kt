@@ -15,18 +15,15 @@ import java.nio.ByteOrder
 open class LightweightRomBuffer(
         private val input: EndianSeekableDataInput,
         override val order: ByteOrder,
-        private val maxLength: Long = input.length(),
+        override val maxLength: Long = input.length(),
         override var position: Long = 0,
         limit: Long = -1L
 ) : RomBuffer() {
 
-    override var limit: Long = if (limit != -1L) limit else maxLength
-        set(value) {
-            check(value <= maxLength) {
-                "Limit $value is greater than buffer length $maxLength"
-            }
-            field = value
-        }
+    init {
+        @Suppress("LeakingThis")
+        this.limit = limit
+    }
 
     /**
      * Returns a new buffer sharing the data with its parent.

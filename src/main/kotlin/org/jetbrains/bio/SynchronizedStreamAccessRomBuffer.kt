@@ -16,7 +16,7 @@ class SynchronizedStreamAccessRomBuffer(
         private val input: EndianSeekableDataInput,
         override val order: ByteOrder,
         private val lock: Any = input,
-        private val maxLength: Long = input.length(),
+        override val maxLength: Long = input.length(),
         position: Long = 0,
         limit: Long = -1L
 ) : RomBuffer() {
@@ -38,6 +38,9 @@ class SynchronizedStreamAccessRomBuffer(
             buffer.limit = value
         }
 
+    init {
+        this.limit = limit
+    }
 
     override fun duplicate(position: Long, limit: Long)
     // synchronization for input stream not needed here

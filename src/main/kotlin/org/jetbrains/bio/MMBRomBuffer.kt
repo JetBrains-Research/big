@@ -8,18 +8,16 @@ import java.nio.ByteOrder
 open class MMBRomBuffer(
         private val mapped: MMapBuffer,
         override var position: Long = 0,
-        limit: Long = mapped.memory().length()
+        limit: Long = -1
 ) : RomBuffer() {
 
+    override val maxLength = mapped.memory().length()
     override val order: ByteOrder get() = mapped.memory().order
-    override var limit: Long = limit
-        set(value) {
-            val length = mapped.memory().length()
-            check(value <= length) {
-                "Limit $value is greater than buffer length $length"
-            }
-            field = value
-        }
+
+    init {
+        @Suppress("LeakingThis")
+        this.limit = limit
+    }
 
     /**
      * Returns a new buffer sharing the data with its parent.

@@ -17,6 +17,7 @@ open class HeavyweightRomBuffer(
 ) : RomBuffer() {
 
     private val input: SeekableDataInput = inputFactory(path, order, bufferSize)
+    override val maxLength: Long = input.length()
 
     override var position
         get() = input.position()
@@ -24,18 +25,11 @@ open class HeavyweightRomBuffer(
             input.seek(position)
         }
 
-    private val maxLength: Long = input.length()
-    override var limit: Long = if (limit != -1L) limit else maxLength
-        set(value) {
-            check(value <= maxLength) {
-                "Limit $value is greater than buffer length $maxLength"
-            }
-            field = value
-        }
-
     init {
         @Suppress("LeakingThis")
         this.position = position
+        @Suppress("LeakingThis")
+        this.limit = limit
     }
 
 

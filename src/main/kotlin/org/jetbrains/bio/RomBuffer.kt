@@ -12,8 +12,15 @@ import java.util.zip.Inflater
 abstract class RomBuffer: Closeable {
     abstract var position: Long
     abstract val order: ByteOrder
+    abstract val maxLength: Long
 
-    abstract var limit: Long
+    open var limit: Long = -1
+        set(value) {
+            check(value <= maxLength) {
+                "Limit $value is greater than buffer length $maxLength"
+            }
+            field = if (value == -1L) maxLength else value
+        }
 
     /**
      * Returns a new buffer sharing the data with its parent.
@@ -69,9 +76,8 @@ abstract class RomBuffer: Closeable {
     fun hasRemaining() = position < limit
 
     protected fun checkLimit() {
-        check(position <= limit) { "Buffer overflow: pos $position > limit $limit" }
+        check(position <= limit) { "Buffer overflow: pos $position > limit $limit, max length: $maxLength" }
     }
-
 
     /**
      * Executes a `block` on a fixed-size possibly compressed input.

@@ -11,6 +11,8 @@ class BBRomBuffer internal constructor(private val buffer: ByteBuffer) : RomBuff
         get() = buffer.position().toLong()
         set(value) = ignore(buffer.position(Ints.checkedCast(value)))
 
+    override val maxLength = buffer.capacity().toLong()
+
     override var limit: Long
         get() = buffer.limit().toLong()
         set(value) { buffer.limit(Ints.checkedCast(value))}
