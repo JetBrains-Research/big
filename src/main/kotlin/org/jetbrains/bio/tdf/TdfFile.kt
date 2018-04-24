@@ -40,9 +40,8 @@ data class TdfFile private constructor(
         /** Genome build, e.g. `"hg38"`. */
         val build: String,
         /** Whether the data sections are compressed with DEFLATE. */
-        val compressed: Boolean,
-        /** Throw cancelled exception to abort operation **/
-        private val cancelledChecker: (() -> Unit)?) : Closeable {
+        val compressed: Boolean
+) : Closeable {
 
     val version: Int get() = header.version
 
@@ -56,9 +55,15 @@ data class TdfFile private constructor(
      * @param dataset dataset to query.
      * @param startOffset 0-based start offset.
      * @param endOffset 0-based end offset.
+     * @param cancelledChecker Throw cancelled exception to abort operation
      * @return a list of tiles.
      */
-    fun query(dataset: TdfDataset, startOffset: Int, endOffset: Int): List<TdfTile> {
+    fun query(
+            dataset: TdfDataset,
+            startOffset: Int,
+            endOffset: Int,
+            cancelledChecker: (() -> Unit)? = null
+    ): List<TdfTile> {
         val startTile = startOffset / dataset.tileWidth
         val endTile = endOffset divCeiling dataset.tileWidth
         return (startTile..Math.min(dataset.tileCount - 1, endTile)).mapNotNull {
@@ -72,8 +77,13 @@ data class TdfFile private constructor(
      *
      * @since 0.2.3
      */
-    fun summarize(chromosome: String, startOffset: Int, endOffset: Int,
-                  zoom: Int = 0): TdfSummary {
+    fun summarize(
+            chromosome: String,
+            startOffset: Int, endOffset: Int,
+            zoom: Int = 0,
+            cancelledChecker: (() -> Unit)? = null
+    ): TdfSummary {
+
         val dataset = try {
             getDataset(chromosome, zoom)
         } catch (e: NoSuchElementException) {
@@ -83,9 +93,11 @@ data class TdfFile private constructor(
             // level.
             getDatasetInternal("/$chromosome/raw")
         }
-
-        return TdfSummary(query(dataset, startOffset, endOffset),
-                          startOffset, endOffset)
+        cancelledChecker?.invoke()
+        return TdfSummary(
+                query(dataset, startOffset, endOffset, cancelledChecker),
+                startOffset, endOffset
+        )
     }
 
     // XXX ideally this should be part of 'TdfDataset', but it's unclear
@@ -207,23 +219,29 @@ data class TdfFile private constructor(
         ): TdfFile {
             val buffFactory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
             buffFactory.create().use { input ->
-
                 //TODO: investigate IO usage, e.g. for http urls support
+
+                cancelledChecker?.invoke()
                 val header = Header.read(input)
                 val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
                 val trackType = TrackType.read(input)
                 val trackLine = input.readCString().trim()
+
+                cancelledChecker?.invoke()
                 val trackNames = input.getSequenceOf { input.readCString() }.toList()
                 val build = input.readCString()
                 val compressed = (input.readInt() and 0x1) != 0
+
+                cancelledChecker?.invoke()
                 // Make sure we haven't read anything extra.
                 check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
                 val index = input.with(header.indexOffset, header.indexSize.toLong()) {
                     TdfMasterIndex.read(this)
                 }
 
+                cancelledChecker?.invoke()
                 return TdfFile(buffFactory, header, index, windowFunctions, trackType,
-                        trackLine, trackNames, build, compressed, cancelledChecker)
+                        trackLine, trackNames, build, compressed)
             }
         }
     }
