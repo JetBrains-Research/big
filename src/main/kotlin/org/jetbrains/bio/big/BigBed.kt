@@ -149,6 +149,7 @@ class BigBedFile private constructor(
          *                       Defaults to `8`.
          * @param compression method for data sections, see [CompressionType].
          * @param order byte order used, see [java.nio.ByteOrder].
+         * @param cancelledChecker Throw cancelled exception to abort operation
          * @@throws IOException if any of the read or write operations failed.
          */
         @Throws(IOException::class)

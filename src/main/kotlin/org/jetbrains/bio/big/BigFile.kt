@@ -169,6 +169,7 @@ abstract class BigFile<out T> internal constructor(
      *                  chromosome is used.
      * @param numBins number of summaries to compute. Defaults to `1`.
      * @param index if `true` pre-computed is index is used if possible.
+     * @param cancelledChecker Throw cancelled exception to abort operation
      * @return a list of summaries.
      */
     @Throws(IOException::class)
@@ -286,6 +287,7 @@ abstract class BigFile<out T> internal constructor(
      *                 items completely contained within the query,
      *                 otherwise it also includes the items overlapping
      *                 the query.
+     * @param cancelledChecker Throw cancelled exception to abort operation
      * @return a list of items.
      * @throws IOException if the underlying [RomBuffer] does so.
      */
@@ -516,7 +518,7 @@ abstract class BigFile<out T> internal constructor(
             guessFileType(readLEMagic(factory))
         }
 
-        fun guessFileType(magic: Int) = when {
+        private fun guessFileType(magic: Int) = when {
             guess(BigBedFile.MAGIC, magic).first -> BigFile.Type.BIGBED
             guess(BigWigFile.MAGIC, magic).first -> BigFile.Type.BIGWIG
             else -> null
