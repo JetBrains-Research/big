@@ -75,59 +75,64 @@ abstract class BigFile<out T> internal constructor(
     internal var prefetchedChr2Leaf: Map<String, BPlusLeaf?>? = null
 
     init {
-        buffFactory.create().use { input ->
-            cancelledChecker?.invoke()
-
-            header = Header.read(input, magic)
-            zoomLevels = (0 until header.zoomLevelCount).map { ZoomLevel.read(input) }
-            bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
-
-            // if do prefetch input and file not empty:
-            if (prefetch) {
-                // stored in the beginning of file near header
+        try {
+            buffFactory.create().use { input ->
                 cancelledChecker?.invoke()
-                prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
 
-                // stored in the beginning of file near header
-                cancelledChecker?.invoke()
-                prefetchedChromosomes = with(bPlusTree) {
-                    val res = TIntObjectHashMap<String>(this.header.itemCount)
-                    // returns sequence, but process here => resource could be closed
-                    for ((key, id) in traverse(input)) {
-                        res.put(id, key)
+                header = Header.read(input, magic)
+                zoomLevels = (0 until header.zoomLevelCount).map { ZoomLevel.read(input) }
+                bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
+
+                // if do prefetch input and file not empty:
+                if (prefetch) {
+                    // stored in the beginning of file near header
+                    cancelledChecker?.invoke()
+                    prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
+
+                    // stored in the beginning of file near header
+                    cancelledChecker?.invoke()
+                    prefetchedChromosomes = with(bPlusTree) {
+                        val res = TIntObjectHashMap<String>(this.header.itemCount)
+                        // returns sequence, but process here => resource could be closed
+                        for ((key, id) in traverse(input)) {
+                            res.put(id, key)
+                        }
+                        TCollections.unmodifiableMap(res)
                     }
-                    TCollections.unmodifiableMap(res)
+
+                    // stored in the beginning of file near header
+                    cancelledChecker?.invoke()
+                    prefetchedChr2Leaf = prefetchedChromosomes!!.valueCollection().map {
+                        it to bPlusTree.find(input, it)
+                    }.toMap()
+
+                    // stored not in the beginning of file
+                    prefetchedLevel2RTreeIndex = zoomLevels.mapNotNull {
+                        if (it.reduction == 0) {
+                            null
+                        } else {
+                            require(it.indexOffset != 0L) {
+                                "Zoom index offset expected to be not zero."
+                            }
+                            require(it.dataOffset != 0L) {
+                                "Zoom data offset expected to be not zero."
+                            }
+
+                            val zRTree = RTreeIndex.read(input, it.indexOffset)
+                            zRTree.prefetchBlocksIndex(input, true, cancelledChecker)
+                            it to zRTree
+                        }
+                    }.toMap()
                 }
 
-                // stored in the beginning of file near header
+                // this point not to the beginning of file => read it here using new buffer
+                // in buffered stream
                 cancelledChecker?.invoke()
-                prefetchedChr2Leaf = prefetchedChromosomes!!.valueCollection().map {
-                    it to bPlusTree.find(input, it)
-                }.toMap()
-
-                // stored not in the beginning of file
-                prefetchedLevel2RTreeIndex = zoomLevels.mapNotNull {
-                    if (it.reduction == 0) {
-                        null
-                    } else {
-                        require(it.indexOffset != 0L) {
-                            "Zoom index offset expected to be not zero."
-                        }
-                        require(it.dataOffset != 0L) {
-                            "Zoom data offset expected to be not zero."
-                        }
-
-                        val zRTree = RTreeIndex.read(input, it.indexOffset)
-                        zRTree.prefetchBlocksIndex(input, true, cancelledChecker)
-                        it to zRTree
-                    }
-                }.toMap()
+                rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
             }
-
-            // this point not to the beginning of file => read it here using new buffer
-            // in buffered stream
-            cancelledChecker?.invoke()
-            rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+        } catch (e: Exception) {
+            buffFactory.close()
+            throw e
         }
     }
 
