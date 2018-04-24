@@ -56,7 +56,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             if (rootNode == null) {
                 findOverlappingBlocksRecursively(
                         input, query,
-                        fetchRTreeNodeRecursively(input, false, header.rootOffset, cancelledChecker),
+                        fetchRTreeNodeRecursively(input, false, false, header.rootOffset, cancelledChecker),
                         cancelledChecker)
             } else {
                 findOverlappingBlocksRecursively(input, query, rootNode!!, cancelledChecker)
@@ -65,17 +65,23 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
     }
 
     @Throws(IOException::class)
-    fun prefetchBlocksIndex(input: RomBuffer, expandAll: Boolean, cancelledChecker: (() -> Unit)?) {
+    fun prefetchBlocksIndex(
+            input: RomBuffer,
+            expandAll: Boolean,
+            expandUpToChrs: Boolean,
+            cancelledChecker: (() -> Unit)?
+    ) {
         rootNode = if (header.itemCount == 0L) {
             null
         } else {
-            fetchRTreeNodeRecursively(input, expandAll, header.rootOffset, cancelledChecker)
+            fetchRTreeNodeRecursively(input, expandAll, expandUpToChrs, header.rootOffset, cancelledChecker)
         }
     }
 
     internal fun fetchRTreeNodeRecursively(
             input: RomBuffer,
             expandAll: Boolean,
+            expandUpToChrs: Boolean,
             offset: Long,
             cancelledChecker: (() -> Unit)?
     ): RTreeNode {
@@ -104,15 +110,16 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                 }
             }
             val children = nodes.map { rTIndexNode ->
-                if (expandAll) {
+                val interval = rTIndexNode.interval
+                if (expandAll || (expandUpToChrs && interval.left.chromIx != interval.right.chromIx)) {
                     RTreeNodeProxy(
-                            fetchRTreeNodeRecursively(input, expandAll, rTIndexNode.dataOffset, cancelledChecker),
-                            rTIndexNode.interval
+                            fetchRTreeNodeRecursively(input, expandAll, expandUpToChrs, rTIndexNode.dataOffset, cancelledChecker),
+                            interval
                     )
                 } else {
                     RTreeNodeProxy(
                             RTreeNodeRef(rTIndexNode.dataOffset),
-                            rTIndexNode.interval
+                            interval
                     )
                 }
             }
@@ -134,7 +141,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             else -> (rootNode as RTReeNodeIntermediate).children.asSequence()
                     .filter { it.interval intersects query }
                     .flatMap { proxy ->
-                        val node = proxy.resolve(input, this, false, cancelledChecker)
+                        val node = proxy.resolve(input, this, cancelledChecker)
                         findOverlappingBlocksRecursively(input, query, node, cancelledChecker)
                     }
         }
@@ -342,11 +349,8 @@ internal data class RTreeNodeRef(val dataOffset: Long) : RTreeNode
 
 internal class RTreeNodeProxy(internal val node: RTreeNode, val interval: Interval) {
 
-    fun resolve(
-            input: RomBuffer, rTreeIndex: RTreeIndex, expandAll: Boolean,
-            cancelledChecker: (() -> Unit)?
-    ) = when (node) {
-        is RTreeNodeRef -> rTreeIndex.fetchRTreeNodeRecursively(input, expandAll, node.dataOffset, cancelledChecker)
+    fun resolve(input: RomBuffer, rTreeIndex: RTreeIndex, cancelledChecker: (() -> Unit)?) = when (node) {
+        is RTreeNodeRef -> rTreeIndex.fetchRTreeNodeRecursively(input, false, false, node.dataOffset, cancelledChecker)
         else -> node
     }
 }

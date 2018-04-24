@@ -7,7 +7,9 @@ import org.junit.runners.Parameterized
 import java.nio.ByteOrder
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @RunWith(Parameterized::class)
 class RTreeIndexTest(
@@ -22,7 +24,9 @@ class RTreeIndexTest(
             assertEquals(192771L, rti.header.endDataOffset)
             assertEquals(64, rti.header.itemsPerSlot)
             assertEquals(192819L, rti.header.rootOffset)
-            assertNull(bbf.rTree.rootNode)
+            assertNotNull(bbf.rTree.rootNode)
+            assertTrue(bbf.rTree.rootNode is RTReeNodeLeaf)
+            assertEquals(232, (bbf.rTree.rootNode as RTReeNodeLeaf).leaves.size)
 
             val items = exampleItems
             assertEquals(items.size.toLong(), rti.header.itemCount)
@@ -45,7 +49,7 @@ class RTreeIndexTest(
 
                     val rti = RTreeIndex.read(input, 0L)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true, null)
+                        rti.prefetchBlocksIndex(input, true, false, null)
                     }
 
                     val query = Interval(0, 100, 200)
@@ -104,7 +108,7 @@ class RTreeIndexTest(
                 f.create().use { input ->
                     val rti = RTreeIndex.read(input, 0)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true, null)
+                        rti.prefetchBlocksIndex(input, true, false, null)
                     }
                     for (leaf in leaves) {
                         val overlaps = rti.findOverlappingBlocks(
@@ -136,7 +140,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetch() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, false, null)
+            rti.prefetchBlocksIndex(input, false, false, null)
 
             assertNotNull(rti.rootNode)
 
@@ -146,28 +150,22 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
 
             assertTrue(root.children[0].node is RTreeNodeRef)
             assertEquals(124, (root.children[0].node as RTreeNodeRef).dataOffset)
-            assertEquals("0:[0; 1137275)", root.children[0].interval.toString())
+            assertEquals("[0:0; 1:1137275)", root.children[0].interval.toString())
             assertTrue(root.children[1].node is RTreeNodeRef)
             assertEquals(200, (root.children[1].node as RTreeNodeRef).dataOffset)
-            assertEquals("0:[1137275; 2102048)", root.children[1].interval.toString())
+            assertEquals("1:[1137275; 2102048)", root.children[1].interval.toString())
 
-            val expandOneLevel = root.children[0].resolve(input, rti, false, null)
+            val expandOneLevel = root.children[0].resolve(input, rti, null)
             assertTrue(expandOneLevel is RTReeNodeIntermediate)
             assertTrue(((expandOneLevel as RTReeNodeIntermediate).children[2]).node is RTreeNodeRef)
-            assertEquals("0:[768454; 1137275)", expandOneLevel.children[2].interval.toString())
-
-            val expandAll = root.children[0].resolve(input, rti, true, null)
-            assertTrue(expandAll is RTReeNodeIntermediate)
-            assertFalse(((expandAll as RTReeNodeIntermediate).children[2]).node is RTreeNodeRef)
-            assertEquals("0:[768454; 1137275)",
-                         expandAll.children[2].interval.toString())
+            assertEquals("1:[768454; 1137275)", expandOneLevel.children[2].interval.toString())
         }
     }
 
     @Test
     fun testPrefetchExpandAll() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, true, null)
+            rti.prefetchBlocksIndex(input, true, false, null)
 
             assertNotNull(rti.rootNode)
 
@@ -175,19 +173,45 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             val root = rti.rootNode!! as RTReeNodeIntermediate
             assertEquals(2, root.children.size)
 
-            val child0 = root.children[0]
-            assertFalse(child0.node is RTreeNodeRef)
-            //assertEquals("0:[0; 1137275)", root.children[0].node.interval.toString())
-            assertEquals("0:[0; 1137275)", child0.interval.toString())
-            assertFalse(root.children[1].node is RTreeNodeRef)
-            assertEquals("0:[1137275; 2102048)", root.children[1].interval.toString())
+            assertEquals("[0:0; 1:1137275)", root.children[0].interval.toString())
+            assertTrue(root.children[0].node is RTReeNodeIntermediate)
+            assertEquals(3, (root.children[0].node as RTReeNodeIntermediate).children.size)
 
-            val childNode = child0.resolve(input, rti, false, null)
+            assertEquals("1:[1137275; 2102048)", root.children[1].interval.toString())
+            assertTrue(root.children[1].node is RTReeNodeIntermediate)
+            assertEquals(3, (root.children[1].node as RTReeNodeIntermediate).children.size)
+
+            val childNode = root.children[0].resolve(input, rti, null)
+            assertEquals("[0:0; 1:1137275)", root.children[0].interval.toString())
             assertTrue(childNode is RTReeNodeIntermediate)
-            assertEquals("0:[0; 1137275)", child0.interval.toString())
-//            assertEquals("0:[0; 1137275)", (childNode as RTReeNodeIntermediate).interval!!.toString())
-            assertFalse((childNode as RTReeNodeIntermediate).children[2].node is RTreeNodeRef)
-            assertEquals("0:[768454; 1137275)", childNode.children[2].interval.toString())
+            assertTrue((childNode as RTReeNodeIntermediate).children[2].node is RTReeNodeIntermediate)
+            assertEquals("1:[768454; 1137275)", childNode.children[2].interval.toString())
+        }
+    }
+
+    @Test
+    fun testPrefetchExpandUpToChrs() {
+        doTest { input, rti ->
+            rti.prefetchBlocksIndex(input, false, true, null)
+
+            assertNotNull(rti.rootNode)
+
+            assertTrue(rti.rootNode!! is RTReeNodeIntermediate)
+            val root = rti.rootNode!! as RTReeNodeIntermediate
+            assertEquals(2, root.children.size)
+
+            assertTrue(root.children[0].node is RTReeNodeIntermediate)
+            assertEquals(3, (root.children[0].node as RTReeNodeIntermediate).children.size)
+            assertEquals("[0:0; 1:1137275)", root.children[0].interval.toString())
+            assertTrue(root.children[1].node is RTreeNodeRef)
+            assertEquals(200, (root.children[1].node as RTreeNodeRef).dataOffset)
+            assertEquals("1:[1137275; 2102048)", root.children[1].interval.toString())
+
+            println((root.children[0].node as RTReeNodeIntermediate).children[0].node)
+            assertTrue((root.children[0].node as RTReeNodeIntermediate).children[0].node is RTreeNodeRef)
+            assertEquals(
+                    276,
+                    ((root.children[0].node as RTReeNodeIntermediate).children[0].node as RTreeNodeRef).dataOffset)
         }
     }
 
@@ -203,7 +227,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             var offset = 0
             for (i in 0 until size) {
                 val next = offset + rnd.nextInt(step) + 1
-                val interval = Interval(0, offset, next)
+                val interval = Interval(if (i < 1000) 0 else 1, offset, next)
                 leaves.add(RTreeIndexLeaf(interval, 0, 0))
                 offset = next
             }

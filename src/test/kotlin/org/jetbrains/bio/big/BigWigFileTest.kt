@@ -10,7 +10,7 @@ import java.nio.file.Path
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @RunWith(Parameterized::class)
@@ -59,7 +59,12 @@ class BigWigFileTest(
 
             assertEquals(15751097, bf.rTree.header.rootOffset)
             assertEquals(6857, bf.rTree.header.itemCount)
-            assertNull(bf.rTree.rootNode)
+            assertNotNull(bf.rTree.rootNode)
+            assertTrue(bf.rTree.rootNode!! is RTReeNodeIntermediate)
+            assertEquals(27, (bf.rTree.rootNode!! as RTReeNodeIntermediate).children.size)
+            assertEquals("0:[9411190; 11071890)",
+                    (bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].interval.toString())
+            assertTrue((bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].node is RTreeNodeRef)
         }
     }
 

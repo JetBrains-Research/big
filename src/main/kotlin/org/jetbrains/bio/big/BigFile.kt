@@ -119,7 +119,7 @@ abstract class BigFile<out T> internal constructor(
                             }
 
                             val zRTree = RTreeIndex.read(input, it.indexOffset)
-                            zRTree.prefetchBlocksIndex(input, true, cancelledChecker)
+                            zRTree.prefetchBlocksIndex(input, true, false, cancelledChecker)
                             it to zRTree
                         }
                     }.toMap()
@@ -129,6 +129,7 @@ abstract class BigFile<out T> internal constructor(
                 // in buffered stream
                 cancelledChecker?.invoke()
                 rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
+                rTree.prefetchBlocksIndex(input, false, true, cancelledChecker)
             }
         } catch (e: Exception) {
             buffFactory.close()

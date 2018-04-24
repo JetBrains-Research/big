@@ -12,7 +12,7 @@ import java.nio.file.Path
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @RunWith(Parameterized::class)
@@ -58,7 +58,9 @@ class BigBedFileTest(
 
             assertEquals(192819, bf.rTree.header.rootOffset)
             assertEquals(14810, bf.rTree.header.itemCount)
-            assertNull(bf.rTree.rootNode)
+            assertNotNull(bf.rTree.rootNode)
+            assertTrue(bf.rTree.rootNode!! is RTReeNodeLeaf)
+            assertEquals(232, (bf.rTree.rootNode!! as RTReeNodeLeaf).leaves.size)
         }
     }
 
