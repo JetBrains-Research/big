@@ -488,6 +488,9 @@ abstract class BigFile<out T> internal constructor(
             return true to ByteOrder.LITTLE_ENDIAN
         }
 
+        /**
+         * @since 0.7.0
+         */
         fun defaultFactory(): RomBufferFactoryProvider = { p, byteOrder ->
             EndianSynchronizedBufferFactory.create(p, byteOrder)
         }
@@ -511,6 +514,11 @@ abstract class BigFile<out T> internal constructor(
             }
         }
 
+        /**
+         * Determines file type by reading first byte
+         *
+         * @since 0.8.0
+         */
         fun determineFileType(
                 src: String,
                 factoryProvider: RomBufferFactoryProvider = defaultFactory()
