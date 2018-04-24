@@ -33,7 +33,7 @@ abstract class BigFile<out T> internal constructor(
         internal val buffFactory: RomBufferFactory,
         magic: Int,
         prefetch: Boolean,
-        private val cancelledChecker: (() -> Unit)?
+        cancelledChecker: (() -> Unit)?
 ) : Closeable {
 
     internal lateinit var header: Header
@@ -76,6 +76,8 @@ abstract class BigFile<out T> internal constructor(
 
     init {
         buffFactory.create().use { input ->
+            cancelledChecker?.invoke()
+
             header = Header.read(input, magic)
             zoomLevels = (0 until header.zoomLevelCount).map { ZoomLevel.read(input) }
             bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
@@ -83,9 +85,11 @@ abstract class BigFile<out T> internal constructor(
             // if do prefetch input and file not empty:
             if (prefetch) {
                 // stored in the beginning of file near header
+                cancelledChecker?.invoke()
                 prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
 
                 // stored in the beginning of file near header
+                cancelledChecker?.invoke()
                 prefetchedChromosomes = with(bPlusTree) {
                     val res = TIntObjectHashMap<String>(this.header.itemCount)
                     // returns sequence, but process here => resource could be closed
@@ -96,6 +100,7 @@ abstract class BigFile<out T> internal constructor(
                 }
 
                 // stored in the beginning of file near header
+                cancelledChecker?.invoke()
                 prefetchedChr2Leaf = prefetchedChromosomes!!.valueCollection().map {
                     it to bPlusTree.find(input, it)
                 }.toMap()
@@ -121,8 +126,8 @@ abstract class BigFile<out T> internal constructor(
 
             // this point not to the beginning of file => read it here using new buffer
             // in buffered stream
+            cancelledChecker?.invoke()
             rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-
         }
     }
 
@@ -168,7 +173,8 @@ abstract class BigFile<out T> internal constructor(
      */
     @Throws(IOException::class)
     fun summarize(name: String, startOffset: Int = 0, endOffset: Int = 0,
-                  numBins: Int = 1, index: Boolean = true): List<BigSummary> {
+                  numBins: Int = 1, index: Boolean = true,
+                  cancelledChecker: (() -> Unit)? = null): List<BigSummary> {
 
         var list: List<BigSummary> = emptyList()
         buffFactory.create().use { input ->
@@ -191,10 +197,10 @@ abstract class BigFile<out T> internal constructor(
             val zoomLevel = zoomLevels.pick(query.length() / (2 * numBins))
             val sparseSummaries = if (zoomLevel == null || !index) {
                 LOG.trace("Summarizing $query from raw data")
-                summarizeInternal(input, query, numBins)
+                summarizeInternal(input, query, numBins, cancelledChecker)
             } else {
                 LOG.trace("Summarizing $query from ${zoomLevel.reduction}x zoom")
-                summarizeFromZoom(input, query, zoomLevel, numBins)
+                summarizeFromZoom(input, query, zoomLevel, numBins, cancelledChecker)
             }
 
             val emptySummary = BigSummary()
@@ -212,11 +218,14 @@ abstract class BigFile<out T> internal constructor(
     internal abstract fun summarizeInternal(
             input: RomBuffer,
             query: ChromosomeInterval,
-            numBins: Int): Sequence<IndexedValue<BigSummary>>
+            numBins: Int,
+            cancelledChecker: (() -> Unit)?
+    ): Sequence<IndexedValue<BigSummary>>
 
     private fun summarizeFromZoom(input: RomBuffer,
                                   query: ChromosomeInterval, zoomLevel: ZoomLevel,
-                                  numBins: Int): Sequence<IndexedValue<BigSummary>> {
+                                  numBins: Int,
+                                  cancelledChecker: (() -> Unit)?): Sequence<IndexedValue<BigSummary>> {
         val zRTree = when {
             prefetchedLevel2RTreeIndex != null -> prefetchedLevel2RTreeIndex!![zoomLevel]!!
             else -> RTreeIndex.read(input, zoomLevel.indexOffset)
@@ -282,7 +291,8 @@ abstract class BigFile<out T> internal constructor(
      */
     @Throws(IOException::class)
     @JvmOverloads fun query(name: String, startOffset: Int = 0, endOffset: Int = 0,
-                            overlaps: Boolean = false): List<T> {
+                            overlaps: Boolean = false,
+                            cancelledChecker: (() -> Unit)? = null): List<T> {
 
         buffFactory.create().use { input ->
             val res = when {
@@ -295,12 +305,17 @@ abstract class BigFile<out T> internal constructor(
             } else {
                 val (_/* key */, chromIx, size) = res
                 val properEndOffset = if (endOffset == 0) size else endOffset
-                query(input, Interval(chromIx, startOffset, properEndOffset), overlaps).toList()
+                query(input, Interval(chromIx, startOffset, properEndOffset), overlaps, cancelledChecker).toList()
             }
         }
     }
 
-    internal fun query(input: RomBuffer, query: ChromosomeInterval, overlaps: Boolean): Sequence<T> {
+    internal fun query(
+            input: RomBuffer,
+            query: ChromosomeInterval,
+            overlaps: Boolean,
+            cancelledChecker: (() -> Unit)?
+    ): Sequence<T> {
         val chrom = chromosomes[query.chromIx]
         return rTree.findOverlappingBlocks(input, query, cancelledChecker)
                 .flatMap { (_, dataOffset, dataSize) ->
@@ -440,17 +455,16 @@ abstract class BigFile<out T> internal constructor(
         /**
          * Magic specifies file format and bytes order. Let's read magic as little endian.
          */
-        private fun readLEMagic(path: String, factoryProvider: RomBufferFactoryProvider) =
-                factoryProvider(path, ByteOrder.LITTLE_ENDIAN).create().use {
+        private fun readLEMagic(buffFactory: RomBufferFactory) =
+                buffFactory.create().use {
                     it.readInt()
                 }
 
         /**
          * Determines byte order using expected magic field value
          */
-        internal fun getByteOrder(path: String, magic: Int,
-                                  factoryProvider: RomBufferFactoryProvider): ByteOrder {
-            val leMagic = readLEMagic(path, factoryProvider)
+        internal fun getByteOrder(path: String, magic: Int, bufferFactory: RomBufferFactory): ByteOrder {
+            val leMagic = readLEMagic(bufferFactory)
             val (valid, byteOrder) = guess(magic, leMagic)
             check(valid) {
                 val bigMagic = java.lang.Integer.reverseBytes(magic)
@@ -485,13 +499,27 @@ abstract class BigFile<out T> internal constructor(
         fun read(src: String, prefetch: Boolean = false,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
-        ): BigFile<Comparable<*>> {
-            val magic = readLEMagic(src, factoryProvider)
-            return when {
-                guess(BigBedFile.MAGIC, magic).first -> BigBedFile.read(src, prefetch, cancelledChecker, factoryProvider)
-                guess(BigWigFile.MAGIC, magic).first -> BigWigFile.read(src, prefetch, cancelledChecker, factoryProvider)
+        ): BigFile<Comparable<*>> = factoryProvider(src, ByteOrder.LITTLE_ENDIAN).use { factory ->
+            val magic = readLEMagic(factory)
+
+            when (guessFileType(magic)) {
+                Type.BIGBED -> BigBedFile.read(src, prefetch, cancelledChecker, factoryProvider)
+                Type.BIGWIG -> BigWigFile.read(src, prefetch, cancelledChecker, factoryProvider)
                 else -> throw IllegalStateException("Unsupported file header magic: $magic")
             }
+        }
+
+        fun determineFileType(
+                src: String,
+                factoryProvider: RomBufferFactoryProvider = defaultFactory()
+        ) = factoryProvider(src, ByteOrder.LITTLE_ENDIAN).use { factory ->
+            guessFileType(readLEMagic(factory))
+        }
+
+        fun guessFileType(magic: Int) = when {
+            guess(BigBedFile.MAGIC, magic).first -> BigFile.Type.BIGBED
+            guess(BigWigFile.MAGIC, magic).first -> BigFile.Type.BIGWIG
+            else -> null
         }
     }
 
@@ -526,14 +554,23 @@ abstract class BigFile<out T> internal constructor(
          * @param step reduction step to use, i.e. the first zoom level
          *             will be `initial`, next `initial * step` etc.
          */
-        internal fun zoom(path: Path, itemsPerSlot: Int = 512,
-                          initial: Int = 8, step: Int = 4) {
+        internal fun zoom(
+                path: Path,
+                itemsPerSlot: Int = 512,
+                initial: Int = 8,
+                step: Int = 4,
+                cancelledChecker: (() -> Unit)?
+        ) {
             LOG.time("Computing zoom levels with step $step for $path") {
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = initial
                     for (level in 0 until bf.zoomLevels.size) {
-                        val zoomLevel = reduction.zoomAt(bf, output, itemsPerSlot, reduction / step)
+                        val zoomLevel = reduction.zoomAt(
+                                bf, output, itemsPerSlot,
+                                reduction / step,
+                                cancelledChecker
+                        )
                         if (zoomLevel == null) {
                             LOG.trace("${reduction}x reduction rejected")
                             break
@@ -561,8 +598,13 @@ abstract class BigFile<out T> internal constructor(
             }
         }
 
-        private fun Int.zoomAt(bf: BigFile<*>, output: OrderedDataOutput,
-                               itemsPerSlot: Int, prevLevelReduction: Int): ZoomLevel? {
+        private fun Int.zoomAt(
+                bf: BigFile<*>,
+                output: OrderedDataOutput,
+                itemsPerSlot: Int,
+                prevLevelReduction: Int,
+                cancelledChecker: (() -> Unit)?
+        ): ZoomLevel? {
             val reduction = this
             val zoomedDataOffset = output.tell()
             val leaves = ArrayList<RTreeIndexLeaf>()
@@ -578,7 +620,11 @@ abstract class BigFile<out T> internal constructor(
 
                     // We can re-use pre-computed zooms, but preliminary
                     // results suggest this doesn't give a noticeable speedup.
-                    val summaries = bf.summarizeInternal(input, query, numBins = size divCeiling reduction)
+                    val summaries = bf.summarizeInternal(
+                            input, query,
+                            numBins = size divCeiling reduction,
+                            cancelledChecker = cancelledChecker
+                    )
                     for (slot in Iterators.partition(summaries.iterator(), itemsPerSlot)) {
                         val dataOffset = output.tell()
                         output.with(bf.compression) {
@@ -587,15 +633,15 @@ abstract class BigFile<out T> internal constructor(
                                 val endOffset = (i + 1) * reduction
                                 val (count, minValue, maxValue, sum, sumSquares) = summary
                                 ZoomData(chromIx, startOffset, endOffset,
-                                         count.toInt(),
-                                         minValue.toFloat(), maxValue.toFloat(),
-                                         sum.toFloat(), sumSquares.toFloat()).write(this)
+                                        count.toInt(),
+                                        minValue.toFloat(), maxValue.toFloat(),
+                                        sum.toFloat(), sumSquares.toFloat()).write(this)
                             }
                         }
 
                         // Compute the bounding interval.
                         val interval = Interval(chromIx, slot.first().index * reduction,
-                                                (slot.last().index + 1) * reduction)
+                                (slot.last().index + 1) * reduction)
                         leaves.add(RTreeIndexLeaf(interval, dataOffset, output.tell() - dataOffset))
                     }
                 }
@@ -630,5 +676,9 @@ abstract class BigFile<out T> internal constructor(
                 }
             }
         }
+    }
+
+    enum class Type {
+        BIGWIG, BIGBED
     }
 }

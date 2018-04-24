@@ -184,6 +184,6 @@ open class BetterSeekableBufferedStream(
     }
 
     companion object {
-        const val DEFAULT_BUFFER_SIZE = 128000
+        const val DEFAULT_BUFFER_SIZE = 128_000
     }
 }

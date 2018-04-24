@@ -18,10 +18,13 @@ class BigBedFile private constructor(
         cancelledChecker: (() -> Unit)?
 ) : BigFile<BedEntry>(path, buffFactory, magic, prefetch, cancelledChecker) {
 
-    override fun summarizeInternal(input: RomBuffer,
-                                   query: ChromosomeInterval,
-                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val coverage = query(input, query, overlaps = true).aggregate()
+    override fun summarizeInternal(
+            input: RomBuffer,
+            query: ChromosomeInterval,
+            numBins: Int,
+            cancelledChecker: (() -> Unit)?
+    ): Sequence<IndexedValue<BigSummary>> {
+        val coverage = query(input, query, overlaps = true, cancelledChecker = cancelledChecker).aggregate()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -37,7 +40,7 @@ class BigBedFile private constructor(
                 val interval = Interval(query.chromIx, bedEntry.start, bedEntry.end)
                 if (interval intersects bin) {
                     summary.update(score.toDouble(),
-                                   interval.intersectionLength(bin))
+                            interval.intersectionLength(bin))
                 }
             }
 
@@ -94,11 +97,13 @@ class BigBedFile private constructor(
         fun read(src: String, prefetch: Boolean = false,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
-        ) = BigBedFile(
-                src,
-                factoryProvider(src, getByteOrder(src, MAGIC, factoryProvider)),
-                MAGIC, prefetch, cancelledChecker
-        )
+        ): BigBedFile {
+            val factory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
+            val byteOrder = getByteOrder(src, MAGIC, factory)
+            factory.order = byteOrder
+
+            return BigBedFile(src, factory, MAGIC, prefetch, cancelledChecker)
+        }
 
         private class BedEntrySummary {
             val chromosomes = HashSet<String>()
@@ -233,7 +238,7 @@ class BigBedFile private constructor(
             with(summary) {
                 if (count > 0) {
                     val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                    BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial)
+                    BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial, cancelledChecker = cancelledChecker)
                 }
             }
 

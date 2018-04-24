@@ -14,12 +14,41 @@ import java.util.stream.IntStream
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @RunWith(Parameterized::class)
 class BigFileTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
         private val prefetch: Boolean
 ) {
+
+    @Test
+    fun determineFileTypeBigBed() {
+        val src = Examples["example1.bb"].toString()
+        val type = BigFile.determineFileType(src) { path, byteOrder ->
+            bfProvider(path, byteOrder)
+        }
+        assertEquals(BigFile.Type.BIGBED, type)
+    }
+
+    @Test
+    fun determineFileTypeBigWig() {
+        val src = Examples["example2.bw"].toString()
+        val type = BigFile.determineFileType(src) { path, byteOrder ->
+            bfProvider(path, byteOrder)
+        }
+        assertEquals(BigFile.Type.BIGWIG, type)
+    }
+
+    @Test
+    fun determineFileTypeUnknown() {
+        val src = Examples["example.tdf"].toString()
+        val type = BigFile.determineFileType(src) { path, byteOrder ->
+            bfProvider(path, byteOrder)
+        }
+        assertNull(type)
+    }
+
     @Test
     fun testReadHeader() {
         BigFile.read(Examples["example1.bb"], bfProvider, prefetch).use { bf ->
@@ -175,7 +204,7 @@ class BigFileTest(
             // If test fails, first try to run it in single thread mode. In multiple threaded
             // mode result my by affected due to race conditions
             Assert.assertArrayEquals(expected.map { it.first to it.second.toLong() }.toTypedArray(),
-                                     res.toTypedArray())
+                    res.toTypedArray())
         }
 
         fun doTestConcurrentDataAccess(
@@ -225,7 +254,7 @@ class BigFileTest(
             // If test fails, first try to run it in single thread mode. In multiple threaded
             // mode result my by affected due to race conditions
             Assert.assertArrayEquals(expected.map { it.first to it.second.toLong() }.toTypedArray(),
-                                     res.toTypedArray())
+                    res.toTypedArray())
         }
 
     }

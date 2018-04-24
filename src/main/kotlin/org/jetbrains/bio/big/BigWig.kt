@@ -17,10 +17,15 @@ class BigWigFile private constructor(
         cancelledChecker: (() -> Unit)?
 ) : BigFile<WigSection>(path, buffFactory, magic, prefetch, cancelledChecker) {
 
-    override fun summarizeInternal(input: RomBuffer,
-                                   query: ChromosomeInterval,
-                                   numBins: Int): Sequence<IndexedValue<BigSummary>> {
-        val wigItems = query(input, query, overlaps = true).flatMap { it.query() }.toList()
+    override fun summarizeInternal(
+            input: RomBuffer,
+            query: ChromosomeInterval,
+            numBins: Int,
+            cancelledChecker: (() -> Unit)?
+    ): Sequence<IndexedValue<BigSummary>> {
+        val wigItems = query(input, query, overlaps = true, cancelledChecker = cancelledChecker)
+                .flatMap { it.query() }
+                .toList()
         var edge = 0
         return query.slice(numBins).mapIndexed { i, bin ->
             val summary = BigSummary()
@@ -36,7 +41,7 @@ class BigWigFile private constructor(
                 val interval = Interval(query.chromIx, wigItem.start, wigItem.end)
                 if (interval intersects bin) {
                     summary.update(wigItem.score.toDouble(),
-                                   interval.intersectionLength(bin))
+                            interval.intersectionLength(bin))
                 }
             }
 
@@ -168,11 +173,13 @@ class BigWigFile private constructor(
         fun read(src: String, prefetch: Boolean = false,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
-        ) = BigWigFile(
-                src,
-                factoryProvider(src, getByteOrder(src, MAGIC, factoryProvider)),
-                MAGIC, prefetch, cancelledChecker
-        )
+        ): BigWigFile {
+            val factory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
+            val byteOrder = getByteOrder(src, MAGIC, factory)
+            factory.order = byteOrder
+
+            return BigWigFile(src, factory, MAGIC, prefetch, cancelledChecker)
+        }
 
         private class WigSectionSummary {
             val chromosomes = HashSet<String>()
@@ -301,7 +308,7 @@ class BigWigFile private constructor(
             with(summary) {
                 if (count > 0) {
                     val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                    BigFile.Post.zoom(outputPath, initial = initial)
+                    BigFile.Post.zoom(outputPath, initial = initial, cancelledChecker = cancelledChecker)
                 }
             }
 

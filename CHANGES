@@ -19,6 +19,8 @@ supposed to support accept-ranges http header
 - Big files `read` and `write` methods accepts `cancelledChecker` closure to 
   abort current operation, e.g. if you need to render another range.
    Just throw exception in this closure.
+- 'BigFile#BigFile.determineFileType(src)' returns src file type, could be
+  `BigFile.Type.BIGBED`, `BigFile.Type.BIGWIG` or `null`.
 
 Changed
 - Show 'Header extensions are unsupported' only in debug log
