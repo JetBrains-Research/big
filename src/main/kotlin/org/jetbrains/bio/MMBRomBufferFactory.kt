@@ -7,10 +7,19 @@ import java.nio.file.Path
 
 class MMBRomBufferFactory(
         val path: Path,
-        override var order: ByteOrder
+        order: ByteOrder
 ) : RomBufferFactory {
 
-    private val memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)
+    private var memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, order)
+
+    override var order = order
+        set(value) {
+            if (value != field) {
+                memBuffer.close()
+                memBuffer = MMapBuffer(path, FileChannel.MapMode.READ_ONLY, value)
+                field = value
+            }
+        }
 
     override fun create(): RomBuffer = MMBRomBuffer(memBuffer)
 
