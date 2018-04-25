@@ -486,6 +486,60 @@ class BetterSeekableBufferedStreamTest {
     }
 
     @Test
+    fun readArrayFromOffsetOverlapCachedPart() {
+        BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 5).use { stream ->
+            stream.seek(10)
+            stream.read()
+
+            val buffer = ByteArray(13)
+            stream.seek(8)
+            stream.read(buffer, 3, 10)
+            assertEquals(18, stream.position)
+            assertEquals(13, stream.bufferStartOffset)
+            assertEquals(18, stream.bufferEndOffset)
+
+            assertEquals(listOf<Byte>(0, 0, 0), buffer.toList().subList(0, 3))
+            assertEquals(TEST_DATA.toList().subList(8, 18), buffer.toList().subList(3, 13))
+        }
+    }
+
+    @Test
+    fun readArrayFromOffsetAfterInCachedPart() {
+        BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 5).use { stream ->
+            stream.seek(0)
+            stream.read()
+
+            val buffer = ByteArray(10)
+            stream.seek(4)
+            stream.read(buffer, 3, 3)
+            assertEquals(7, stream.position)
+            assertEquals(5, stream.bufferStartOffset)
+            assertEquals(10, stream.bufferEndOffset)
+
+            assertEquals(listOf<Byte>(0, 0, 0), buffer.toList().subList(0, 3))
+            assertEquals(TEST_DATA.toList().subList(4, 7), buffer.toList().subList(3, 6))
+        }
+    }
+
+    @Test
+    fun readArrayFromOffsetBeforeCachedPartIntersectingCache() {
+        BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 5).use { stream ->
+            stream.seek(10)
+            stream.read()
+
+            val buffer = ByteArray(10)
+            stream.seek(8)
+            stream.read(buffer, 3, 3)
+            assertEquals(11, stream.position)
+            assertEquals(8, stream.bufferStartOffset)
+            assertEquals(13, stream.bufferEndOffset)
+
+            assertEquals(listOf<Byte>(0, 0, 0), buffer.toList().subList(0, 3))
+            assertEquals(TEST_DATA.toList().subList(8, 11), buffer.toList().subList(3, 6))
+        }
+    }
+
+    @Test
     fun switchBuffersIfNeeded() {
         BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 4).use { stream ->
             stream.seek(2)

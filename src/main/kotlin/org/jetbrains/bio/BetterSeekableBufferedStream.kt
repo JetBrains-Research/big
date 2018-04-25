@@ -59,7 +59,7 @@ open class BetterSeekableBufferedStream(
 
     override fun length() = stream.length()
 
-    override fun getSource() = stream.source
+    override fun getSource(): String? = stream.source
 
     override fun eof() = position >= length()
 
@@ -82,15 +82,15 @@ open class BetterSeekableBufferedStream(
         val requestEndOffset = initialPos + length
 
         var readBytes = 0
-        var offset = 0 // last written offset in requested buffer
+        var dstOffset = offset // last written offset in requested buffer
         if (requestEndOffset >= bufferEndOffset) {
             if (position in bufferStartOffset until bufferEndOffset) {
                 // requested buffer prefix intersection: copy prefix and proceed
                 val inCBuffPos = (position - bufferStartOffset).toInt()
                 val count = (bufferEndOffset - bufferStartOffset).toInt() - inCBuffPos
-                System.arraycopy(this.buffer!!, inCBuffPos, buffer, 0, count)
+                System.arraycopy(this.buffer!!, inCBuffPos, buffer, dstOffset, count)
                 readBytes = count
-                offset = count
+                dstOffset += count
                 // move position
                 seek(position + count)
             }
@@ -98,7 +98,7 @@ open class BetterSeekableBufferedStream(
             // requested buffer suffix intersection: copy prefix and proceed
             val inCBuffPos = max(0, (position - bufferStartOffset).toInt())
             val count = (requestEndOffset - bufferStartOffset).toInt() - inCBuffPos
-            System.arraycopy(this.buffer!!, inCBuffPos, buffer, length - count, count)
+            System.arraycopy(this.buffer!!, inCBuffPos, buffer, dstOffset + length - count, count)
             readBytes = count
             // do not move position
         }
@@ -111,12 +111,12 @@ open class BetterSeekableBufferedStream(
                 break
             }
             val available = (bufferEndOffset - position).toInt()
-            val rest = length - readBytes
-            val count = min(rest, available)
+            val remaining = length - readBytes
+            val count = min(remaining, available)
             val inBuffPos = Ints.checkedCast(position - bufferStartOffset)
-            System.arraycopy(this.buffer!!, inBuffPos, buffer, offset, count)
+            System.arraycopy(this.buffer!!, inBuffPos, buffer, dstOffset, count)
             readBytes += count
-            offset += count
+            dstOffset += count
             seek(position + count)
         }
         seek(initialPos + readBytes)
@@ -191,13 +191,13 @@ open class BetterSeekableBufferedStream(
         }
     }
 
-    protected open fun fetchNewBuffer(pos: Long, buffOffset: Int, size: Int) {
+    protected open fun fetchNewBuffer(pos: Long, buffOffset: Int, size: Int): Int {
         stream.seek(pos)
 
         if (size == 0) {
             bufferStartOffset = pos
             bufferEndOffset = pos
-            return
+            return 0
         }
 
         val buff = buffer!!
@@ -210,6 +210,7 @@ open class BetterSeekableBufferedStream(
             bufferStartOffset = pos
             bufferEndOffset = pos + n
         }
+        return n
     }
 
     companion object {
