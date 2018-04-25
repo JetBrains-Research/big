@@ -76,10 +76,6 @@ class OrderedDataOutput(
     /** Total number of bytes written. */
     private var written = 0L
 
-    // This is important to keep lazy, otherwise the GC will be trashed
-    // by a zillion of pending finalizers.
-    private val def by ThreadLocal.withInitial { Deflater() }
-
     private fun ack(size: Int) {
         written += size
     }
@@ -131,6 +127,11 @@ class OrderedDataOutput(
     override fun close() = output.close()
 
     companion object {
+        // This is important to keep lazy, otherwise the GC will be trashed
+        // by a zillion of pending finalizers.
+        private val def by ThreadLocal.withInitial { Deflater() }
+
+
         operator fun invoke(path: Path, order: ByteOrder = ByteOrder.nativeOrder(),
                             offset: Long = 0, create: Boolean = true): OrderedDataOutput {
             assert(offset == 0L || !create)
