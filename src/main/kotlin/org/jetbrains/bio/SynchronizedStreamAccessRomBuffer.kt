@@ -82,6 +82,10 @@ class SynchronizedStreamAccessRomBuffer(
         buffer.readDouble()
     }
 
+    override fun readCString() = synchronized(lock) {
+        doReadCString()
+    }
+
     override fun close() {
         // synchronization for input stream not needed here
         buffer.close()

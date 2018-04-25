@@ -99,4 +99,6 @@ open class MMBRomBuffer(
         checkLimit()
         return value
     }
+
+    override fun readCString() = doReadCString()
 }

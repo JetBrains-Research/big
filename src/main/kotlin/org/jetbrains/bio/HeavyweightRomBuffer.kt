@@ -95,4 +95,6 @@ open class HeavyweightRomBuffer(
         checkLimit()
         return value
     }
+
+    override fun readCString() = doReadCString()
 }

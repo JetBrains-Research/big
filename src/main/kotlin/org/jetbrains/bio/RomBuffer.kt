@@ -1,6 +1,7 @@
 package org.jetbrains.bio
 
 import com.google.common.primitives.Bytes
+import org.apache.log4j.Logger
 import org.iq80.snappy.Snappy
 import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
@@ -10,7 +11,7 @@ import java.util.zip.DataFormatException
 import java.util.zip.Inflater
 
 /** A read-only buffer. */
-abstract class RomBuffer: Closeable {
+abstract class RomBuffer : Closeable {
     abstract var position: Long
     abstract val order: ByteOrder
     abstract val maxLength: Long
@@ -59,7 +60,9 @@ abstract class RomBuffer: Closeable {
 
     abstract fun readDouble(): Double
 
-    fun readCString(): String {
+    abstract fun readCString(): String
+
+    protected fun doReadCString(): String {
         val sb = StringBuilder()
         do {
             val ch = readByte()
@@ -157,7 +160,7 @@ abstract class RomBuffer: Closeable {
                     uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)
                     uncompressedBuf = ByteArray(uncompressedSize)
                     Snappy.uncompress(compressedBuf, 0, compressedBuf.size,
-                                      uncompressedBuf, 0)
+                            uncompressedBuf, 0)
                 }
                 CompressionType.NO_COMPRESSION -> {
                     impossible()

@@ -59,4 +59,6 @@ class BBRomBuffer internal constructor(private val buffer: ByteBuffer) : RomBuff
     override fun readFloat() = buffer.float
 
     override fun readDouble() = buffer.double
+
+    override fun readCString() = doReadCString()
 }

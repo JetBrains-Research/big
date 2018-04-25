@@ -138,4 +138,6 @@ open class LightweightRomBuffer(
         checkLimit()
         return value
     }
+
+    override fun readCString() = doReadCString()
 }
