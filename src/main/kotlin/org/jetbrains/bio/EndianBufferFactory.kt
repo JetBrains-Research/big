@@ -7,7 +7,7 @@ import java.nio.ByteOrder
  * The factory creates buffer which isn't thread safe and couldn't be
  * used for concurrent `BigFile` access.
  */
-class EndianBufferFactory(private val stream: EndianSeekableDataInput) : RomBufferFactory {
+open class EndianBufferFactory(private val stream: EndianSeekableDataInput) : RomBufferFactory {
 
     override var order: ByteOrder = stream.order
     private val maxLength = stream.length()
@@ -40,7 +40,7 @@ class EndianBufferFactory(private val stream: EndianSeekableDataInput) : RomBuff
 /**
  * The factory creates thread safe buffer which could be used for concurrent `BigFile` access.
  */
-class EndianSynchronizedBufferFactory(private val stream: EndianSeekableDataInput) : RomBufferFactory {
+open class EndianSynchronizedBufferFactory(private val stream: EndianSeekableDataInput) : RomBufferFactory {
 
     override var order: ByteOrder = stream.order
     private val maxLength = stream.length()
@@ -76,7 +76,7 @@ class EndianSynchronizedBufferFactory(private val stream: EndianSeekableDataInpu
  * Buffer opens and closes stream for each buffer duplication, i.e for each data block. It works
  * ok if path points to file on hard disk, but will be extremely slow if file is http url.
  */
-class EndianThreadSafeBufferFactory(
+open class EndianThreadSafeBufferFactory(
         private val path: String,
         override var order: ByteOrder,
         private val bufferSize: Int = BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE)
