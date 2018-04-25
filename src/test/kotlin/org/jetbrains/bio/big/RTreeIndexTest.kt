@@ -49,11 +49,11 @@ class RTreeIndexTest(
 
                     val rti = RTreeIndex.read(input, 0L)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true, false, null)
+                        rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
 
                     val query = Interval(0, 100, 200)
-                    assertTrue(rti.findOverlappingBlocks(input, query, {}).toList().isEmpty())
+                    assertTrue(rti.findOverlappingBlocks(input, query, 0, null).toList().isEmpty())
                 }
             }
         }
@@ -71,7 +71,7 @@ class RTreeIndexTest(
             val query = Interval(0, items[left].start, items[right].end)
 
             bbf.buffFactory.create().use { input ->
-                for (block in rti.findOverlappingBlocks(input, query, null)) {
+                for (block in rti.findOverlappingBlocks(input, query, bbf.header.uncompressBufSize, null)) {
                     assertTrue(block.interval intersects query)
                 }
             }
@@ -108,12 +108,11 @@ class RTreeIndexTest(
                 f.create().use { input ->
                     val rti = RTreeIndex.read(input, 0)
                     if (prefetch) {
-                        rti.prefetchBlocksIndex(input, true, false, null)
+                        rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
                     for (leaf in leaves) {
                         val overlaps = rti.findOverlappingBlocks(
-                                input, leaf.interval as ChromosomeInterval, null
-                        ).toList()
+                                input, leaf.interval as ChromosomeInterval, 0, null).toList()
                         assertTrue(overlaps.isNotEmpty())
                         assertEquals(leaf, overlaps.first())
                     }
@@ -140,7 +139,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetch() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, false, false, null)
+            rti.prefetchBlocksIndex(input, false, false, 0, null)
 
             assertNotNull(rti.rootNode)
 
@@ -155,7 +154,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             assertEquals(200, (root.children[1].node as RTreeNodeRef).dataOffset)
             assertEquals("1:[1137275; 2102048)", root.children[1].interval.toString())
 
-            val expandOneLevel = root.children[0].resolve(input, rti, null)
+            val expandOneLevel = root.children[0].resolve(input, rti, 0, null)
             assertTrue(expandOneLevel is RTReeNodeIntermediate)
             assertTrue(((expandOneLevel as RTReeNodeIntermediate).children[2]).node is RTreeNodeRef)
             assertEquals("1:[768454; 1137275)", expandOneLevel.children[2].interval.toString())
@@ -165,7 +164,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetchExpandAll() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, true, false, null)
+            rti.prefetchBlocksIndex(input, true, false, 0, null)
 
             assertNotNull(rti.rootNode)
 
@@ -181,7 +180,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
             assertTrue(root.children[1].node is RTReeNodeIntermediate)
             assertEquals(3, (root.children[1].node as RTReeNodeIntermediate).children.size)
 
-            val childNode = root.children[0].resolve(input, rti, null)
+            val childNode = root.children[0].resolve(input, rti, 0, null)
             assertEquals("[0:0; 1:1137275)", root.children[0].interval.toString())
             assertTrue(childNode is RTReeNodeIntermediate)
             assertTrue((childNode as RTReeNodeIntermediate).children[2].node is RTReeNodeIntermediate)
@@ -192,7 +191,7 @@ class PrefetchedRTreeIndexTest(private val bfProvider: NamedRomBufferFactoryProv
     @Test
     fun testPrefetchExpandUpToChrs() {
         doTest { input, rti ->
-            rti.prefetchBlocksIndex(input, false, true, null)
+            rti.prefetchBlocksIndex(input, false, true, 0, null)
 
             assertNotNull(rti.rootNode)
 

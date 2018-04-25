@@ -6,6 +6,7 @@ import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.zip.DataFormatException
 import java.util.zip.Inflater
 
 /** A read-only buffer. */
@@ -87,10 +88,14 @@ abstract class RomBuffer: Closeable {
      */
     internal fun <T> with(offset: Long, size: Long,
                           compression: CompressionType = CompressionType.NO_COMPRESSION,
-                          block: RomBuffer.() -> T): T = decompress(offset, size, compression).use(block)
+                          uncompressBufSize: Int,
+                          block: RomBuffer.() -> T): T = decompress(
+            offset, size, compression, uncompressBufSize
+    ).use(block)
 
     internal fun decompress(offset: Long, size: Long,
-                            compression: CompressionType = CompressionType.NO_COMPRESSION): RomBuffer {
+                            compression: CompressionType = CompressionType.NO_COMPRESSION,
+                            uncompressBufSize: Int): RomBuffer {
 
         return if (compression.absent) {
             duplicate(offset, offset + size)
@@ -106,19 +111,47 @@ abstract class RomBuffer: Closeable {
             when (compression) {
                 CompressionType.DEFLATE -> {
                     uncompressedSize = 0
-                    uncompressedBuf = ByteArray(2 * size.toInt())
+                    uncompressedBuf = ByteArray(when (uncompressBufSize) {
+                        0 -> 2 * size.toInt()   // e.g in TDF
+                        else -> uncompressBufSize
+                    })
 
-                    inf.reset()
-                    inf.setInput(compressedBuf)
-                    val step = size.toInt()
-                    while (!inf.finished()) {
-                        uncompressedBuf = Bytes.ensureCapacity(// 1.5x
-                                uncompressedBuf, uncompressedSize + step, step / 2)
-                        val actual = inf.inflate(uncompressedBuf, uncompressedSize, step)
-                        uncompressedSize += actual
+                    val inflater = inf
+                    inflater.reset()
+                    inflater.setInput(compressedBuf)
+                    val sizeInt = size.toInt()
+                    val step = sizeInt
+                    var remaining = sizeInt
+                    val maxUncompressedChunk = if (uncompressBufSize == 0) sizeInt else uncompressBufSize
+                    try {
+                        while (remaining > 0) {
+                            uncompressedBuf = Bytes.ensureCapacity(
+                                    uncompressedBuf,
+                                    uncompressedSize + maxUncompressedChunk,
+                                    maxUncompressedChunk / 2 // 1.5x
+                            )
+
+                            // start next chunk if smth remains
+                            if (inflater.finished()) {
+                                inflater.reset()
+                                inflater.setInput(compressedBuf, sizeInt - remaining, remaining)
+                            }
+
+                            val actual = inflater.inflate(uncompressedBuf, uncompressedSize, maxUncompressedChunk)
+                            remaining = inflater.remaining
+                            uncompressedSize += actual
+                        }
+                    } catch (e: DataFormatException) {
+                        val msg = """[@${Thread.currentThread().id}] java.util.zip.DataFormatException: ${e.message}
+                            |  offset=$offset, limit=$limit, size=$size, compressed size=${compressedBuf.size}
+                            |  remaining=$remaining, uncompressedSize=$uncompressedSize
+                            |  uncompressBufSize=$uncompressBufSize
+                            |""".trimMargin()
+                        org.apache.log4j.Logger.getRootLogger().error(msg)
+                        throw e
                     }
                     // Not obligatory, but let's left thread local variable in clean state
-                    inf.reset()
+                    inflater.reset()
                 }
                 CompressionType.SNAPPY -> {
                     uncompressedSize = Snappy.getUncompressedLength(compressedBuf, 0)

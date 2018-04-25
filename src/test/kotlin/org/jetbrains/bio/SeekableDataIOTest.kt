@@ -88,7 +88,7 @@ class SeekableDataIOTest(
 
         factoryProvider(path.toString(), order).use {
             it.create().use {
-            it.with(0, Files.size(path), compression) {
+                it.with(0, Files.size(path), compression, 0) {
                 for (i in 0 until values.size) {
                     assertEquals(values[i], readInt())
                 }

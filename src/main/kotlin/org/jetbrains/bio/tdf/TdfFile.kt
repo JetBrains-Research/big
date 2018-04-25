@@ -117,8 +117,9 @@ data class TdfFile private constructor(
             }
 
             buffFactory.create().use { input ->
-                input.with(position, tileSizes[tileNumber].toLong(),
-                                           compression = compression) {
+                input.with(
+                        position, tileSizes[tileNumber].toLong(), compression, uncompressBufSize = 0
+                ) {
                     TdfTile.read(this, trackNames.size)
                 }
             }
@@ -139,7 +140,7 @@ data class TdfFile private constructor(
 
         val (offset, size) = index.datasets[name]!!
         return buffFactory.create().use { input ->
-            input.with(offset, size.toLong()) { TdfDataset.read(this) }
+            input.with(offset, size.toLong(), uncompressBufSize = 0) { TdfDataset.read(this) }
         }
     }
 
@@ -150,7 +151,7 @@ data class TdfFile private constructor(
 
         val (offset, size) = index.groups[name]!!
         return buffFactory.create().use { input ->
-            input.with(offset, size.toLong()) { TdfGroup.read(this) }
+            input.with(offset, size.toLong(), uncompressBufSize = 0) { TdfGroup.read(this) }
         }
     }
 
@@ -235,7 +236,9 @@ data class TdfFile private constructor(
                 cancelledChecker?.invoke()
                 // Make sure we haven't read anything extra.
                 check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
-                val index = input.with(header.indexOffset, header.indexSize.toLong()) {
+                val index = input.with(
+                        header.indexOffset, header.indexSize.toLong(),
+                        uncompressBufSize = 0) {
                     TdfMasterIndex.read(this)
                 }
 

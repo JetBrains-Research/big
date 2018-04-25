@@ -119,7 +119,10 @@ abstract class BigFile<out T> internal constructor(
                             }
 
                             val zRTree = RTreeIndex.read(input, it.indexOffset)
-                            zRTree.prefetchBlocksIndex(input, true, false, cancelledChecker)
+                            zRTree.prefetchBlocksIndex(
+                                    input, true, false, header.uncompressBufSize,
+                                    cancelledChecker
+                            )
                             it to zRTree
                         }
                     }.toMap()
@@ -129,7 +132,9 @@ abstract class BigFile<out T> internal constructor(
                 // in buffered stream
                 cancelledChecker?.invoke()
                 rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-                rTree.prefetchBlocksIndex(input, false, true, cancelledChecker)
+                rTree.prefetchBlocksIndex(
+                        input, false, true, header.uncompressBufSize, cancelledChecker
+                )
             }
         } catch (e: Exception) {
             buffFactory.close()
@@ -238,7 +243,7 @@ abstract class BigFile<out T> internal constructor(
             else -> RTreeIndex.read(input, zoomLevel.indexOffset)
         }
 
-        val zoomData = zRTree.findOverlappingBlocks(input, query, cancelledChecker)
+        val zoomData = zRTree.findOverlappingBlocks(input, query, header.uncompressBufSize, cancelledChecker)
                 .flatMap { (_ /* interval */, offset, size) ->
                     assert(!compression.absent || size % ZoomData.SIZE == 0L)
 
@@ -325,7 +330,7 @@ abstract class BigFile<out T> internal constructor(
             cancelledChecker: (() -> Unit)?
     ): Sequence<T> {
         val chrom = chromosomes[query.chromIx]
-        return rTree.findOverlappingBlocks(input, query, cancelledChecker)
+        return rTree.findOverlappingBlocks(input, query, header.uncompressBufSize, cancelledChecker)
                 .flatMap { (_, dataOffset, dataSize) ->
                     cancelledChecker?.invoke()
                     decompressAndCacheBlock(input, chrom, dataOffset, dataSize).use { decompressedInput ->
@@ -344,7 +349,7 @@ abstract class BigFile<out T> internal constructor(
         val newState = RomBufferState(buffFactory, dataOffset, dataSize, chrom)
         val decompressedBlock: RomBuffer
         if (stateAndBlock.first != newState) {
-            val newDecompressedInput = input.decompress(dataOffset, dataSize, compression)
+            val newDecompressedInput = input.decompress(dataOffset, dataSize, compression, header.uncompressBufSize)
             stateAndBlock = newState to newDecompressedInput
 
             // We cannot cache block if it is resource which is supposed to be closed
@@ -389,13 +394,21 @@ abstract class BigFile<out T> internal constructor(
         buffFactory.close()
     }
 
-    internal data class Header(val order: ByteOrder, val magic: Int, val version: Int = 5,
-                               val zoomLevelCount: Int = 0,
-                               val chromTreeOffset: Long, val unzoomedDataOffset: Long,
-                               val unzoomedIndexOffset: Long, val fieldCount: Int,
-                               val definedFieldCount: Int, val asOffset: Long = 0,
-                               val totalSummaryOffset: Long = 0, val uncompressBufSize: Int,
-                               val extendedHeaderOffset: Long = 0) {
+    internal data class Header(
+            val order: ByteOrder,
+            val magic: Int,
+            val version: Int = 5,
+            val zoomLevelCount: Int = 0,
+            val chromTreeOffset: Long,
+            val unzoomedDataOffset: Long,
+            val unzoomedIndexOffset: Long,
+            val fieldCount: Int,
+            val definedFieldCount: Int,
+            val asOffset: Long = 0,
+            val totalSummaryOffset: Long = 0,
+            val uncompressBufSize: Int,
+            val extendedHeaderOffset: Long = 0
+    ) {
 
         internal fun write(output: OrderedDataOutput) = with(output) {
             check(output.tell() == 0L)  // a header is always first.
