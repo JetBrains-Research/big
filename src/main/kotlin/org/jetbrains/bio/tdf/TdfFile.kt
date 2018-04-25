@@ -219,32 +219,37 @@ data class TdfFile private constructor(
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): TdfFile {
             val buffFactory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
-            buffFactory.create().use { input ->
-                //TODO: investigate IO usage, e.g. for http urls support
+            try {
+                buffFactory.create().use { input ->
+                    //TODO: investigate IO usage, e.g. for http urls support
 
-                cancelledChecker?.invoke()
-                val header = Header.read(input)
-                val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
-                val trackType = TrackType.read(input)
-                val trackLine = input.readCString().trim()
+                    cancelledChecker?.invoke()
+                    val header = Header.read(input)
+                    val windowFunctions = input.getSequenceOf { WindowFunction.read(this) }.toList()
+                    val trackType = TrackType.read(input)
+                    val trackLine = input.readCString().trim()
 
-                cancelledChecker?.invoke()
-                val trackNames = input.getSequenceOf { input.readCString() }.toList()
-                val build = input.readCString()
-                val compressed = (input.readInt() and 0x1) != 0
+                    cancelledChecker?.invoke()
+                    val trackNames = input.getSequenceOf { input.readCString() }.toList()
+                    val build = input.readCString()
+                    val compressed = (input.readInt() and 0x1) != 0
 
-                cancelledChecker?.invoke()
-                // Make sure we haven't read anything extra.
-                check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
-                val index = input.with(
-                        header.indexOffset, header.indexSize.toLong(),
-                        uncompressBufSize = 0) {
-                    TdfMasterIndex.read(this)
+                    cancelledChecker?.invoke()
+                    // Make sure we haven't read anything extra.
+                    check(Ints.checkedCast(input.position) == header.headerSize + Header.BYTES)
+                    val index = input.with(
+                            header.indexOffset, header.indexSize.toLong(),
+                            uncompressBufSize = 0) {
+                        TdfMasterIndex.read(this)
+                    }
+
+                    cancelledChecker?.invoke()
+                    return TdfFile(buffFactory, header, index, windowFunctions, trackType,
+                            trackLine, trackNames, build, compressed)
                 }
-
-                cancelledChecker?.invoke()
-                return TdfFile(buffFactory, header, index, windowFunctions, trackType,
-                        trackLine, trackNames, build, compressed)
+            } catch (e: Exception) {
+                buffFactory.close()
+                throw e
             }
         }
     }
