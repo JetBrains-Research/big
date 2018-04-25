@@ -265,8 +265,8 @@ class BetterSeekableBufferedStreamTest {
             stream.seek(13)
             stream.fillBuffer_()
 
-            assertEquals(13, stream.bufferStartOffset)
-            assertEquals(23, stream.bufferEndOffset)
+            assertEquals(10, stream.bufferStartOffset)
+            assertEquals(20, stream.bufferEndOffset)
 
             assertEquals(103, stream.read())
             assertEquals(14, stream.position)
@@ -296,7 +296,7 @@ class BetterSeekableBufferedStreamTest {
             stream.seek((TEST_DATA.size - 4).toLong())
             stream.fillBuffer_()
 
-            assertEquals((TEST_DATA.size - 4).toLong(), stream.bufferStartOffset)
+            assertEquals((TEST_DATA.size - 6).toLong(), stream.bufferStartOffset)
             assertEquals(TEST_DATA.size.toLong(), stream.bufferEndOffset)
 
             assertEquals(TEST_DATA[TEST_DATA.size - 4].toInt() and 0xFF, stream.read())
@@ -304,11 +304,11 @@ class BetterSeekableBufferedStreamTest {
 
             assertEquals(
                     TEST_DATA.toList().subList(stream.bufferStartOffset.toInt(), stream.bufferEndOffset.toInt()),
-                    stream.buffer!!.toList().subList(0, 4)
+                    stream.buffer!!.toList().subList(0, 6)
             )
             // buffer size > available bytes => some garbage in the end of buffer
             assertEquals(
-                    listOf(-15, -16, -17, -18, -17, -18, 127, 34, -1, -128),
+                    listOf(-13, -14, -15, -16, -17, -18, 0, 0, 0, 0),
                     stream.buffer!!.map { it.toInt() }
             )
         }
@@ -485,6 +485,156 @@ class BetterSeekableBufferedStreamTest {
         }
     }
 
+    @Test
+    fun switchBuffersIfNeeded() {
+        BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 4).use { stream ->
+            stream.seek(2)
+            stream.read()
+
+            assertEquals(1, stream.curBufIdx())
+
+            // new buffer intersect buffer's start
+            stream.seek(0)
+            stream.switchBuffersIfNeeded()
+            assertEquals(1, stream.curBufIdx())
+
+            // new buffer intersect buffer's end
+            stream.seek(2 + 4 - 1)
+            assertEquals(1, stream.curBufIdx())
+
+            // no intersection
+            stream.seek(13)
+            stream.switchBuffersIfNeeded()
+            assertEquals(0, stream.curBufIdx())
+        }
+    }
+
+    @Test
+    fun fillAndSwitchBuffersIfNeeded() {
+        object : BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 4) {
+            fun fillBuffer_() {
+                fillBuffer()
+            }
+        }.use { stream ->
+            stream.seek(2)
+            stream.fillBuffer_()
+
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 2L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 6L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(4, 7, 9, 12), stream.buffers[1])
+
+            // new buffer intersect buffer's start
+            stream.seek(0)
+            stream.fillBuffer_()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            // new buffer intersect buffer's end
+            stream.seek(3)
+            stream.fillBuffer_()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            // no intersection
+            stream.seek(13)
+            stream.fillBuffer_()
+            assertEquals(0, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(13L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(17L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(103, 104, -10, -11), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            stream.seek(3)
+            stream.fillBuffer_()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(13L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(17L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(103, 104, -10, -11), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            stream.seek(18)
+            stream.fillBuffer_()
+            assertEquals(0, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(18L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(22L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(-13, -14, -15, -16), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+        }
+    }
+
+
+    @Test
+    fun readAndSwitchBuffersIfNeeded() {
+        BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 4).use { stream ->
+            stream.seek(2)
+            stream.read()
+
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 2L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 6L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(4, 7, 9, 12), stream.buffers[1])
+
+            // new buffer intersect buffer's start
+            stream.seek(0)
+            stream.read()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            // new buffer intersect buffer's end
+            stream.seek(3)
+            stream.read()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            // no intersection
+            stream.seek(13)
+            stream.read()
+            assertEquals(0, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(13L, 0L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(17L, 4L), stream.bufferEndOffsets)
+            Assert.assertArrayEquals(byteArrayOf(103, 104, -10, -11), stream.buffers[0])
+            Assert.assertArrayEquals(byteArrayOf(1, 3, 4, 7), stream.buffers[1])
+
+            stream.seek(2)
+            stream.read()
+            assertEquals(1, stream.curBufIdx())
+        }
+    }
+
+    @Test
+    fun fetchZeroBuffer() {
+        object : BetterSeekableBufferedStream(ByteArraySeekableStream(TEST_DATA), 4) {
+            fun fetchNewBuffer_(pos: Long, buffOffset: Int, size: Int) {
+                fetchNewBuffer(pos, buffOffset, size)
+            }
+        }.use { stream ->
+            stream.seek(2)
+            stream.read()
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 2L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 6L), stream.bufferEndOffsets)
+
+            stream.fetchNewBuffer_(6, 1, 0)
+            assertEquals(1, stream.curBufIdx())
+            Assert.assertArrayEquals(arrayOf(0L, 6L), stream.bufferStartOffsets)
+            Assert.assertArrayEquals(arrayOf(0L, 6L), stream.bufferEndOffsets)
+        }
+    }
     companion object {
         val TEST_DATA = byteArrayOf(1, 3, 4, 7, 9, 12, Byte.MAX_VALUE, 34, -1, Byte.MIN_VALUE,
                                     100, 101, 102, 103, 104, -10, -11, -12, -13, -14, -15, -16, -17, -18)

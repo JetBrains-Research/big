@@ -1,5 +1,6 @@
 package org.jetbrains.bio
 
+import com.google.common.primitives.Ints
 import htsjdk.samtools.seekablestream.SeekableStream
 import kotlin.math.max
 import kotlin.math.min
@@ -15,24 +16,41 @@ open class BetterSeekableBufferedStream(
     var position: Long = 0
         protected set
 
-    var bufferStartOffset: Long = 0 // inclusive
-        protected set
+    private var useSndBuffer = false
+    internal fun curBufIdx() = if (useSndBuffer) 1 else 0
 
-    var bufferEndOffset: Long = 0 // exclusive
-        protected set
+    internal var bufferStartOffsets = arrayOf(0L, 0L)
+    var bufferStartOffset: Long // inclusive
+        get() = bufferStartOffsets[curBufIdx()]
+        protected set(value) {
+            bufferStartOffsets[curBufIdx()] = value
+        }
 
-    internal var buffer: ByteArray? = null
+    internal var bufferEndOffsets = arrayOf(0L, 0L)
+    var bufferEndOffset: Long // exclusive
+        get() = bufferEndOffsets[curBufIdx()]
+        protected set(value) {
+            bufferEndOffsets[curBufIdx()] = value
+        }
+
+    internal var buffers: Array<ByteArray?> = arrayOf(null, null)
+    internal var buffer: ByteArray?
         get() {
-            checkNotNull(field) { "Stream is closed" }
-            return field
+            val buf = buffers[curBufIdx()]
+            checkNotNull(buf) { "Stream is closed" }
+            return buf
+        }
+        set(value) {
+            buffers[curBufIdx()] = value
         }
 
     var bufferSize: Int
         get() = buffer!!.size
         set(bufferSize) {
-            bufferStartOffset = 0
-            bufferEndOffset = 0
-            buffer = ByteArray(bufferSize)
+            useSndBuffer = false
+            buffers = arrayOf(ByteArray(bufferSize), ByteArray(bufferSize))
+            bufferStartOffsets = arrayOf(0L, 0L)
+            bufferEndOffsets = arrayOf(0L, 0L)
         }
 
     init {
@@ -60,8 +78,6 @@ open class BetterSeekableBufferedStream(
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        val cBuff = this.buffer!!
-
         val initialPos = position
         val requestEndOffset = initialPos + length
 
@@ -72,7 +88,7 @@ open class BetterSeekableBufferedStream(
                 // requested buffer prefix intersection: copy prefix and proceed
                 val inCBuffPos = (position - bufferStartOffset).toInt()
                 val count = (bufferEndOffset - bufferStartOffset).toInt() - inCBuffPos
-                System.arraycopy(cBuff, inCBuffPos, buffer, 0, count)
+                System.arraycopy(this.buffer!!, inCBuffPos, buffer, 0, count)
                 readBytes = count
                 offset = count
                 // move position
@@ -82,7 +98,7 @@ open class BetterSeekableBufferedStream(
             // requested buffer suffix intersection: copy prefix and proceed
             val inCBuffPos = max(0, (position - bufferStartOffset).toInt())
             val count = (requestEndOffset - bufferStartOffset).toInt() - inCBuffPos
-            System.arraycopy(cBuff, inCBuffPos, buffer, length - count, count)
+            System.arraycopy(this.buffer!!, inCBuffPos, buffer, length - count, count)
             readBytes = count
             // do not move position
         }
@@ -94,10 +110,11 @@ open class BetterSeekableBufferedStream(
                 // eof
                 break
             }
-            val available = (bufferEndOffset - bufferStartOffset).toInt()
+            val available = (bufferEndOffset - position).toInt()
             val rest = length - readBytes
             val count = min(rest, available)
-            System.arraycopy(cBuff, 0, buffer, offset, count)
+            val inBuffPos = Ints.checkedCast(position - bufferStartOffset)
+            System.arraycopy(this.buffer!!, inBuffPos, buffer, offset, count)
             readBytes += count
             offset += count
             seek(position + count)
@@ -124,7 +141,24 @@ open class BetterSeekableBufferedStream(
         return buffer!![inBuffPos].toInt() and 0xff
     }
 
+    internal fun switchBuffersIfNeeded() {
+        val buffSize = buffer!!.size
+        val curBuffRange = bufferStartOffset until bufferEndOffset
+        // if current buffer intersects next one - do nothing
+        // action required if next buffer is not intersecting current
+        // otherwise impl will be too complicated
+        if (position in curBuffRange || (position + buffSize) in curBuffRange) {
+            // do nothing
+            return
+        }
+
+        // switch buffers:
+        useSndBuffer = !useSndBuffer
+    }
+
     protected open fun fillBuffer() {
+        switchBuffersIfNeeded()
+
         val buff = buffer!!
         val buffSize = buff.size
 
@@ -134,20 +168,8 @@ open class BetterSeekableBufferedStream(
                 fetchNewBuffer(position, 0, buffSize)
             }
             position >= bufferStartOffset -> {
-                // copy intersecting part
-                val relativePos = (position - bufferStartOffset).toInt()
-                val available = (bufferEndOffset - bufferStartOffset).toInt()
-                val count = available - relativePos
-                System.arraycopy(buff, relativePos, buff, 0, count)
-
-                // fetch remaining part
-                fetchNewBuffer(bufferEndOffset, count, buffSize - count)
-                if (count > 0) {
-                    bufferStartOffset = position
-                    if (bufferEndOffset == -1L) {
-                        bufferEndOffset = bufferStartOffset + count
-                    }
-                }
+                // double buffer was switched to the other one containing data
+                // do nothing
             }
             position + buffSize > bufferStartOffset -> {
                 // copy intersecting part
@@ -171,6 +193,13 @@ open class BetterSeekableBufferedStream(
 
     protected open fun fetchNewBuffer(pos: Long, buffOffset: Int, size: Int) {
         stream.seek(pos)
+
+        if (size == 0) {
+            bufferStartOffset = pos
+            bufferEndOffset = pos
+            return
+        }
+
         val buff = buffer!!
 
         val n = stream.read(buff, buffOffset, size)
