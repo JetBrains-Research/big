@@ -19,7 +19,7 @@ import kotlin.test.assertNull
 @RunWith(Parameterized::class)
 class BigFileTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
 
     @Test
@@ -162,7 +162,7 @@ class BigFileTest(
                 fileName: String,
                 expected: Array<Pair<String, Int>>,
                 factoryProvider: NamedRomBufferFactoryProvider,
-                prefetch: Boolean,
+                prefetch: Int,
                 singleThreadMode: Boolean = false
         ) {
             BigFile.read(Examples[fileName], factoryProvider, prefetch).use { bf ->
@@ -212,7 +212,7 @@ class BigFileTest(
         fun doTestConcurrentDataAccess(
                 fileName: String, expected: Array<Pair<Int, Int>>,
                 bfProvider: NamedRomBufferFactoryProvider,
-                prefetch: Boolean,
+                prefetch: Int,
                 singleThreadMode: Boolean
         ) {
             BigFile.read(Examples[fileName], bfProvider, prefetch).use { bf ->
@@ -265,7 +265,7 @@ class BigFileTest(
 @RunWith(Parameterized::class)
 class BigFileConcurrencyTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
 
     @Test

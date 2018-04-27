@@ -15,7 +15,7 @@ import kotlin.test.assertNull
 @RunWith(Parameterized::class)
 class BPlusTreeTest(private val bfProvider: NamedRomBufferFactoryProvider) {
     @Test fun testReadHeader() {
-        BigBedFile.read(Examples["example1.bb"], bfProvider, false).use { bf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider, 0).use { bf ->
             val bpt = bf.bPlusTree
             assertEquals(1, bpt.header.blockSize)
             assertEquals(5, bpt.header.keySize)
@@ -25,7 +25,7 @@ class BPlusTreeTest(private val bfProvider: NamedRomBufferFactoryProvider) {
     }
 
     @Test fun testFind() {
-        BigBedFile.read(Examples["example1.bb"], bfProvider, false).use { bf ->
+        BigBedFile.read(Examples["example1.bb"], bfProvider, 0).use { bf ->
             bf.buffFactory.create().use { input ->
                 var leaf = bf.bPlusTree.find(input, "chr1")
                 assertNull(leaf)

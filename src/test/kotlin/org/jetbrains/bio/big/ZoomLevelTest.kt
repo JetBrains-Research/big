@@ -14,7 +14,7 @@ import kotlin.test.assertNull
 @RunWith(Parameterized::class)
 class ZoomLevelTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
     @Test
     fun testReductionLevelBB() {

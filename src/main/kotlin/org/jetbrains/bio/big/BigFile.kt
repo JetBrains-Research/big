@@ -32,7 +32,7 @@ abstract class BigFile<out T> internal constructor(
         internal val path: String,
         internal val buffFactory: RomBufferFactory,
         magic: Int,
-        prefetch: Boolean,
+        prefetch: Int,
         cancelledChecker: (() -> Unit)?
 ) : Closeable {
 
@@ -84,7 +84,7 @@ abstract class BigFile<out T> internal constructor(
                 bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
 
                 // if do prefetch input and file not empty:
-                if (prefetch) {
+                if (prefetch > 0) {
                     // stored in the beginning of file near header
                     cancelledChecker?.invoke()
                     prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
@@ -132,9 +132,11 @@ abstract class BigFile<out T> internal constructor(
                 // in buffered stream
                 cancelledChecker?.invoke()
                 rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-                rTree.prefetchBlocksIndex(
-                        input, false, true, header.uncompressBufSize, cancelledChecker
-                )
+                if (prefetch > 1) {
+                    rTree.prefetchBlocksIndex(
+                            input, false, true, header.uncompressBufSize, cancelledChecker
+                    )
+                }
             }
         } catch (e: Exception) {
             buffFactory.close()
@@ -520,7 +522,7 @@ abstract class BigFile<out T> internal constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Boolean = false,
+        fun read(src: String, prefetch: Int = 2,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigFile<Comparable<*>> = factoryProvider(src, ByteOrder.LITTLE_ENDIAN).use { factory ->

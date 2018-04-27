@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 @RunWith(Parameterized::class)
 class BigBedFileTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
 
     @Test
@@ -26,8 +26,8 @@ class BigBedFileTest(
         BigBedFile.read(Examples["example1.bb"], bfProvider, prefetch).use { bf ->
             assertEquals(5, bf.zoomLevels.size)
             assertEquals(39110000, bf.zoomLevels[4].reduction)
-            assertEquals(prefetch, bf.prefetchedLevel2RTreeIndex != null)
-            if (prefetch) {
+            assertEquals(prefetch > 0, bf.prefetchedLevel2RTreeIndex != null)
+            if (prefetch > 0) {
                 assertEquals(5, bf.prefetchedLevel2RTreeIndex!!.size)
 
                 val zRTree0 = bf.prefetchedLevel2RTreeIndex!![bf.zoomLevels[0]]!!
@@ -41,8 +41,8 @@ class BigBedFileTest(
                              (zRTree4.rootNode!! as RTReeNodeLeaf).leaves[0].interval.toString())
             }
 
-            assertEquals(prefetch, bf.prefetchedChr2Leaf != null)
-            if (prefetch) {
+            assertEquals(prefetch > 0, bf.prefetchedChr2Leaf != null)
+            if (prefetch > 0) {
                 assertEquals(1, bf.prefetchedChr2Leaf!!.size)
                 assertEquals("chr21", bf.prefetchedChr2Leaf!!["chr21"]!!.key)
                 assertEquals(0, bf.prefetchedChr2Leaf!!["chr21"]!!.id)
@@ -58,9 +58,11 @@ class BigBedFileTest(
 
             assertEquals(192819, bf.rTree.header.rootOffset)
             assertEquals(14810, bf.rTree.header.itemCount)
-            assertNotNull(bf.rTree.rootNode)
-            assertTrue(bf.rTree.rootNode!! is RTReeNodeLeaf)
-            assertEquals(232, (bf.rTree.rootNode!! as RTReeNodeLeaf).leaves.size)
+            if (prefetch > 1) {
+                assertNotNull(bf.rTree.rootNode)
+                assertTrue(bf.rTree.rootNode!! is RTReeNodeLeaf)
+                assertEquals(232, (bf.rTree.rootNode!! as RTReeNodeLeaf).leaves.size)
+            }
         }
     }
 
@@ -339,14 +341,14 @@ class BigBedFileTest(
 @RunWith(Parameterized::class)
 class BigBedFileConcurrencyTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
     @Test
     fun testConcurrentChrAccess() {
         BigFileTest.doTestConcurrentChrAccess("concurrent.bb",
                                               arrayOf("chr1" to 2657021, "chr2" to 2657021,
                                                       "chr3" to 2657021, "chr4" to 2657021),
-                                              bfProvider, false, false)
+                bfProvider, prefetch, false)
     }
 
     @Test
@@ -369,7 +371,6 @@ class BigBedFileConcurrencyTest(
 
         BigFileTest.doTestConcurrentDataAccess("concurrent.bb", expected, bfProvider, prefetch,
                                                false)
-//                                               true)
     }
 
     companion object {
@@ -384,7 +385,7 @@ class BigBedReadWriteTest(
         private val order: ByteOrder,
         private val compression: CompressionType,
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
 
     @Test

@@ -89,7 +89,7 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
         })
     }
     return providers.flatMap { fp ->
-        arrayOf(true, false).map { prefetch ->
+        intArrayOf(0, 1, 2).map { prefetch ->
             arrayOf(fp, prefetch)
         }
     }
@@ -98,25 +98,25 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
 fun romFactoryProviderParams(): List<Array<Any>> = romFactoryProviders().map { arrayOf<Any>(it) }
 
 fun romFactoryProviderAndPrefetchParams(): List<Array<Any>> = romFactoryProviders().flatMap { fp ->
-    arrayOf(true, false).map { prefetch ->
+    intArrayOf(0, 1, 2).map { prefetch ->
         arrayOf(fp, prefetch)
     }
 }
 
 fun BigBedFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
-                              prefetch: Boolean) =
+                              prefetch: Int) =
         BigBedFile.read(path.toString(), prefetch) { src, byteOrder ->
             provider(src, byteOrder)
         }
 
 fun BigWigFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
-                              prefetch: Boolean) =
+                              prefetch: Int) =
         BigWigFile.read(path.toString(), prefetch) { src, byteOrder ->
             provider(src, byteOrder)
         }
 
 fun BigFile.Companion.read(path: Path, provider: NamedRomBufferFactoryProvider,
-                           prefetch: Boolean = false) =
+                           prefetch: Int) =
         BigFile.read(path.toString(), prefetch) { src, byteOrder ->
             provider(src, byteOrder)
         }
@@ -132,7 +132,7 @@ fun romFactoryByteOrderCompressionParamsSets(): Iterable<Array<Any>> {
 }
 
 fun allBigFileParams(): List<Array<Any>> = romFactoryByteOrderCompressionParamsSets().flatMap {
-    arrayOf(true, false).map { prefetch ->
+    intArrayOf(0, 1, 2).map { prefetch ->
         it + prefetch
     }
 }

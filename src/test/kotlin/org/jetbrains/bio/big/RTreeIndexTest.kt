@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 @RunWith(Parameterized::class)
 class RTreeIndexTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
     @Test
     fun testReadHeader() {
@@ -24,10 +24,11 @@ class RTreeIndexTest(
             assertEquals(192771L, rti.header.endDataOffset)
             assertEquals(64, rti.header.itemsPerSlot)
             assertEquals(192819L, rti.header.rootOffset)
-            assertNotNull(bbf.rTree.rootNode)
-            assertTrue(bbf.rTree.rootNode is RTReeNodeLeaf)
-            assertEquals(232, (bbf.rTree.rootNode as RTReeNodeLeaf).leaves.size)
-
+            if (prefetch > 1) {
+                assertNotNull(bbf.rTree.rootNode)
+                assertTrue(bbf.rTree.rootNode is RTReeNodeLeaf)
+                assertEquals(232, (bbf.rTree.rootNode as RTReeNodeLeaf).leaves.size)
+            }
             val items = exampleItems
             assertEquals(items.size.toLong(), rti.header.itemCount)
             assertEquals(0, rti.header.startChromIx)
@@ -48,7 +49,7 @@ class RTreeIndexTest(
                 f.create().use { input ->
 
                     val rti = RTreeIndex.read(input, 0L)
-                    if (prefetch) {
+                    if (prefetch > 0) {
                         rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
 
@@ -107,7 +108,7 @@ class RTreeIndexTest(
             bfProvider(path.toString(), ByteOrder.nativeOrder()).use { f ->
                 f.create().use { input ->
                     val rti = RTreeIndex.read(input, 0)
-                    if (prefetch) {
+                    if (prefetch > 0) {
                         rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
                     for (leaf in leaves) {

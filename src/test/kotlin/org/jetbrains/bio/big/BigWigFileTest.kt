@@ -16,15 +16,15 @@ import kotlin.test.assertTrue
 @RunWith(Parameterized::class)
 class BigWigFileTest(
         private val bfProvider: NamedRomBufferFactoryProvider,
-        private val prefetch: Boolean
+        private val prefetch: Int
 ) {
     @Test
     fun header() {
         BigWigFile.read(Examples["example2.bw"], bfProvider, prefetch).use { bf ->
             assertEquals(10, bf.zoomLevels.size)
             assertEquals(25600, bf.zoomLevels[4].reduction)
-            assertEquals(prefetch, bf.prefetchedLevel2RTreeIndex != null)
-            if (prefetch) {
+            assertEquals(prefetch > 0, bf.prefetchedLevel2RTreeIndex != null)
+            if (prefetch > 0) {
                 assertEquals(10, bf.prefetchedLevel2RTreeIndex!!.size)
 
                 val zRTree0 = bf.prefetchedLevel2RTreeIndex!![bf.zoomLevels[0]]!!
@@ -42,8 +42,8 @@ class BigWigFileTest(
                              (zRTree4.rootNode!! as RTReeNodeLeaf).leaves[1].interval)
             }
 
-            assertEquals(prefetch, bf.prefetchedChr2Leaf != null)
-            if (prefetch) {
+            assertEquals(prefetch > 0, bf.prefetchedChr2Leaf != null)
+            if (prefetch > 0) {
                 assertEquals(1, bf.prefetchedChr2Leaf!!.size)
                 assertEquals("chr21", bf.prefetchedChr2Leaf!!["chr21"]!!.key)
                 assertEquals(0, bf.prefetchedChr2Leaf!!["chr21"]!!.id)
@@ -59,12 +59,14 @@ class BigWigFileTest(
 
             assertEquals(15751097, bf.rTree.header.rootOffset)
             assertEquals(6857, bf.rTree.header.itemCount)
-            assertNotNull(bf.rTree.rootNode)
-            assertTrue(bf.rTree.rootNode!! is RTReeNodeIntermediate)
-            assertEquals(27, (bf.rTree.rootNode!! as RTReeNodeIntermediate).children.size)
-            assertEquals("0:[9411190; 11071890)",
-                    (bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].interval.toString())
-            assertTrue((bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].node is RTreeNodeRef)
+            if (prefetch > 1) {
+                assertNotNull(bf.rTree.rootNode)
+                assertTrue(bf.rTree.rootNode!! is RTReeNodeIntermediate)
+                assertEquals(27, (bf.rTree.rootNode!! as RTReeNodeIntermediate).children.size)
+                assertEquals("0:[9411190; 11071890)",
+                        (bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].interval.toString())
+                assertTrue((bf.rTree.rootNode!! as RTReeNodeIntermediate).children[0].node is RTreeNodeRef)
+            }
         }
     }
 
@@ -390,7 +392,7 @@ class BigWigFileTest(
 
 @RunWith(Parameterized::class)
 class BigWigFileConcurrencyTest(private val bfProvider: NamedRomBufferFactoryProvider,
-                                private val prefetch: Boolean) {
+                                private val prefetch: Int) {
     @Test
     fun testConcurrentChrAccess() {
 
@@ -419,7 +421,6 @@ class BigWigFileConcurrencyTest(private val bfProvider: NamedRomBufferFactoryPro
                 91 to 0, 92 to 0, 93 to 0, 94 to 0, 95 to 0, 96 to 0, 97 to 0, 98 to 0, 99 to 0)
         BigFileTest.doTestConcurrentDataAccess("concurrent.bw", expected, bfProvider, prefetch,
                                                false)
-//                                               true)
     }
 
     companion object {
@@ -434,7 +435,7 @@ class BigWigFileConcurrencyTest(private val bfProvider: NamedRomBufferFactoryPro
 class BigWigReadWriteTest(private val order: ByteOrder,
                           private val compression: CompressionType,
                           private val bfProvider: NamedRomBufferFactoryProvider,
-                          private val prefetch: Boolean) {
+                          private val prefetch: Int) {
 
     @Test
     fun testWriteReadNoData() {

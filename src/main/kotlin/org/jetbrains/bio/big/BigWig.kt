@@ -13,7 +13,7 @@ class BigWigFile private constructor(
         path: String,
         buffFactory: RomBufferFactory,
         magic: Int,
-        prefetch: Boolean,
+        prefetch: Int,
         cancelledChecker: (() -> Unit)?
 ) : BigFile<WigSection>(path, buffFactory, magic, prefetch, cancelledChecker) {
 
@@ -170,7 +170,7 @@ class BigWigFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Boolean = false,
+        fun read(src: String, prefetch: Int = 2,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigWigFile {
