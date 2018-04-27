@@ -84,7 +84,7 @@ abstract class BigFile<out T> internal constructor(
                 bPlusTree = BPlusTree.read(input, header.chromTreeOffset)
 
                 // if do prefetch input and file not empty:
-                if (prefetch > 0) {
+                if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                     // stored in the beginning of file near header
                     cancelledChecker?.invoke()
                     prefetechedTotalSummary = BigSummary.read(input, header.totalSummaryOffset)
@@ -132,7 +132,7 @@ abstract class BigFile<out T> internal constructor(
                 // in buffered stream
                 cancelledChecker?.invoke()
                 rTree = RTreeIndex.read(input, header.unzoomedIndexOffset)
-                if (prefetch > 1) {
+                if (prefetch >= BigFile.PREFETCH_LEVEL_DETAILED) {
                     rTree.prefetchBlocksIndex(
                             input, false, true, header.uncompressBufSize, cancelledChecker
                     )
@@ -467,6 +467,9 @@ abstract class BigFile<out T> internal constructor(
 
     companion object {
         private val LOG = LogManager.getLogger(BigFile::class.java)
+        const val PREFETCH_LEVEL_OFF = 0
+        const val PREFETCH_LEVEL_FAST = 1
+        const val PREFETCH_LEVEL_DETAILED = 2
 
         private val lastCachedBlockInfo: ThreadLocal<Pair<RomBufferState, RomBuffer?>> = ThreadLocal.withInitial {
             RomBufferState(null, 0L, 0L, "") to null
@@ -522,7 +525,7 @@ abstract class BigFile<out T> internal constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Int = 2,
+        fun read(src: String, prefetch: Int = BigFile.PREFETCH_LEVEL_DETAILED,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigFile<Comparable<*>> = factoryProvider(src, ByteOrder.LITTLE_ENDIAN).use { factory ->

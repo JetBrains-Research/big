@@ -26,8 +26,8 @@ class BigBedFileTest(
         BigBedFile.read(Examples["example1.bb"], bfProvider, prefetch).use { bf ->
             assertEquals(5, bf.zoomLevels.size)
             assertEquals(39110000, bf.zoomLevels[4].reduction)
-            assertEquals(prefetch > 0, bf.prefetchedLevel2RTreeIndex != null)
-            if (prefetch > 0) {
+            assertEquals(prefetch == BigFile.PREFETCH_LEVEL_OFF, bf.prefetchedLevel2RTreeIndex == null)
+            if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                 assertEquals(5, bf.prefetchedLevel2RTreeIndex!!.size)
 
                 val zRTree0 = bf.prefetchedLevel2RTreeIndex!![bf.zoomLevels[0]]!!
@@ -41,8 +41,8 @@ class BigBedFileTest(
                              (zRTree4.rootNode!! as RTReeNodeLeaf).leaves[0].interval.toString())
             }
 
-            assertEquals(prefetch > 0, bf.prefetchedChr2Leaf != null)
-            if (prefetch > 0) {
+            assertEquals(prefetch == BigFile.PREFETCH_LEVEL_OFF, bf.prefetchedChr2Leaf == null)
+            if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                 assertEquals(1, bf.prefetchedChr2Leaf!!.size)
                 assertEquals("chr21", bf.prefetchedChr2Leaf!!["chr21"]!!.key)
                 assertEquals(0, bf.prefetchedChr2Leaf!!["chr21"]!!.id)
@@ -58,7 +58,7 @@ class BigBedFileTest(
 
             assertEquals(192819, bf.rTree.header.rootOffset)
             assertEquals(14810, bf.rTree.header.itemCount)
-            if (prefetch > 1) {
+            if (prefetch >= BigFile.PREFETCH_LEVEL_DETAILED) {
                 assertNotNull(bf.rTree.rootNode)
                 assertTrue(bf.rTree.rootNode!! is RTReeNodeLeaf)
                 assertEquals(232, (bf.rTree.rootNode!! as RTReeNodeLeaf).leaves.size)

@@ -23,8 +23,8 @@ class BigWigFileTest(
         BigWigFile.read(Examples["example2.bw"], bfProvider, prefetch).use { bf ->
             assertEquals(10, bf.zoomLevels.size)
             assertEquals(25600, bf.zoomLevels[4].reduction)
-            assertEquals(prefetch > 0, bf.prefetchedLevel2RTreeIndex != null)
-            if (prefetch > 0) {
+            assertEquals(prefetch == BigFile.PREFETCH_LEVEL_OFF, bf.prefetchedLevel2RTreeIndex == null)
+            if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                 assertEquals(10, bf.prefetchedLevel2RTreeIndex!!.size)
 
                 val zRTree0 = bf.prefetchedLevel2RTreeIndex!![bf.zoomLevels[0]]!!
@@ -42,8 +42,8 @@ class BigWigFileTest(
                              (zRTree4.rootNode!! as RTReeNodeLeaf).leaves[1].interval)
             }
 
-            assertEquals(prefetch > 0, bf.prefetchedChr2Leaf != null)
-            if (prefetch > 0) {
+            assertEquals(prefetch == BigFile.PREFETCH_LEVEL_OFF, bf.prefetchedChr2Leaf == null)
+            if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                 assertEquals(1, bf.prefetchedChr2Leaf!!.size)
                 assertEquals("chr21", bf.prefetchedChr2Leaf!!["chr21"]!!.key)
                 assertEquals(0, bf.prefetchedChr2Leaf!!["chr21"]!!.id)
@@ -59,7 +59,7 @@ class BigWigFileTest(
 
             assertEquals(15751097, bf.rTree.header.rootOffset)
             assertEquals(6857, bf.rTree.header.itemCount)
-            if (prefetch > 1) {
+            if (prefetch >= BigFile.PREFETCH_LEVEL_DETAILED) {
                 assertNotNull(bf.rTree.rootNode)
                 assertTrue(bf.rTree.rootNode!! is RTReeNodeIntermediate)
                 assertEquals(27, (bf.rTree.rootNode!! as RTReeNodeIntermediate).children.size)

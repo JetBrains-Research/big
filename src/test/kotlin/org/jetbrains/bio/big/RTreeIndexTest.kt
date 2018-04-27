@@ -24,7 +24,7 @@ class RTreeIndexTest(
             assertEquals(192771L, rti.header.endDataOffset)
             assertEquals(64, rti.header.itemsPerSlot)
             assertEquals(192819L, rti.header.rootOffset)
-            if (prefetch > 1) {
+            if (prefetch >= BigFile.PREFETCH_LEVEL_DETAILED) {
                 assertNotNull(bbf.rTree.rootNode)
                 assertTrue(bbf.rTree.rootNode is RTReeNodeLeaf)
                 assertEquals(232, (bbf.rTree.rootNode as RTReeNodeLeaf).leaves.size)
@@ -49,7 +49,7 @@ class RTreeIndexTest(
                 f.create().use { input ->
 
                     val rti = RTreeIndex.read(input, 0L)
-                    if (prefetch > 0) {
+                    if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                         rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
 
@@ -108,7 +108,7 @@ class RTreeIndexTest(
             bfProvider(path.toString(), ByteOrder.nativeOrder()).use { f ->
                 f.create().use { input ->
                     val rti = RTreeIndex.read(input, 0)
-                    if (prefetch > 0) {
+                    if (prefetch >= BigFile.PREFETCH_LEVEL_FAST) {
                         rti.prefetchBlocksIndex(input, true, false, 0, null)
                     }
                     for (leaf in leaves) {

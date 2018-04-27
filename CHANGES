@@ -27,9 +27,11 @@ Changed
 - Use `RomBufferFactory` to detect file endianness
 - Changed `prefetch` option to int value in `BigFile.read()`, 
   `BigWigFile.read()`, `BigBedFile.read()`. Supported values are:
-  * `0` : do not prefetch
-  * `1` : prefetch zoom level indexes tree, chromosomes list
-  * `2` : prefetch w/o zoom level data tree indexes up to chromosomes level
+  * `BigFile.PREFETCH_LEVEL_OFF` : do not prefetch
+  * `BigFile.PREFETCH_LEVEL_FAST` : prefetch zoom level indexes tree,
+    chromosomes list
+  * `BigFile.PREFETCH_LEVEL_DETAILED` : prefetch w/o zoom level data tree
+    indexes up to chromosomes level
   Larger prefetch values increase big file opening time and memory
   consumption but provides faster data access with fewer i/o operations
 

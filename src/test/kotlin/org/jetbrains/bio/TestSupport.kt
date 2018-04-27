@@ -89,7 +89,7 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
         })
     }
     return providers.flatMap { fp ->
-        intArrayOf(0, 1, 2).map { prefetch ->
+        intArrayOf(BigFile.PREFETCH_LEVEL_OFF, BigFile.PREFETCH_LEVEL_FAST, BigFile.PREFETCH_LEVEL_DETAILED).map { prefetch ->
             arrayOf(fp, prefetch)
         }
     }
@@ -98,7 +98,7 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
 fun romFactoryProviderParams(): List<Array<Any>> = romFactoryProviders().map { arrayOf<Any>(it) }
 
 fun romFactoryProviderAndPrefetchParams(): List<Array<Any>> = romFactoryProviders().flatMap { fp ->
-    intArrayOf(0, 1, 2).map { prefetch ->
+    intArrayOf(BigFile.PREFETCH_LEVEL_OFF, BigFile.PREFETCH_LEVEL_FAST, BigFile.PREFETCH_LEVEL_DETAILED).map { prefetch ->
         arrayOf(fp, prefetch)
     }
 }
@@ -132,7 +132,7 @@ fun romFactoryByteOrderCompressionParamsSets(): Iterable<Array<Any>> {
 }
 
 fun allBigFileParams(): List<Array<Any>> = romFactoryByteOrderCompressionParamsSets().flatMap {
-    intArrayOf(0, 1, 2).map { prefetch ->
+    intArrayOf(BigFile.PREFETCH_LEVEL_OFF, BigFile.PREFETCH_LEVEL_FAST, BigFile.PREFETCH_LEVEL_DETAILED).map { prefetch ->
         it + prefetch
     }
 }

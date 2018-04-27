@@ -94,7 +94,7 @@ class BigBedFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Int = 2,
+        fun read(src: String, prefetch: Int = BigFile.PREFETCH_LEVEL_DETAILED,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigBedFile {
