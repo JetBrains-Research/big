@@ -23,6 +23,13 @@ abstract class RomBuffer : Closeable {
             field = if (value == -1L) maxLength else value
         }
 
+    init {
+        @Suppress("LeakingThis")
+        require(maxLength >= 0) {
+            "Buffer length is $maxLength, maybe associated stream failed to open."
+        }
+    }
+
     /**
      * Returns a new buffer sharing the data with its parent.
      *
