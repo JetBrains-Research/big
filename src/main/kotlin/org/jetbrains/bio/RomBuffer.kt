@@ -7,7 +7,6 @@ import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.zip.DataFormatException
 import java.util.zip.Inflater
 
 /** A read-only buffer. */
@@ -123,35 +122,24 @@ abstract class RomBuffer : Closeable {
                     inflater.reset()
                     inflater.setInput(compressedBuf)
                     val sizeInt = size.toInt()
-                    val step = sizeInt
                     var remaining = sizeInt
                     val maxUncompressedChunk = if (uncompressBufSize == 0) sizeInt else uncompressBufSize
-                    try {
-                        while (remaining > 0) {
-                            uncompressedBuf = Bytes.ensureCapacity(
-                                    uncompressedBuf,
-                                    uncompressedSize + maxUncompressedChunk,
-                                    maxUncompressedChunk / 2 // 1.5x
-                            )
+                    while (remaining > 0) {
+                        uncompressedBuf = Bytes.ensureCapacity(
+                                uncompressedBuf,
+                                uncompressedSize + maxUncompressedChunk,
+                                maxUncompressedChunk / 2 // 1.5x
+                        )
 
-                            // start next chunk if smth remains
-                            if (inflater.finished()) {
-                                inflater.reset()
-                                inflater.setInput(compressedBuf, sizeInt - remaining, remaining)
-                            }
-
-                            val actual = inflater.inflate(uncompressedBuf, uncompressedSize, maxUncompressedChunk)
-                            remaining = inflater.remaining
-                            uncompressedSize += actual
+                        // start next chunk if smth remains
+                        if (inflater.finished()) {
+                            inflater.reset()
+                            inflater.setInput(compressedBuf, sizeInt - remaining, remaining)
                         }
-                    } catch (e: DataFormatException) {
-                        val msg = """[@${Thread.currentThread().id}] java.util.zip.DataFormatException: ${e.message}
-                            |  offset=$offset, limit=$limit, size=$size, compressed size=${compressedBuf.size}
-                            |  remaining=$remaining, uncompressedSize=$uncompressedSize
-                            |  uncompressBufSize=$uncompressBufSize
-                            |""".trimMargin()
-                        org.apache.log4j.Logger.getRootLogger().error(msg)
-                        throw e
+
+                        val actual = inflater.inflate(uncompressedBuf, uncompressedSize, maxUncompressedChunk)
+                        remaining = inflater.remaining
+                        uncompressedSize += actual
                     }
                     // Not obligatory, but let's left thread local variable in clean state
                     inflater.reset()
