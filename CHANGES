@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.8.0
 -------------
 
-Released on <Unreleased>
+Released on April 29th 2018
 
 New
 - HTTP/HTTPS urls support for BigWig, BigBed, TDF files. Server is
@@ -43,7 +43,7 @@ Removed:
 Version 0.7.1
 -------------
 
-Released on April 31th 2017
+Released on March 31th 2018
 
 Changed
 - Use maxHeapSize = "1024m" option for tests. Seems by default on
@@ -58,7 +58,7 @@ Changed
 Version 0.7.0
 -------------
 
-Released on April 30th 2017
+Released on March 30th 2018
 
 Fixed
 - RandomAccessFile (https://www.unidata.ucar.edu) copied to project and
