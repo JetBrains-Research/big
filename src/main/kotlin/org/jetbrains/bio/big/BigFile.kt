@@ -29,7 +29,7 @@ typealias RomBufferFactoryProvider = (String, ByteOrder) -> RomBufferFactory
  *      compressed data blocks
  */
 abstract class BigFile<out T> internal constructor(
-        internal val path: String,
+        val source: String,
         internal val buffFactory: RomBufferFactory,
         magic: Int,
         prefetch: Int,
@@ -203,7 +203,7 @@ abstract class BigFile<out T> internal constructor(
 
             require(numBins <= query.length()) {
                 "number of bins must not exceed interval length, got " +
-                        "$numBins > ${query.length()}, file $path"
+                        "$numBins > ${query.length()}, source $source"
             }
 
             // The 2-factor guarantees that we get at least two data points
@@ -391,7 +391,7 @@ abstract class BigFile<out T> internal constructor(
         val n = m + blockCacheIns.get()
 
         LOG.trace("BigFile closed: Cache misses ${Precision.round(100.0 * m / n, 1)}% ($m of $n), " +
-                          "file: : $path ")
+                "source: : $source ")
 
         buffFactory.close()
     }

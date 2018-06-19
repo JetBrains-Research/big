@@ -3,6 +3,16 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.8.1
+-------------
+
+Released on June 20th 2018
+New
+- `BigFile.source` public property added
+
+Changed
+- Report stream source in exception messages from `BetterSeekableBufferedStream`
+
 Version 0.8.0
 -------------
 

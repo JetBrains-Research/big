@@ -38,7 +38,7 @@ open class BetterSeekableBufferedStream(
     internal var buffer: ByteArray?
         get() {
             val buf = buffers[curBufIdx()]
-            checkNotNull(buf) { "Stream is closed" }
+            checkNotNull(buf) { "Stream is closed: $source" }
             return buf
         }
         set(value) {
@@ -66,7 +66,7 @@ open class BetterSeekableBufferedStream(
     override fun eof() = position >= length()
 
     override fun seek(position: Long) {
-        require(position >= 0) { "Position should be non-negative value, but was $position" }
+        require(position >= 0) { "Position should be non-negative value, but was $position in $source" }
 
         // allow any position, even out of buffer bounds
         this.position = position

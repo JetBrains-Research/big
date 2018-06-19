@@ -23,6 +23,20 @@ class BigFileTest(
 ) {
 
     @Test
+    fun testSource() {
+        Examples["example1.bb"].let { src ->
+            BigFile.read(src, bfProvider, prefetch).use { bf ->
+                assertEquals(src.toString(), bf.source)
+            }
+        }
+        Examples["example2.bw"].let { src ->
+            BigFile.read(src, bfProvider, prefetch).use { bf ->
+                assertEquals(src.toString(), bf.source)
+            }
+        }
+    }
+
+    @Test
     fun determineFileTypeBigBed() {
         val src = Examples["example1.bb"].toString()
         val type = BigFile.determineFileType(src) { path, byteOrder ->

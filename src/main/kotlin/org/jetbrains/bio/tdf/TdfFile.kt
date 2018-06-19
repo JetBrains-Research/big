@@ -26,6 +26,7 @@ import java.util.*
  * @since 0.2.2
  */
 data class TdfFile private constructor(
+        val source: String,
         private val buffFactory: RomBufferFactory,
         private val header: Header,
         private val index: TdfMasterIndex,
@@ -244,7 +245,7 @@ data class TdfFile private constructor(
                     }
 
                     cancelledChecker?.invoke()
-                    return TdfFile(buffFactory, header, index, windowFunctions, trackType,
+                    return TdfFile(src, buffFactory, header, index, windowFunctions, trackType,
                             trackLine, trackNames, build, compressed)
                 }
             } catch (e: Exception) {

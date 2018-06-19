@@ -69,9 +69,9 @@ class BigWigFile private constructor(
 
         return sequenceOf(with(decompressedBlock) {
             val chromIx = readInt()
-            check(chromIx == query.chromIx, {
-                "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, file: $path"
-            })
+            check(chromIx == query.chromIx) {
+                "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, source: $source"
+            }
             val start = readInt()
             readInt()   // end.
             val step = readInt()

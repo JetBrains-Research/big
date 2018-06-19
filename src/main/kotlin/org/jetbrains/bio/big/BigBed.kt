@@ -70,7 +70,7 @@ class BigBedFile private constructor(
             do {
                 val chromIx = readInt()
                 assert(chromIx == query.chromIx) {
-                    "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, file: $path"
+                    "interval contains wrong chromosome $chromIx, expected ${query.chromIx}, source: $source"
                 }
                 val startOffset = readInt()
                 val endOffset = readInt()
