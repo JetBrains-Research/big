@@ -1,5 +1,6 @@
 package org.jetbrains.bio.big
 
+import com.google.common.io.Closeables
 import org.jetbrains.bio.*
 import java.io.IOException
 import java.nio.ByteOrder
@@ -180,8 +181,9 @@ class BigWigFile private constructor(
                 factory.order = byteOrder
 
                 return BigWigFile(src, factory, MAGIC, prefetch, cancelledChecker)
-            } finally {
-                factory.close()
+            } catch (e: Exception) {
+                Closeables.close(factory, true)
+                throw e
             }
         }
 
