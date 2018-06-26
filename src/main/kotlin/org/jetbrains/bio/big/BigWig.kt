@@ -175,10 +175,14 @@ class BigWigFile private constructor(
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigWigFile {
             val factory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
-            val byteOrder = getByteOrder(src, MAGIC, factory)
-            factory.order = byteOrder
+            try {
+                val byteOrder = getByteOrder(src, MAGIC, factory)
+                factory.order = byteOrder
 
-            return BigWigFile(src, factory, MAGIC, prefetch, cancelledChecker)
+                return BigWigFile(src, factory, MAGIC, prefetch, cancelledChecker)
+            } finally {
+                factory.close()
+            }
         }
 
         private class WigSectionSummary {

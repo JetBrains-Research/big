@@ -1,9 +1,14 @@
 package org.jetbrains.bio.tdf
 
+import htsjdk.samtools.seekablestream.SeekablePathStream
+import org.jetbrains.bio.BetterSeekableBufferedStream
+import org.jetbrains.bio.EndianAwareDataSeekableStream
+import org.jetbrains.bio.EndianSynchronizedBufferFactory
 import org.jetbrains.bio.Examples
 import org.jetbrains.bio.big.BigFileTest.Companion.doTestConcurrentChrAccess
 import org.jetbrains.bio.big.BigFileTest.Companion.doTestConcurrentDataAccess
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -20,6 +25,8 @@ class TdfFileTest {
             assertTrue(tdf.compressed)
         }
     }
+
+//    @Test
 
     @Test
     fun testSource() {
@@ -124,6 +131,40 @@ class TdfFileTest {
                 (dd * 1000).toLong()
             }
         }
+    }
+
+    @Test
+    fun factoryWillBeClosedIfEmptyFile() {
+        val testData = Examples["empty.tdf"]
+        val closeFlag = AtomicInteger(0)
+        val stream = object : SeekablePathStream(testData) {
+            override fun close() {
+                closeFlag.getAndIncrement()
+                super.close()
+            }
+        }
+        var bf: TdfFile? = null
+        try {
+            bf = TdfFile.read(
+                    testData.toString(),
+                    factoryProvider = { _, byteOrder ->
+                        EndianSynchronizedBufferFactory(
+                                EndianAwareDataSeekableStream(
+                                        BetterSeekableBufferedStream(
+                                                stream,
+                                                BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE
+                                        )).apply {
+                                    order = byteOrder
+                                })
+                    })
+        } catch (e: Exception) {
+            // Ignore
+        }
+
+        val flagValue = closeFlag.get()
+        bf?.close()
+
+        assertEquals(flagValue, 1)
     }
 
 }

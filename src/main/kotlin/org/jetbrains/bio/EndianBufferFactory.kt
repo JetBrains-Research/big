@@ -25,7 +25,7 @@ open class EndianBufferFactory(private val stream: EndianSeekableDataInput) : Ro
          * @param bufferSize Buffer size, could be changed after stream has been created
          */
         fun create(path: String, byteOrder: ByteOrder,
-                   bufferSize: Int = DEFAULT_BUFFER_SIZE) = EndianBufferFactory(
+                   bufferSize: Int = BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE) = EndianBufferFactory(
                 EndianAwareDataSeekableStream(
                         BetterSeekableBufferedStream(
                                 SeekableStreamFactory.getInstance().getStreamFor(path),
@@ -58,7 +58,7 @@ open class EndianSynchronizedBufferFactory(private val stream: EndianSeekableDat
          * @param bufferSize Buffer size, could be changed after stream has been created
          */
         fun create(path: String, byteOrder: ByteOrder,
-                   bufferSize: Int = DEFAULT_BUFFER_SIZE) = EndianSynchronizedBufferFactory(
+                   bufferSize: Int = BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE) = EndianSynchronizedBufferFactory(
                 EndianAwareDataSeekableStream(
                         BetterSeekableBufferedStream(
                                 SeekableStreamFactory.getInstance().getStreamFor(path),

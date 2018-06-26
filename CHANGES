@@ -3,6 +3,17 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.8.2
+-------------
+
+Released on June 26th 2018
+
+Fixed
+- `BigWig.read` & `BigBed.read` should close factory in case of exception
+  while creating big file
+- Default buffer size for `EndianSynchronizedBufferFactory` and `EndianBufferFactory` fixed
+  to `BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE`
+
 Version 0.8.1
 -------------
 

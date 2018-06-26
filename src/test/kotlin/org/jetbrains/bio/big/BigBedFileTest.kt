@@ -1,6 +1,7 @@
 package org.jetbrains.bio.big
 
 import com.google.common.math.IntMath
+import htsjdk.samtools.seekablestream.SeekablePathStream
 import org.apache.commons.math3.util.Precision
 import org.jetbrains.bio.*
 import org.junit.Test
@@ -10,6 +11,7 @@ import java.awt.Color
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -335,6 +337,48 @@ class BigBedFileTest(
         @JvmStatic
         fun data() = romFactoryProviderAndPrefetchParams()
     }
+}
+
+class BigBedFileNoParamsTest {
+    @Test
+    fun factoryWillBeClosedIfEmptyFile() {
+        val testData = Examples["empty.bb"]
+        val closeFlag = AtomicInteger(0)
+        val stream = object : SeekablePathStream(testData) {
+            override fun close() {
+                closeFlag.getAndIncrement()
+                super.close()
+            }
+        }
+        var bf: BigFile<*>? = null
+        try {
+            bf = BigBedFile.read(
+                    testData,
+                    provider = object : NamedRomBufferFactoryProvider("EndianSynchronizedBufferFactory") {
+                        override fun invoke(path: String, byteOrder: ByteOrder, limit: Long): EndianSynchronizedBufferFactory {
+                            return EndianSynchronizedBufferFactory(
+                                    EndianAwareDataSeekableStream(
+                                            BetterSeekableBufferedStream(
+                                                    stream,
+                                                    BetterSeekableBufferedStream.DEFAULT_BUFFER_SIZE
+                                            )).apply {
+                                        order = byteOrder
+                                    }
+                            )
+                        }
+
+                    },
+                    prefetch = BigFile.PREFETCH_LEVEL_OFF)
+        } catch (e: Exception) {
+            // Ignore
+        }
+
+        val flagValue = closeFlag.get()
+        bf?.close()
+
+        assertEquals(flagValue, 1)
+    }
+
 }
 
 

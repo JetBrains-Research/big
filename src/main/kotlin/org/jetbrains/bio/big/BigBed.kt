@@ -99,10 +99,14 @@ class BigBedFile private constructor(
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigBedFile {
             val factory = factoryProvider(src, ByteOrder.LITTLE_ENDIAN)
-            val byteOrder = getByteOrder(src, MAGIC, factory)
-            factory.order = byteOrder
+            try {
+                val byteOrder = getByteOrder(src, MAGIC, factory)
+                factory.order = byteOrder
 
-            return BigBedFile(src, factory, MAGIC, prefetch, cancelledChecker)
+                return BigBedFile(src, factory, MAGIC, prefetch, cancelledChecker)
+            } finally {
+                factory.close()
+            }
         }
 
         private class BedEntrySummary {
