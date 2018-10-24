@@ -3,6 +3,19 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.8.3
+-------------
+
+Released on Oct 24th 2018
+
+New
+-  `ExtendedBedEntry.rest` is a public method to return the list of fields except for
+  the first three obligatory BED columns. Is used during `ExtendedBedEntry.pack`.
+  It could be convenient when we want to iterate through optional fields. For simplicity 
+  and to avoid code duplication the method returns a string representation of extended 
+  bed entry fields (the same values as joined by `pack` method.) instead of original values.
+  Such behaviours is consistent with values which user will see in a BED/BigBed file.
+
 Version 0.8.2
 -------------
 

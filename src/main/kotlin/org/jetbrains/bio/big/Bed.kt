@@ -270,8 +270,26 @@ data class ExtendedBedEntry(
      * @param extraFieldsNumber BED+ format extra fields number to serialize, if null serialize all extra fields
      * @param delimiter Custom delimiter for malformed data
      */
-    fun pack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
-             delimiter: Char = '\t'): BedEntry {
+    fun pack(
+            fieldsNumber: Byte = 12,
+            extraFieldsNumber: Int? = null,
+            delimiter: Char = '\t'
+    ): BedEntry {
+        check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
+
+        return BedEntry(
+                chrom, start, end,
+                rest(fieldsNumber, extraFieldsNumber).joinToString(delimiter.toString())
+        )
+    }
+
+    /**
+     * List of rest string fields (all except obligatory) for bed entry, same fields as in [BedEntry.rest] after [pack]
+     * Values in string differs from original values because converted to string
+     * @param fieldsNumber BED format fields number to serialize (3..12)
+     * @param extraFieldsNumber BED+ format extra fields number to serialize, if null serialize all extra fields
+     */
+    fun rest(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null): ArrayList<String> {
         check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
 
         val rest = ArrayList<String>()
@@ -337,7 +355,6 @@ data class ExtendedBedEntry(
                 (0 until extraFieldsNumber).mapTo(rest) { extraFields[it] }
             }
         }
-
-        return BedEntry(chrom, start, end, rest.joinToString(delimiter.toString()))
+        return rest
     }
 }
