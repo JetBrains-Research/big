@@ -26,8 +26,6 @@ class TdfFileTest {
         }
     }
 
-//    @Test
-
     @Test
     fun testSource() {
         Examples["example.tdf"].let { src ->
