@@ -5,7 +5,6 @@ import htsjdk.samtools.seekablestream.ByteArraySeekableStream
 import org.apache.commons.math3.util.Precision
 import org.junit.Assert
 import org.junit.Test
-import java.lang.UnsupportedOperationException
 import java.nio.ByteOrder
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -266,6 +265,7 @@ class EndianAwareDataSeekableStreamTest {
     fun readLineBE() {
         EndianAwareDataSeekableStream(ByteArraySeekableStream(TEST_DATA)).use { stream ->
             stream.order = ByteOrder.BIG_ENDIAN
+            @Suppress("DEPRECATION")
             stream.readLine()
         }
     }
@@ -274,6 +274,7 @@ class EndianAwareDataSeekableStreamTest {
     fun readLineLE() {
         EndianAwareDataSeekableStream(ByteArraySeekableStream(TEST_DATA)).use { stream ->
             stream.order = ByteOrder.LITTLE_ENDIAN
+            @Suppress("DEPRECATION")
             stream.readLine()
         }
     }

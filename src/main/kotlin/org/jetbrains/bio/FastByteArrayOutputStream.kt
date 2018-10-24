@@ -34,13 +34,13 @@ internal class FastByteArrayOutputStream(private val capacity: Int = 8192) :
 
         assert(offset >= 0 && length >= 0 && offset + length <= src.size) { "oops" }
 
-        var offset = offset  // :(
+        var currentOffset = offset  // :(
         var remaining = length
         while (remaining > 0) {
             tryComplete()
             val available = Math.min(remaining, capacity - pos)
-            System.arraycopy(src, offset, buf, pos, available)
-            offset += available
+            System.arraycopy(src, currentOffset, buf, pos, available)
+            currentOffset += available
             pos += available
             remaining -= available
         }

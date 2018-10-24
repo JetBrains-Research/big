@@ -56,6 +56,7 @@ internal inline fun <T> Logger.time(message: String, block: () -> T): T {
 }
 
 /** A function which simply ignores a given [_value]. */
+@Suppress("UNUSED_PARAMETER")
 internal fun ignore(_value: Any?) {}
 
 /** A marker function for "impossible" `when` branches. */

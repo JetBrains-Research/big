@@ -131,11 +131,11 @@ data class BedEntry(
             if (extraStr.isEmpty()) {
                 null
             } else {
-                val limit = (extraFieldsNumber ?: -1) + 1
+                val extraLimit = (extraFieldsNumber ?: -1) + 1
                 val extraFields = if (omitEmptyStrings) {
-                    Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).splitToList(extraStr)
+                    Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(extraLimit).splitToList(extraStr)
                 } else {
-                    extraStr.split(delimiter, limit = limit)
+                    extraStr.split(delimiter, limit = extraLimit)
                 }
                 if (extraFieldsNumber == null) {
                     extraFields.toTypedArray()
