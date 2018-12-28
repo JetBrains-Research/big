@@ -357,4 +357,26 @@ data class ExtendedBedEntry(
         }
         return rest
     }
+
+    operator fun get(i: Int, fieldsNumber: Int, extraFieldsNumber: Int): Any? {
+        return when {
+            i >= fieldsNumber + extraFieldsNumber -> null
+            i >= fieldsNumber -> extraFields?.get(i - fieldsNumber)
+            else -> when (i) {
+                0 -> start
+                1 -> end
+                2 -> chrom
+                3 -> name
+                4 -> score
+                5 -> strand
+                6 -> thickStart
+                7 -> thickEnd
+                8 -> itemRgb
+                9 -> blockCount
+                10 -> blockSizes
+                11 -> blockStarts
+                else -> null // should never happen
+            }
+        }
+    }
 }
