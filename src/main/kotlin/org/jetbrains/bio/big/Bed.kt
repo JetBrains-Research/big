@@ -358,7 +358,7 @@ data class ExtendedBedEntry(
         return rest
     }
 
-    operator fun get(i: Int, fieldsNumber: Int, extraFieldsNumber: Int): Any? {
+    fun getFieldByIndex(i: Int, fieldsNumber: Int, extraFieldsNumber: Int): Any? {
         return when {
             i >= fieldsNumber + extraFieldsNumber -> null
             i >= fieldsNumber -> extraFields?.get(i - fieldsNumber)
