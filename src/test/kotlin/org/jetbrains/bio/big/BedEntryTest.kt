@@ -319,7 +319,7 @@ class BedEntryTest {
     fun getFieldBed12p2() = assertGet(12, 2)
 
     private fun assertGet(fieldsNumber: Int = 12, extraFieldsNumber: Int? = null) {
-        val actualFields = (0 until 14).map { e.getFieldByIndex(it, fieldsNumber, extraFieldsNumber) }
+        val actualFields = (0 until 14).map { e.getField(it, fieldsNumber, extraFieldsNumber) }
         val realExtraFieldsNumber = extraFieldsNumber ?: 2
         val expectedFields = listOf<Any?>(
             "chr1", 10, 30, "be", 5.toShort(), '+', 15, 25, Color(15, 16, 17).rgb,
