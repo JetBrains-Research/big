@@ -4,6 +4,7 @@ import org.junit.Assert
 import org.junit.Test
 import java.awt.Color
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * @author Roman.Chernyatchik
@@ -285,6 +286,65 @@ class BedEntryTest {
             ExtendedBedEntry("chr1", 1, 100, extraFields = arrayOf(".", ".")),
             BedEntry("chr1", 1, 100, ".\t.\t.\t.\t.\t.\t.\t.\t.\t.\t.").unpack()
         )
+    }
+
+    @Test
+    fun getField() = assertGet()
+
+    @Test
+    fun getFieldBed3p0() = assertGet(3, 0)
+
+    @Test
+    fun getFieldBed3pAll() = assertGet(3)
+
+    @Test
+    fun getFieldBed6p0() = assertGet(6, 0)
+
+    @Test
+    fun getFieldBed6p1() = assertGet(6, 1)
+
+    @Test
+    fun getFieldBed6p2() = assertGet(6, 2)
+
+    @Test
+    fun getFieldBed6pAll() = assertGet(6)
+
+    @Test
+    fun getFieldBed9p2() = assertGet(9, 2)
+
+    @Test
+    fun getFieldBed12p0() = assertGet(12, 0)
+
+    @Test
+    fun getFieldBed12p2() = assertGet(12, 2)
+
+    private fun assertGet(fieldsNumber: Int = 12, extraFieldsNumber: Int? = null) {
+        val actualFields = (0 until 14).map { e.getFieldByIndex(it, fieldsNumber, extraFieldsNumber) }
+        val realExtraFieldsNumber = extraFieldsNumber ?: 2
+        val expectedFields = listOf<Any?>(
+            "chr1", 10, 30, "be", 5.toShort(), '+', 15, 25, Color(15, 16, 17).rgb,
+            2, intArrayOf(4, 5), intArrayOf(11, 20)
+        ).slice(0 until fieldsNumber).toMutableList()
+        expectedFields.addAll(listOf("val1", "4.55").slice(0 until realExtraFieldsNumber))
+        // out-of-bounds fields are always null
+        (fieldsNumber + realExtraFieldsNumber until 14).forEach { expectedFields.add(null) }
+        for (i in 0 until 14) {
+            val expectedField = expectedFields[i]
+            val actualField = actualFields[i]
+            // a special case for IntArray, since assertEquals is not array-friendly
+            if (expectedField is IntArray) {
+                assertTrue(
+                    actualField is IntArray,
+                    "Expected IntArray as field $i, got ${actualField?.javaClass ?: "null"}"
+                )
+                assertEquals(
+                    expectedField.toList(), (actualField as IntArray).toList(),
+                    "Assertion error when reading field $i"
+                )
+            } else {
+                assertEquals(expectedField, actualField, "Assertion error when reading field $i")
+            }
+        }
     }
 
     private fun assertPackAndRest(expected: BedEntry, e: ExtendedBedEntry, fieldsNumber: Byte, extraFieldsNumber: Int) {
