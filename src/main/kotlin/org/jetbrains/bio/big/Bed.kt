@@ -371,9 +371,9 @@ data class ExtendedBedEntry(
                 if (i - fieldsNumber < it.size) it[i - fieldsNumber] else null
             }
             else -> when (i) {
-                0 -> start
-                1 -> end
-                2 -> chrom
+                0 -> chrom
+                1 -> start
+                2 -> end
                 3 -> name
                 4 -> score
                 5 -> strand
