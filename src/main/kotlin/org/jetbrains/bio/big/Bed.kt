@@ -358,10 +358,18 @@ data class ExtendedBedEntry(
         return rest
     }
 
-    fun getFieldByIndex(i: Int, fieldsNumber: Int, extraFieldsNumber: Int): Any? {
+    /**
+     * Returns a i-th field of a Bed entry. Since ExtendedBedEntry is format-agnostic,
+     * it doesn't actually know which field is i-th, so we have to provide [fieldsNumber] and [extraFieldsNumber].
+     * Returns an instance of a correct type ([Int], [String] etc.) or null for missing and out of bounds fields.
+     */
+    fun getFieldByIndex(i: Int, fieldsNumber: Int = 12, extraFieldsNumber: Int? = null): Any? {
+        val actualExtraFieldsNumber = extraFieldsNumber ?: extraFields?.size ?: 0
         return when {
-            i >= fieldsNumber + extraFieldsNumber -> null
-            i >= fieldsNumber -> extraFields?.get(i - fieldsNumber)
+            i >= fieldsNumber + actualExtraFieldsNumber -> null
+            i >= fieldsNumber -> extraFields?.let {
+                if (i - fieldsNumber < it.size) it[i - fieldsNumber] else null
+            }
             else -> when (i) {
                 0 -> start
                 1 -> end
