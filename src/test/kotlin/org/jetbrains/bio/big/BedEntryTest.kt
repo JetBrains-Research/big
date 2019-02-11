@@ -11,77 +11,72 @@ import kotlin.test.assertTrue
  */
 class BedEntryTest {
 
-    private val e = ExtendedBedEntry(
-        "chr1", 10, 30, "be", 5, '+', 15, 25,
-        Color(15, 16, 17).rgb, 2, intArrayOf(4, 5), intArrayOf(11, 20),
-        arrayOf("val1", "4.55")
-    )
-
     @Test fun pack() {
         val expected = BedEntry(
             "chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20\tval1\t4.55"
         )
-        assertEquals(expected, e.pack())
-        assertEquals(expected.rest.split("\t"), e.rest())
+        assertEquals(expected, BED_ENTRY_12_P_2.pack())
+        assertEquals(expected.rest.split("\t"), BED_ENTRY_12_P_2.rest())
     }
 
     @Test fun packBed3p0() {
         val expected = BedEntry("chr1", 10, 30, "")
-        assertPackAndRest(expected, e, 3, 0)
+        assertPackAndRest(expected, BED_ENTRY_12_P_2, 3, 0)
     }
 
     @Test fun packBed3pAll() {
         val expected = BedEntry("chr1", 10, 30, "val1\t4.55")
-        assertEquals(expected, e.pack(fieldsNumber = 3))
-        assertEquals(expected.rest.split("\t"), e.rest(fieldsNumber = 3))
+        assertEquals(expected, BED_ENTRY_12_P_2.pack(fieldsNumber = 3))
+        assertEquals(expected.rest.split("\t"), BED_ENTRY_12_P_2.rest(fieldsNumber = 3))
     }
 
     @Test fun packBed6pAll() {
         val expected = BedEntry("chr1", 10, 30, "be\t5\t+\tval1\t4.55")
-        assertEquals(expected, e.pack(fieldsNumber = 6))
-        assertEquals(expected.rest.split("\t"), e.rest(fieldsNumber = 6))
+        assertEquals(expected, BED_ENTRY_12_P_2.pack(fieldsNumber = 6))
+        assertEquals(expected.rest.split("\t"), BED_ENTRY_12_P_2.rest(fieldsNumber = 6))
     }
 
     @Test fun packBed6p0() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+"), e, 6, 0
+        BedEntry("chr1", 10, 30, "be\t5\t+"), BED_ENTRY_12_P_2, 6, 0
     )
 
     @Test fun packBed6p1() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+\tval1"), e, 6, 1
+        BedEntry("chr1", 10, 30, "be\t5\t+\tval1"), BED_ENTRY_12_P_2, 6, 1
     )
 
     @Test fun packBed6p2() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+\tval1\t4.55"), e, 6, 2
+        BedEntry("chr1", 10, 30, "be\t5\t+\tval1\t4.55"), BED_ENTRY_12_P_2, 6, 2
     )
 
     @Test fun packBed9p2() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\tval1\t4.55"), e,
+        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\tval1\t4.55"), BED_ENTRY_12_P_2,
         9, 2
     )
 
     @Test fun packBed12p0() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20"), e,
+        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20"), BED_ENTRY_12_P_2,
         12, 0
     )
 
     @Test fun packBed12p2() = assertPackAndRest(
-        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20\tval1\t4.55"), e,
+        BedEntry("chr1", 10, 30, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20\tval1\t4.55"),
+        BED_ENTRY_12_P_2,
         12, 2
     )
 
     @Test(expected = IllegalStateException::class)
     fun packBed2() {
-        e.pack(fieldsNumber = 2)
+        BED_ENTRY_12_P_2.pack(fieldsNumber = 2)
     }
 
     @Test(expected = IllegalStateException::class)
     fun packBed13() {
-        e.pack(fieldsNumber = 13)
+        BED_ENTRY_12_P_2.pack(fieldsNumber = 13)
     }
 
     @Test fun packBedCustomDelimiter() {
         assertEquals(BedEntry("chr1", 10, 30, "be;5;+;val1;4.55"),
-            e.pack(fieldsNumber = 6, extraFieldsNumber = 2, delimiter = ';'))
+            BED_ENTRY_12_P_2.pack(fieldsNumber = 6, extraFieldsNumber = 2, delimiter = ';'))
     }
 
     @Test(expected = IllegalStateException::class)
@@ -319,7 +314,7 @@ class BedEntryTest {
     fun getFieldBed12p2() = assertGet(12, 2)
 
     private fun assertGet(fieldsNumber: Int = 12, extraFieldsNumber: Int? = null) {
-        val actualFields = (0 until 14).map { e.getField(it, fieldsNumber, extraFieldsNumber) }
+        val actualFields = (0 until 14).map { BED_ENTRY_12_P_2.getField(it, fieldsNumber, extraFieldsNumber) }
         val realExtraFieldsNumber = extraFieldsNumber ?: 2
         val expectedFields = listOf<Any?>(
             "chr1", 10, 30, "be", 5.toShort(), '+', 15, 25, Color(15, 16, 17).rgb,
@@ -362,6 +357,14 @@ class BedEntryTest {
         Assert.assertArrayEquals(
             toTypedArray,
             e.rest(fieldsNumber = fieldsNumber, extraFieldsNumber = extraFieldsNumber).toTypedArray()
+        )
+    }
+
+    companion object {
+        val BED_ENTRY_12_P_2 = ExtendedBedEntry(
+            "chr1", 10, 30, "be", 5, '+', 15, 25,
+            Color(15, 16, 17).rgb, 2, intArrayOf(4, 5), intArrayOf(11, 20),
+            arrayOf("val1", "4.55")
         )
     }
 }
