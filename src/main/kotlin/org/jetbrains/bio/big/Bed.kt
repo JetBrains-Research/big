@@ -383,7 +383,7 @@ data class ExtendedBedEntry(
                 9 -> blockCount
                 10 -> blockSizes
                 11 -> blockStarts
-                else -> null // should never happen
+                else -> null
             }
         }
     }
