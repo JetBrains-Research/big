@@ -357,4 +357,34 @@ data class ExtendedBedEntry(
         }
         return rest
     }
+
+    /**
+     * Returns a i-th field of a Bed entry. Since ExtendedBedEntry is format-agnostic,
+     * it doesn't actually know which field is i-th, so we have to provide [fieldsNumber] and [extraFieldsNumber].
+     * Returns an instance of a correct type ([Int], [String] etc.) or null for missing and out of bounds fields.
+     */
+    fun getField(i: Int, fieldsNumber: Int = 12, extraFieldsNumber: Int? = null): Any? {
+        val actualExtraFieldsNumber = extraFieldsNumber ?: extraFields?.size ?: 0
+        return when {
+            i >= fieldsNumber + actualExtraFieldsNumber -> null
+            i >= fieldsNumber -> extraFields?.let {
+                if (i - fieldsNumber < it.size) it[i - fieldsNumber] else null
+            }
+            else -> when (i) {
+                0 -> chrom
+                1 -> start
+                2 -> end
+                3 -> name
+                4 -> score
+                5 -> strand
+                6 -> thickStart
+                7 -> thickEnd
+                8 -> itemRgb
+                9 -> blockCount
+                10 -> blockSizes
+                11 -> blockStarts
+                else -> null
+            }
+        }
+    }
 }
