@@ -3,6 +3,16 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
+Version 0.8.4
+-------------
+
+Released on Feb 12th 2019
+
+New
+-  `ExtendedBedEntry.getField` is a public method that returns the `i`th field of the entry
+  as an instance of a correct type, whatever that might be, with no need for conversion
+  to and from `String`.
+
 Version 0.8.3
 -------------
 
