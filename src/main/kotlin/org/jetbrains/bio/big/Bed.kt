@@ -19,7 +19,7 @@ class BedFile(val path: Path) : Iterable<BedEntry>, Closeable {
         return reader.lines().map { line ->
             val chunks = line.split('\t', limit = 4)
             BedEntry(chunks[0], chunks[1].toInt(), chunks[2].toInt(),
-                     if (chunks.size == 3) "" else chunks[3])
+                if (chunks.size == 3) "" else chunks[3])
         }.iterator()
     }
 
@@ -59,9 +59,11 @@ data class BedEntry(
      * @param delimiter Custom delimiter for malformed data
      * @param omitEmptyStrings Treat several consecutive separators as one
      */
-    fun unpack(fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
-               delimiter: Char = '\t',
-               omitEmptyStrings: Boolean = false): ExtendedBedEntry {
+    fun unpack(
+            fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
+            delimiter: Char = '\t',
+            omitEmptyStrings: Boolean = false
+    ): ExtendedBedEntry {
 
         check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
 
@@ -80,7 +82,7 @@ data class BedEntry(
         val score = when {
             fieldsNumber >= 5 && it.hasNext() -> {
                 val chunk = it.next()
-                if (chunk == ".") 0 else chunk.toShort()
+                if (chunk == ".") 0 else chunk.toInt()
             }
             else -> 0
         }
@@ -147,10 +149,12 @@ data class BedEntry(
             null
         }
 
-        return ExtendedBedEntry(chrom, start, end,
-                                if (name == "") "." else name,
-                                score, strand, thickStart, thickEnd, color,
-                                blockCount, blockSizes, blockStarts, extraFields)
+        return ExtendedBedEntry(
+            chrom, start, end,
+            if (name == "") "." else name,
+            score, strand, thickStart, thickEnd, color,
+            blockCount, blockSizes, blockStarts, extraFields
+        )
     }
 
     private fun String.splitToInts(size: Int): IntArray {
@@ -179,9 +183,9 @@ data class ExtendedBedEntry(
         val end: Int,
         /** Name of feature. */
         val name: String = ".",
-        /** A number from [0, 1000] that controls shading of item. */
-        val score: Short = 0,
-
+        // UCSC defines score as an integer in range [0,1000], but almost everyone ignores the range.
+        /** Feature score */
+        val score: Int = 0,
         /** + or – or . for unknown. */
         val strand: Char = '.',
         /** The starting position at which the feature is drawn thickly. **/
@@ -237,7 +241,7 @@ data class ExtendedBedEntry(
         result = 31 * result + start
         result = 31 * result + end
         result = 31 * result + name.hashCode()
-        result = 31 * result + score
+        result = 31 * result + score.hashCode()
         result = 31 * result + strand.hashCode()
         result = 31 * result + thickStart
         result = 31 * result + thickEnd
@@ -250,18 +254,18 @@ data class ExtendedBedEntry(
     }
 
     override fun toString() = MoreObjects.toStringHelper(this)
-                .add("chrom", chrom)
-                .add("start", start).add("end", end)
-                .add("name", name)
-                .add("score", score)
-                .add("strand", strand)
-                .add("thickStart", thickStart).add("thickEnd", thickEnd)
-                .add("itemRgb", itemRgb)
-                .add("blocks", when {
-                    blockCount == 0 || blockSizes == null -> "[]"
-                    blockStarts == null -> Arrays.toString(blockSizes)
-                    else -> blockStarts.zip(blockSizes)
-                }).add("extra", extraFields?.joinToString("\t") ?: "")
+            .add("chrom", chrom)
+            .add("start", start).add("end", end)
+            .add("name", name)
+            .add("score", score)
+            .add("strand", strand)
+            .add("thickStart", thickStart).add("thickEnd", thickEnd)
+            .add("itemRgb", itemRgb)
+            .add("blocks", when {
+                blockCount == 0 || blockSizes == null -> "[]"
+                blockStarts == null -> Arrays.toString(blockSizes)
+                else -> blockStarts.zip(blockSizes)
+            }).add("extra", extraFields?.joinToString("\t") ?: "")
             .toString()
 
     /**
@@ -278,8 +282,8 @@ data class ExtendedBedEntry(
         check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
 
         return BedEntry(
-                chrom, start, end,
-                rest(fieldsNumber, extraFieldsNumber).joinToString(delimiter.toString())
+            chrom, start, end,
+            rest(fieldsNumber, extraFieldsNumber).joinToString(delimiter.toString())
         )
     }
 
