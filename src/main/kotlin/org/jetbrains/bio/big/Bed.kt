@@ -60,7 +60,8 @@ data class BedEntry(
      * @param omitEmptyStrings Treat several consecutive separators as one
      */
     fun unpack(
-            fieldsNumber: Byte = 12, extraFieldsNumber: Int? = null,
+            fieldsNumber: Byte = 12,
+            extraFieldsNumber: Int? = null,
             delimiter: Char = '\t',
             omitEmptyStrings: Boolean = false
     ): ExtendedBedEntry {
