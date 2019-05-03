@@ -8,7 +8,7 @@ Version 0.8.5
 
 Released on XXXXXX
 
-New
+Fixed
 - `ExtendedBedEntry.score` is now Int instead of Short. The reason for this is that many
   BED file providers (e.g. MACS2, SICER) don't respect the UCSC standard which limits the score
   to 0..1000 range, and we want to be able to parse those files.
