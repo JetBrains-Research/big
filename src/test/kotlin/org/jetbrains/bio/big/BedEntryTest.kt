@@ -174,6 +174,17 @@ class BedEntryTest {
         )
     }
 
+    @Test fun unpackBed6p4IntScore() {
+        val bedEntry = BedEntry("chr1", 1, 100, ".\t40000\t+\t34.56398\t-1.00000\t4.91755\t240")
+        assertEquals(
+            ExtendedBedEntry(
+                "chr1", 1, 100, ".", 40000, '+',
+                extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
+            ),
+            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+        )
+    }
+
     @Test fun unpackBedEmptyName() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
         assertEquals(
