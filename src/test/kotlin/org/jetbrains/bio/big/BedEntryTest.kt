@@ -174,6 +174,17 @@ class BedEntryTest {
         )
     }
 
+    @Test fun unpackBed6p4IntScore() {
+        val bedEntry = BedEntry("chr1", 1, 100, ".\t40000\t+\t34.56398\t-1.00000\t4.91755\t240")
+        assertEquals(
+            ExtendedBedEntry(
+                "chr1", 1, 100, ".", 40000, '+',
+                extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
+            ),
+            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+        )
+    }
+
     @Test fun unpackBedEmptyName() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
         assertEquals(
@@ -317,7 +328,7 @@ class BedEntryTest {
         val actualFields = (0 until 14).map { BED_ENTRY_12_P_2.getField(it, fieldsNumber, extraFieldsNumber) }
         val realExtraFieldsNumber = extraFieldsNumber ?: 2
         val expectedFields = listOf<Any?>(
-            "chr1", 10, 30, "be", 5.toShort(), '+', 15, 25, Color(15, 16, 17).rgb,
+            "chr1", 10, 30, "be", 5, '+', 15, 25, Color(15, 16, 17).rgb,
             2, intArrayOf(4, 5), intArrayOf(11, 20)
         ).slice(0 until fieldsNumber).toMutableList()
         expectedFields.addAll(listOf("val1", "4.55").slice(0 until realExtraFieldsNumber))
