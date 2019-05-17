@@ -367,6 +367,11 @@ data class ExtendedBedEntry(
      * Returns a i-th field of a Bed entry. Since ExtendedBedEntry is format-agnostic,
      * it doesn't actually know which field is i-th, so we have to provide [fieldsNumber] and [extraFieldsNumber].
      * Returns an instance of a correct type ([Int], [String] etc.) or null for missing and out of bounds fields.
+     * This method is useful for minimizing the number of conversions to and from [String].
+     * @param i the index of the field being queried (zero-based)
+     * @param fieldsNumber the number of regular BED fields (N in bedN+K notation)
+     * @param extraFieldsNumber the number of extra BED fields (0 for bedN, K for bedN+K, null for bedN+).
+     *  The extra fields are always returned as [String].
      */
     fun getField(i: Int, fieldsNumber: Int = 12, extraFieldsNumber: Int? = null): Any? {
         val actualExtraFieldsNumber = extraFieldsNumber ?: extraFields?.size ?: 0
