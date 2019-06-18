@@ -1,7 +1,9 @@
 package org.jetbrains.bio.big
 
 import org.junit.Assert
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExpectedException
 import java.awt.Color
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -10,6 +12,9 @@ import kotlin.test.assertTrue
  * @author Roman.Chernyatchik
  */
 class BedEntryTest {
+
+    @Rule
+    @JvmField var thrown: ExpectedException = ExpectedException.none()
 
     @Test fun pack() {
         val expected = BedEntry(
@@ -132,24 +137,16 @@ class BedEntryTest {
 
     @Test fun unpackBed3as12() {
         val bedEntry = BedEntry("chr1", 1, 100, "")
-        try {
-            bedEntry.unpack(fieldsNumber = 12)
-        } catch (e: BedEntryUnpackException) {
-            assertEquals(3, e.fieldIdx, "Missing field index is wrong")
-            return
-        }
-        assertTrue(false, "bed3 parsed as bed12 without throwing")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 4. Reason: field is missing")
+        bedEntry.unpack(fieldsNumber = 12)
     }
 
     @Test fun unpackBed6as12() {
         val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+")
-        try {
-            bedEntry.unpack(fieldsNumber = 12)
-        } catch (e: BedEntryUnpackException) {
-            assertEquals(6, e.fieldIdx, "Missing field index is wrong")
-            return
-        }
-        assertTrue(false, "bed6 parsed as bed12 without throwing")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 7. Reason: field is missing")
+        bedEntry.unpack(fieldsNumber = 12)
     }
 
     @Test fun unpackBed12as6() {
