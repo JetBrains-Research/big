@@ -132,8 +132,35 @@ class BedEntryTest {
 
     @Test fun unpackBed3as12() {
         val bedEntry = BedEntry("chr1", 1, 100, "")
+        try {
+            bedEntry.unpack(fieldsNumber = 12)
+        } catch (e: BedEntryUnpackException) {
+            assertEquals(3, e.fieldIdx, "Missing field index is wrong")
+            return
+        }
+        assertTrue(false, "bed3 parsed as bed12 without throwing")
+    }
+
+    @Test fun unpackBed6as12() {
+        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+")
+        try {
+            bedEntry.unpack(fieldsNumber = 12)
+        } catch (e: BedEntryUnpackException) {
+            assertEquals(6, e.fieldIdx, "Missing field index is wrong")
+            return
+        }
+        assertTrue(false, "bed6 parsed as bed12 without throwing")
+    }
+
+    @Test fun unpackBed12as6() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20")
+        val actual = bedEntry.unpack(fieldsNumber = 6)
         assertEquals(
-            ExtendedBedEntry("chr1", 1, 100), bedEntry.unpack(fieldsNumber = 12)
+            ExtendedBedEntry(
+                "chr1", 1, 100, "be", 5, '+',
+                extraFields = arrayOf("15", "25", "15,16,17", "2", "4,5", "11,20")
+            ),
+            actual
         )
     }
 
