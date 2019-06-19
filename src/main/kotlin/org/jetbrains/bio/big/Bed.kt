@@ -8,9 +8,11 @@ import org.jetbrains.bio.bufferedReader
 import java.awt.Color
 import java.io.Closeable
 import java.io.IOException
+import java.lang.IllegalStateException
 import java.lang.Integer.min
 import java.nio.file.Path
 import java.util.*
+import kotlin.NoSuchElementException
 
 class BedFile(val path: Path) : Iterable<BedEntry>, Closeable {
     private val reader = path.bufferedReader()
@@ -167,7 +169,8 @@ data class BedEntry(
                     value.splitToInts(blockCount)
                 } catch (e: Exception) {
                     throw BedEntryUnpackException(
-                        this, 10, "blockSizes is not a comma-separated integer list of size $blockCount", e
+                        this, 10,
+                        "blockSizes value $value is not a comma-separated integer list of size $blockCount", e
                     )
                 }
             } else null
@@ -180,7 +183,8 @@ data class BedEntry(
                     value.splitToInts(blockCount)
                 } catch (e: Exception) {
                     throw BedEntryUnpackException(
-                        this, 11, "blockStarts is not a comma-separated integer list of size $blockCount", e
+                        this, 11,
+                        "blockStarts value $value is not a comma-separated integer list of size $blockCount", e
                     )
                 }
             } else null
@@ -211,12 +215,9 @@ data class BedEntry(
         val chunks = IntArray(size)
         val s = Splitter.on(',').split(this).iterator()
         var ptr = 0
-        // actual fields my be less that size, but not vice versa
-        check(s.hasNext() == (size > 0))
-        while (s.hasNext() && ptr < size) {
+        while (ptr < size) {
             chunks[ptr++] = s.next().toInt()
         }
-
         return chunks
     }
 }
