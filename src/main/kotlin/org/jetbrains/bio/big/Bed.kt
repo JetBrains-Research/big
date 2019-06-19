@@ -83,18 +83,17 @@ data class BedEntry(
         val limit = fieldsNumber.toInt() - 3 + 1
         val fields = when {
             rest.isEmpty() -> emptyList<String>()
-            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).split(rest)
+            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).splitToList(rest)
             else -> rest.split(delimiter, limit = limit)
-        }.toList()
+        }
         if (fields.size < fieldsNumber - 3) {
             throw BedEntryUnpackException(this, (fields.size + 3).toByte(), "field is missing")
         }
-        val it = fields.iterator()
 
-        val name = if (fieldsNumber >= 4) it.next() else "."
+        val name = if (fieldsNumber >= 4) fields[0] else "."
         val score = when {
             fieldsNumber >= 5 -> {
-                val chunk = it.next()
+                val chunk = fields[1]
                 if (chunk == ".") {
                     0
                 } else {
@@ -104,10 +103,10 @@ data class BedEntry(
             }
             else -> 0
         }
-        val strand = if (fieldsNumber >= 6) it.next().firstOrNull() ?: '.' else '.'
+        val strand = if (fieldsNumber >= 6) fields[2].firstOrNull() ?: '.' else '.'
         val thickStart = when {
             fieldsNumber >= 7 -> {
-                val chunk = it.next()
+                val chunk = fields[3]
                 if (chunk == ".") {
                     0
                 } else {
@@ -119,7 +118,7 @@ data class BedEntry(
         }
         val thickEnd = when {
             fieldsNumber >= 8 -> {
-                val chunk = it.next()
+                val chunk = fields[4]
                 if (chunk == ".") {
                     0
                 } else {
@@ -130,7 +129,7 @@ data class BedEntry(
             else -> 0
         }
         val color = if (fieldsNumber >= 9) {
-            val value = it.next()
+            val value = fields[5]
             if (value == "0" || value == ".") {
                 0
             } else {
@@ -146,7 +145,7 @@ data class BedEntry(
         }
         val blockCount = when {
             fieldsNumber >= 10 -> {
-                val chunk = it.next()
+                val chunk = fields[6]
                 if (chunk == ".") {
                     0
                 } else {
@@ -158,7 +157,7 @@ data class BedEntry(
         }
 
         val blockSizes = if (fieldsNumber >= 11) {
-            val value = it.next()
+            val value = fields[7]
             if (blockCount > 0) {
                 try {
                     value.splitToInts(blockCount)
@@ -171,7 +170,7 @@ data class BedEntry(
         } else null
 
         val blockStarts = if (fieldsNumber >= 12) {
-            val value = it.next()
+            val value = fields[8]
             if (blockCount > 0) {
                 try {
                     value.splitToInts(blockCount)
@@ -183,8 +182,8 @@ data class BedEntry(
             } else null
         } else null
 
-        val extraFields = if (extraFieldsNumber != 0 && it.hasNext()) {
-            val extraStr = it.next()
+        val extraFields = if (extraFieldsNumber != 0 && fields.size > fieldsNumber - 3) {
+            val extraStr = fields[fieldsNumber - 3]
             if (extraStr.isEmpty()) {
                 null
             } else {
