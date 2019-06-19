@@ -8,11 +8,8 @@ import org.jetbrains.bio.bufferedReader
 import java.awt.Color
 import java.io.Closeable
 import java.io.IOException
-import java.lang.IllegalStateException
-import java.lang.Integer.min
 import java.nio.file.Path
 import java.util.*
-import kotlin.NoSuchElementException
 
 class BedFile(val path: Path) : Iterable<BedEntry>, Closeable {
     private val reader = path.bufferedReader()
@@ -210,6 +207,18 @@ data class BedEntry(
             blockCount, blockSizes, blockStarts, extraFields
         )
     }
+
+    @Deprecated(
+        "use parseExtraFields instead of extraFieldsNumber",
+        ReplaceWith("unpack(fieldsNumber, extraFieldsNumber != 0, delimiter, omitEmptyStrings)")
+    )
+    fun unpack(
+            fieldsNumber: Byte = 12,
+            extraFieldsNumber: Int?,
+            delimiter: Char = '\t',
+            omitEmptyStrings: Boolean = false
+    ) = unpack(fieldsNumber, extraFieldsNumber != 0, delimiter, omitEmptyStrings)
+
 
     private fun String.splitToInts(size: Int): IntArray {
         val chunks = IntArray(size)
