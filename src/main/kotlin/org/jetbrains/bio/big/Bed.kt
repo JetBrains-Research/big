@@ -59,35 +59,35 @@ data class BedEntry(
     /**
      * Unpacks a basic bed3 [BedEntry] into a bedN+ [ExtendedBedEntry].
      *
-     * Correctly parses the typed BED fields (such as score, color or blockSizes). Extra (non-standard) fields
-     * are stored in [ExtendedBedEntry.extraFields] property as a [String] array.
+     * Correctly parses the typed BED fields (such as score, color or blockSizes). Extra (non-standard) fields,
+     * if any (and if [parseExtraFields] is enabled) are stored in [ExtendedBedEntry.extraFields]
+     * property as a [String] array (null if no extra fields or [parseExtraFields] is disabled).
      *
      * @throws BedEntryUnpackException if this entry couldn't be parsed, either because there are too few fields
      * or because the field values don't conform to the standard, e.g. score is not an integer number. The exception
      * contains the BED entry and the index of the offending field.
      *
      * @param fieldsNumber Expected regular BED format fields number to parse (3..12)
-     * @param extraFieldsNumber BED+ format extra fields number to parse, if null parse all extra fields
+     * @param parseExtraFields Whether to parse or discard the BED+ format extra fields.
      * @param delimiter Custom delimiter for malformed data
      * @param omitEmptyStrings Treat several consecutive separators as one
      */
     fun unpack(
             fieldsNumber: Byte = 12,
-            extraFieldsNumber: Int? = null,
+            parseExtraFields: Boolean = true,
             delimiter: Char = '\t',
             omitEmptyStrings: Boolean = false
     ): ExtendedBedEntry {
 
         check(fieldsNumber in 3..12) { "Fields number expected in range 3..12, but was $fieldsNumber" }
 
-        val limit = when (extraFieldsNumber) {
-            null -> 0
-            else -> fieldsNumber.toInt() - 3 + extraFieldsNumber + 1
-        }
+        val limit = if (parseExtraFields) 0 else fieldsNumber.toInt() - 3 + 1
 
         val fields = when {
             rest.isEmpty() -> emptyList<String>()
-            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).splitToList(rest)
+            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().let {
+                if (limit == 0) it else it.limit(limit)
+            }.splitToList(rest)
             else -> rest.split(delimiter, limit = limit)
         }
         if (fields.size < fieldsNumber - 3) {
@@ -187,10 +187,7 @@ data class BedEntry(
         } else null
 
 
-        val actualExtraFieldsNumber = when (extraFieldsNumber) {
-            null -> fields.size - fieldsNumber + 3
-            else -> min(extraFieldsNumber, fields.size - fieldsNumber + 3)
-        }
+        val actualExtraFieldsNumber = if (parseExtraFields) fields.size - fieldsNumber + 3 else 0
 
         val extraFields = if (actualExtraFieldsNumber != 0) {
             val parsedExtraFields = Array(actualExtraFieldsNumber) { i -> fields[fieldsNumber - 3 + i] }

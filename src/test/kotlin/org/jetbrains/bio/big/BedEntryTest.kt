@@ -125,7 +125,7 @@ class BedEntryTest {
                 0, 0,
                 extraFields = arrayOf("193.07668", "-1.00000", "4.91755", "171"))
         )
-        assertEquals(bedEntries, bedEntries.map { it.pack().unpack(extraFieldsNumber = 4) })
+        assertEquals(bedEntries, bedEntries.map { it.pack().unpack() })
     }
 
     @Test fun unpackBed3() {
@@ -164,15 +164,8 @@ class BedEntryTest {
     @Test fun unpackBed3p0() {
         val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000\t4.91755\t240")
         assertEquals(
-            ExtendedBedEntry("chr1", 1, 100), bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 0)
-        )
-    }
-
-    @Test fun unpackBed3p4Partial() {
-        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000\t4.91755\t240")
-        assertEquals(
-            ExtendedBedEntry("chr1", 1, 100, extraFields = arrayOf(".", "4", "+", "34.56398")),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4)
+            ExtendedBedEntry("chr1", 1, 100),
+            bedEntry.unpack(fieldsNumber = 3, parseExtraFields = false)
         )
     }
 
@@ -183,7 +176,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 3)
         )
     }
 
@@ -194,7 +187,7 @@ class BedEntryTest {
                 "chr1", 1, 100, ".", 4, '+',
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -205,7 +198,7 @@ class BedEntryTest {
                 "chr1", 1, 100, ".", 40000, '+',
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -231,29 +224,18 @@ class BedEntryTest {
         )
     }
 
-    @Test fun unpackMoreExtraFieldsThanNeeded() {
-        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000")
-        assertEquals(
-            ExtendedBedEntry(
-                "chr1", 1, 100, ".", 4, '+',
-                extraFields = arrayOf("34.56398", "-1.00000")
-            ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
-        )
-    }
-
     @Test fun unpackLessExtraFieldsThanNeeded() {
         val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+")
         assertEquals(
             ExtendedBedEntry("chr1", 1, 100, ".", extraFields = arrayOf("4", "+")),
-            bedEntry.unpack(fieldsNumber = 4, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 4)
         )
     }
     @Test fun unpackNoExtraFieldsWhenNeeded() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
         assertEquals(
             ExtendedBedEntry("chr1", 1, 100, ".", 4, '+'),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 1)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -285,7 +267,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4, delimiter = ';')
+            bedEntry.unpack(fieldsNumber = 3, delimiter = ';')
         )
     }
 
@@ -296,9 +278,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(
-                fieldsNumber = 3, extraFieldsNumber = 4, delimiter = ' ', omitEmptyStrings = true
-            )
+            bedEntry.unpack(fieldsNumber = 3, delimiter = ' ', omitEmptyStrings = true)
         )
     }
 
