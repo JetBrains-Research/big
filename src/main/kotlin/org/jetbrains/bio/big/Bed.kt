@@ -80,7 +80,11 @@ data class BedEntry(
 
         check(fieldsNumber in 3..12) { "Fields number expected in range 3..12, but was $fieldsNumber" }
 
-        val limit = fieldsNumber.toInt() - 3 + 1
+        val limit = when (extraFieldsNumber) {
+            null -> 0
+            else -> fieldsNumber.toInt() - 3 + extraFieldsNumber + 1
+        }
+
         val fields = when {
             rest.isEmpty() -> emptyList<String>()
             omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).splitToList(rest)
@@ -182,23 +186,18 @@ data class BedEntry(
             } else null
         } else null
 
-        val extraFields = if (extraFieldsNumber != 0 && fields.size > fieldsNumber - 3) {
-            val extraStr = fields[fieldsNumber - 3]
-            if (extraStr.isEmpty()) {
-                null
-            } else {
-                val extraLimit = (extraFieldsNumber ?: -1) + 1
-                val extraFields = if (omitEmptyStrings) {
-                    Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(extraLimit).splitToList(extraStr)
-                } else {
-                    extraStr.split(delimiter, limit = extraLimit)
-                }
-                if (extraFieldsNumber == null) {
-                    extraFields.toTypedArray()
-                } else {
-                    Array(min(extraFieldsNumber, extraFields.size)) { i -> extraFields[i] }
-                }
-            }
+
+        val actualExtraFieldsNumber = when (extraFieldsNumber) {
+            null -> fields.size - fieldsNumber + 3
+            else -> min(extraFieldsNumber, fields.size - fieldsNumber + 3)
+        }
+
+        val extraFields = if (actualExtraFieldsNumber != 0) {
+            val parsedExtraFields = Array(actualExtraFieldsNumber) { i -> fields[fieldsNumber - 3 + i] }
+            // this specific check is intended to exactly replicate the original behaviour:
+            // extraFields are null if the bed entry tail is an empty string.
+            // see e.g. [BedEntryTest.unpackBedEmptyExtraFields2]
+            if (actualExtraFieldsNumber > 1 || parsedExtraFields[0] != "") parsedExtraFields else null
         } else {
             null
         }
@@ -241,7 +240,7 @@ data class ExtendedBedEntry(
         val end: Int,
         /** Name of feature. */
         val name: String = ".",
-        // UCSC defines score as an integer in range [0,1000], but almost everyone ignores the range.
+    // UCSC defines score as an integer in range [0,1000], but almost everyone ignores the range.
         /** Feature score */
         val score: Int = 0,
         /** + or – or . for unknown. */
