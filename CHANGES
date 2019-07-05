@@ -3,13 +3,21 @@ big Changelog
 
 Here you can see the full list of changes between each big release.
 
-Version 0.8.5
+Version 0.9.0
 -------------
 
-Released on XXXXXX
+Released on Jul 5th 2019
 
+Changed
+-  `BedEntry.unpack` logic has changed significantly. It now throws on missing fields. The exception can be
+  used to determine the offending field and adjust the BED format correspondingly.
+-  `BedEntry.unpack` now controls the extra fields parsing with a flag instead of a number. The old signature
+  remains available for compatibility sake, but is deprecated.
+New
+-  `BedEntryUnpackException` is thrown when `BedEntry.unpack` fails to parse an entry. The exception properties
+  provide the reason and the number of the field which caused parsing to fail.
 Fixed
-- `ExtendedBedEntry.score` is now Int instead of Short. The reason for this is that many
+-  `ExtendedBedEntry.score` is now Int instead of Short. The reason for this is that many
   BED file providers (e.g. MACS2, SICER) don't respect the UCSC standard which limits the score
   to 0..1000 range, and we want to be able to parse those files.
 

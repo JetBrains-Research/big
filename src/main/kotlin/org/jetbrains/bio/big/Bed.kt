@@ -8,7 +8,6 @@ import org.jetbrains.bio.bufferedReader
 import java.awt.Color
 import java.io.Closeable
 import java.io.IOException
-import java.lang.Integer.min
 import java.nio.file.Path
 import java.util.*
 
@@ -35,6 +34,10 @@ class BedFile(val path: Path) : Iterable<BedEntry>, Closeable {
 
 /**
  * A minimal representation of a BED file entry.
+ *
+ * The BED standard absolutely requires three fields: [chrom], [start] and [end]. The remaining line is
+ * stored in [rest]. It might or might not contain other, more optional BED fields, such as name, score or color.
+ * Use [unpack] to obtain an [ExtendedBedEntry] where these fields are properly parsed.
  */
 data class BedEntry(
         /** Chromosome name, e.g. `"chr9"`. */
@@ -53,99 +56,146 @@ data class BedEntry(
             .result()
 
     /**
-     * Parses minimal representation
-     * @param fieldsNumber Expected BED format fields number to parse (3..12)
-     * @param extraFieldsNumber BED+ format extra fields number to parse, if null parse all extra fields
+     * Unpacks a basic bed3 [BedEntry] into a bedN+ [ExtendedBedEntry].
+     *
+     * Correctly parses the typed BED fields (such as score, color or blockSizes). Extra (non-standard) fields,
+     * if any (and if [parseExtraFields] is enabled) are stored in [ExtendedBedEntry.extraFields]
+     * property as a [String] array (null if no extra fields or [parseExtraFields] is disabled).
+     *
+     * @throws BedEntryUnpackException if this entry couldn't be parsed, either because there are too few fields
+     * or because the field values don't conform to the standard, e.g. score is not an integer number. The exception
+     * contains the BED entry and the index of the offending field.
+     *
+     * @param fieldsNumber Expected regular BED format fields number to parse (3..12)
+     * @param parseExtraFields Whether to parse or discard the BED+ format extra fields.
      * @param delimiter Custom delimiter for malformed data
      * @param omitEmptyStrings Treat several consecutive separators as one
      */
     fun unpack(
             fieldsNumber: Byte = 12,
-            extraFieldsNumber: Int? = null,
+            parseExtraFields: Boolean = true,
             delimiter: Char = '\t',
             omitEmptyStrings: Boolean = false
     ): ExtendedBedEntry {
 
-        check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
+        check(fieldsNumber in 3..12) { "Fields number expected in range 3..12, but was $fieldsNumber" }
 
-        // This impl parsed only BED9 and adds 9..12 fields to 'rest' string
-        val limit = fieldsNumber.toInt() - 3 + 1
-        val it = when {
-            rest.isEmpty() -> emptyArray<String>().iterator()
-            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(limit).split(rest).iterator()
-            else -> rest.split(delimiter, limit = limit).iterator()
+        val limit = if (parseExtraFields) 0 else fieldsNumber.toInt() - 3 + 1
+
+        val fields = when {
+            rest.isEmpty() -> emptyList<String>()
+            omitEmptyStrings -> Splitter.on(delimiter).trimResults().omitEmptyStrings().let {
+                if (limit == 0) it else it.limit(limit)
+            }.splitToList(rest)
+            else -> rest.split(delimiter, limit = limit)
+        }
+        if (fields.size < fieldsNumber - 3) {
+            throw BedEntryUnpackException(this, (fields.size + 3).toByte(), "field is missing")
         }
 
-        // If line is shorter than suggested fields number do not throw an error
-        // it could be ok for default behaviour, when user not sure how much fields
-        // do we actually have
-        val name = if (fieldsNumber >= 4 && it.hasNext()) it.next() else "."
+        val name = if (fieldsNumber >= 4) fields[0] else "."
         val score = when {
-            fieldsNumber >= 5 && it.hasNext() -> {
-                val chunk = it.next()
-                if (chunk == ".") 0 else chunk.toInt()
+            fieldsNumber >= 5 -> {
+                val chunk = fields[1]
+                if (chunk == ".") {
+                    0
+                } else {
+                    chunk.toIntOrNull()
+                            ?: throw BedEntryUnpackException(this, 4, "score value $chunk is not an integer")
+                }
             }
             else -> 0
         }
-        val strand = if (fieldsNumber >= 6 && it.hasNext()) it.next().first() else '.'
+        val strand = if (fieldsNumber >= 6) fields[2].firstOrNull() ?: '.' else '.'
         val thickStart = when {
-            fieldsNumber >= 7 && it.hasNext() -> {
-                val chunk = it.next()
-                if (chunk == ".") 0 else chunk.toInt()
+            fieldsNumber >= 7 -> {
+                val chunk = fields[3]
+                if (chunk == ".") {
+                    0
+                } else {
+                    chunk.toIntOrNull()
+                            ?: throw BedEntryUnpackException(this, 6, "thickStart value $chunk is not an integer")
+                }
             }
             else -> 0
         }
         val thickEnd = when {
-            fieldsNumber >= 8 && it.hasNext() -> {
-                val chunk = it.next()
-                if (chunk == ".") 0 else chunk.toInt()
+            fieldsNumber >= 8 -> {
+                val chunk = fields[4]
+                if (chunk == ".") {
+                    0
+                } else {
+                    chunk.toIntOrNull()
+                            ?: throw BedEntryUnpackException(this, 7, "thickEnd value $chunk is not an integer")
+                }
             }
             else -> 0
         }
-        val color = if (fieldsNumber >= 9 && it.hasNext()) {
-            val value = it.next()
+        val color = if (fieldsNumber >= 9) {
+            val value = fields[5]
             if (value == "0" || value == ".") {
                 0
             } else {
-                val chunks = value.split(',', limit = 3)
-                Color(chunks[0].toInt(), chunks[1].toInt(), chunks[2].toInt()).rgb
+                try {
+                    val chunks = value.split(',', limit = 3)
+                    Color(chunks[0].toInt(), chunks[1].toInt(), chunks[2].toInt()).rgb
+                } catch (e: Exception) {
+                    throw BedEntryUnpackException(this, 8, "color value $value is not a comma-separated RGB", e)
+                }
             }
         } else {
             0
         }
         val blockCount = when {
-            fieldsNumber >= 10 && it.hasNext() -> {
-                val chunk = it.next()
-                if (chunk == ".") 0 else chunk.toInt()
+            fieldsNumber >= 10 -> {
+                val chunk = fields[6]
+                if (chunk == ".") {
+                    0
+                } else {
+                    chunk.toIntOrNull()
+                            ?: throw BedEntryUnpackException(this, 9, "blockCount value $chunk is not an integer")
+                }
             }
             else -> 0
         }
-        val blockSizes = if (fieldsNumber >= 11 && it.hasNext()) {
-            val value = it.next()
-            if (blockCount > 0) value.splitToInts(blockCount) else null
-        } else null
-        val blockStarts = if (fieldsNumber >= 12 && it.hasNext()) {
-            val value = it.next()
-            if (blockCount > 0) value.splitToInts(blockCount) else null
+
+        val blockSizes = if (fieldsNumber >= 11) {
+            val value = fields[7]
+            if (blockCount > 0) {
+                try {
+                    value.splitToInts(blockCount)
+                } catch (e: Exception) {
+                    throw BedEntryUnpackException(
+                        this, 10,
+                        "blockSizes value $value is not a comma-separated integer list of size $blockCount", e
+                    )
+                }
+            } else null
         } else null
 
-        val extraFields = if (extraFieldsNumber != 0 && it.hasNext()) {
-            val extraStr = it.next()
-            if (extraStr.isEmpty()) {
-                null
-            } else {
-                val extraLimit = (extraFieldsNumber ?: -1) + 1
-                val extraFields = if (omitEmptyStrings) {
-                    Splitter.on(delimiter).trimResults().omitEmptyStrings().limit(extraLimit).splitToList(extraStr)
-                } else {
-                    extraStr.split(delimiter, limit = extraLimit)
+        val blockStarts = if (fieldsNumber >= 12) {
+            val value = fields[8]
+            if (blockCount > 0) {
+                try {
+                    value.splitToInts(blockCount)
+                } catch (e: Exception) {
+                    throw BedEntryUnpackException(
+                        this, 11,
+                        "blockStarts value $value is not a comma-separated integer list of size $blockCount", e
+                    )
                 }
-                if (extraFieldsNumber == null) {
-                    extraFields.toTypedArray()
-                } else {
-                    Array(min(extraFieldsNumber, extraFields.size)) { i -> extraFields[i] }
-                }
-            }
+            } else null
+        } else null
+
+
+        val actualExtraFieldsNumber = if (parseExtraFields) fields.size - fieldsNumber + 3 else 0
+
+        val extraFields = if (actualExtraFieldsNumber != 0) {
+            val parsedExtraFields = Array(actualExtraFieldsNumber) { i -> fields[fieldsNumber - 3 + i] }
+            // this specific check is intended to exactly replicate the original behaviour:
+            // extraFields are null if the bed entry tail is an empty string.
+            // see e.g. [BedEntryTest.unpackBedEmptyExtraFields2]
+            if (actualExtraFieldsNumber > 1 || parsedExtraFields[0] != "") parsedExtraFields else null
         } else {
             null
         }
@@ -158,22 +208,35 @@ data class BedEntry(
         )
     }
 
+    @Deprecated(
+        "use parseExtraFields instead of extraFieldsNumber",
+        ReplaceWith("unpack(fieldsNumber, extraFieldsNumber != 0, delimiter, omitEmptyStrings)")
+    )
+    fun unpack(
+            fieldsNumber: Byte = 12,
+            extraFieldsNumber: Int?,
+            delimiter: Char = '\t',
+            omitEmptyStrings: Boolean = false
+    ) = unpack(fieldsNumber, extraFieldsNumber != 0, delimiter, omitEmptyStrings)
+
+
     private fun String.splitToInts(size: Int): IntArray {
         val chunks = IntArray(size)
         val s = Splitter.on(',').split(this).iterator()
         var ptr = 0
-        // actual fields my be less that size, but not vice versa
-        check(s.hasNext() == (size > 0))
-        while (s.hasNext() && ptr < size) {
+        while (ptr < size) {
             chunks[ptr++] = s.next().toInt()
         }
-
         return chunks
     }
 }
 
 /**
  * An extended representation of a BED file entry.
+ *
+ * The BED standard allows 3 up to 12 regular fields (bed3 through bed12) and an arbitrary number
+ * of custom extra fields (bedN+K format). The first 12 properties represent the regular fields (default values
+ * are used to stand in for the missing data). [extraFields] property stores the extra fields as a [String] array.
  */
 data class ExtendedBedEntry(
         /** Chromosome name, e.g. `"chr9"`. */
@@ -184,7 +247,7 @@ data class ExtendedBedEntry(
         val end: Int,
         /** Name of feature. */
         val name: String = ".",
-        // UCSC defines score as an integer in range [0,1000], but almost everyone ignores the range.
+    // UCSC defines score as an integer in range [0,1000], but almost everyone ignores the range.
         /** Feature score */
         val score: Int = 0,
         /** + or – or . for unknown. */
@@ -270,7 +333,11 @@ data class ExtendedBedEntry(
             .toString()
 
     /**
-     * Convert to BedEntry
+     * Convert to [BedEntry].
+     *
+     * Intended as an inverse for [BedEntry.unpack]. Packs the optional fields (every field except the obligatory
+     * first three ones, chrom, start and end) in [BedEntry.rest].
+     *
      * @param fieldsNumber BED format fields number to serialize (3..12)
      * @param extraFieldsNumber BED+ format extra fields number to serialize, if null serialize all extra fields
      * @param delimiter Custom delimiter for malformed data
@@ -280,7 +347,7 @@ data class ExtendedBedEntry(
             extraFieldsNumber: Int? = null,
             delimiter: Char = '\t'
     ): BedEntry {
-        check(fieldsNumber in 3..12) { "Fields number expected 3..12, but was $fieldsNumber" }
+        check(fieldsNumber in 3..12) { "Expected fields number in range 3..12, but received $fieldsNumber" }
 
         return BedEntry(
             chrom, start, end,
@@ -289,8 +356,11 @@ data class ExtendedBedEntry(
     }
 
     /**
-     * List of rest string fields (all except obligatory) for bed entry, same fields as in [BedEntry.rest] after [pack]
-     * Values in string differs from original values because converted to string
+     * List of optional fields (all except the obligatory first three) for BED entry,
+     * same fields as in [BedEntry.rest] after [pack].
+     *
+     * Values in string differs from original values because converted to string.
+     *
      * @param fieldsNumber BED format fields number to serialize (3..12)
      * @param extraFieldsNumber BED+ format extra fields number to serialize, if null serialize all extra fields
      */
@@ -364,14 +434,17 @@ data class ExtendedBedEntry(
     }
 
     /**
-     * Returns a i-th field of a Bed entry. Since ExtendedBedEntry is format-agnostic,
-     * it doesn't actually know which field is i-th, so we have to provide [fieldsNumber] and [extraFieldsNumber].
+     * Returns a i-th field of a Bed entry.
+     *
+     * Since [ExtendedBedEntry] is format-agnostic, it doesn't actually know which field is i-th,
+     * so we have to provide [fieldsNumber] and [extraFieldsNumber].
      * Returns an instance of a correct type ([Int], [String] etc.) or null for missing and out of bounds fields.
      * This method is useful for minimizing the number of conversions to and from [String].
+     *
      * @param i the index of the field being queried (zero-based)
      * @param fieldsNumber the number of regular BED fields (N in bedN+K notation)
      * @param extraFieldsNumber the number of extra BED fields (0 for bedN, K for bedN+K, null for bedN+).
-     *  The extra fields are always returned as [String].
+     * The extra fields are always returned as [String].
      */
     fun getField(i: Int, fieldsNumber: Int = 12, extraFieldsNumber: Int? = null): Any? {
         val actualExtraFieldsNumber = extraFieldsNumber ?: extraFields?.size ?: 0
@@ -398,3 +471,7 @@ data class ExtendedBedEntry(
         }
     }
 }
+
+class BedEntryUnpackException(
+        val entry: BedEntry, val fieldIdx: Byte, reason: String, cause: Throwable? = null
+) : Exception("Unpacking BED entry failed at field ${fieldIdx + 1}. Reason: $reason", cause)

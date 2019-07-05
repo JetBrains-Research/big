@@ -1,7 +1,9 @@
 package org.jetbrains.bio.big
 
 import org.junit.Assert
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExpectedException
 import java.awt.Color
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -10,6 +12,9 @@ import kotlin.test.assertTrue
  * @author Roman.Chernyatchik
  */
 class BedEntryTest {
+
+    @Rule
+    @JvmField var thrown: ExpectedException = ExpectedException.none()
 
     @Test fun pack() {
         val expected = BedEntry(
@@ -120,7 +125,7 @@ class BedEntryTest {
                 0, 0,
                 extraFields = arrayOf("193.07668", "-1.00000", "4.91755", "171"))
         )
-        assertEquals(bedEntries, bedEntries.map { it.pack().unpack(extraFieldsNumber = 4) })
+        assertEquals(bedEntries, bedEntries.map { it.pack().unpack() })
     }
 
     @Test fun unpackBed3() {
@@ -132,23 +137,35 @@ class BedEntryTest {
 
     @Test fun unpackBed3as12() {
         val bedEntry = BedEntry("chr1", 1, 100, "")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 4. Reason: field is missing")
+        bedEntry.unpack(fieldsNumber = 12)
+    }
+
+    @Test fun unpackBed6as12() {
+        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 7. Reason: field is missing")
+        bedEntry.unpack(fieldsNumber = 12)
+    }
+
+    @Test fun unpackBed12as6() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t5\t+\t15\t25\t15,16,17\t2\t4,5\t11,20")
+        val actual = bedEntry.unpack(fieldsNumber = 6)
         assertEquals(
-            ExtendedBedEntry("chr1", 1, 100), bedEntry.unpack(fieldsNumber = 12)
+            ExtendedBedEntry(
+                "chr1", 1, 100, "be", 5, '+',
+                extraFields = arrayOf("15", "25", "15,16,17", "2", "4,5", "11,20")
+            ),
+            actual
         )
     }
 
     @Test fun unpackBed3p0() {
         val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000\t4.91755\t240")
         assertEquals(
-            ExtendedBedEntry("chr1", 1, 100), bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 0)
-        )
-    }
-
-    @Test fun unpackBed3p4Partial() {
-        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000\t4.91755\t240")
-        assertEquals(
-            ExtendedBedEntry("chr1", 1, 100, extraFields = arrayOf(".", "4", "+", "34.56398")),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4)
+            ExtendedBedEntry("chr1", 1, 100),
+            bedEntry.unpack(fieldsNumber = 3, parseExtraFields = false)
         )
     }
 
@@ -159,7 +176,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 3)
         )
     }
 
@@ -170,7 +187,7 @@ class BedEntryTest {
                 "chr1", 1, 100, ".", 4, '+',
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -181,7 +198,7 @@ class BedEntryTest {
                 "chr1", 1, 100, ".", 40000, '+',
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -207,29 +224,19 @@ class BedEntryTest {
         )
     }
 
-    @Test fun unpackMoreExtraFieldsThanNeeded() {
-        val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+\t34.56398\t-1.00000")
-        assertEquals(
-            ExtendedBedEntry(
-                "chr1", 1, 100, ".", 4, '+',
-                extraFields = arrayOf("34.56398", "-1.00000")
-            ),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 4)
-        )
-    }
-
     @Test fun unpackLessExtraFieldsThanNeeded() {
         val bedEntry = BedEntry("chr1", 1, 100, ".\t4\t+")
         assertEquals(
             ExtendedBedEntry("chr1", 1, 100, ".", extraFields = arrayOf("4", "+")),
-            bedEntry.unpack(fieldsNumber = 4, extraFieldsNumber = 4)
+            bedEntry.unpack(fieldsNumber = 4)
         )
     }
+
     @Test fun unpackNoExtraFieldsWhenNeeded() {
         val bedEntry = BedEntry("chr1", 1, 100, "\t4\t+")
         assertEquals(
             ExtendedBedEntry("chr1", 1, 100, ".", 4, '+'),
-            bedEntry.unpack(fieldsNumber = 6, extraFieldsNumber = 1)
+            bedEntry.unpack(fieldsNumber = 6)
         )
     }
 
@@ -261,7 +268,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(fieldsNumber = 3, extraFieldsNumber = 4, delimiter = ';')
+            bedEntry.unpack(fieldsNumber = 3, delimiter = ';')
         )
     }
 
@@ -272,9 +279,7 @@ class BedEntryTest {
                 "chr1", 1, 100,
                 extraFields = arrayOf("34.56398", "-1.00000", "4.91755", "240")
             ),
-            bedEntry.unpack(
-                fieldsNumber = 3, extraFieldsNumber = 4, delimiter = ' ', omitEmptyStrings = true
-            )
+            bedEntry.unpack(fieldsNumber = 3, delimiter = ' ', omitEmptyStrings = true)
         )
     }
 
@@ -293,6 +298,78 @@ class BedEntryTest {
             BedEntry("chr1", 1, 100, ".\t.\t.\t.\t.\t.\t.\t.\t.\t.\t.").unpack()
         )
     }
+
+    @Test
+    fun unpackInvalidScore() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3.4\t+\t10\t15")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 5.")
+        thrown.expectMessage("Reason: score value 3.4 is not an integer")
+        bedEntry.unpack(8)
+    }
+
+    @Test
+    fun unpackInvalidStrand() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\tq\t10\t15")
+        thrown.expect(IllegalArgumentException::class.java)
+        thrown.expectMessage("Unexpected strand value: q")
+        bedEntry.unpack(8)
+    }
+
+    @Test
+    fun unpackInvalidThickStart() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\ta\t15")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 7.")
+        thrown.expectMessage("Reason: thickStart value a is not an integer")
+        bedEntry.unpack(8)
+    }
+
+    @Test
+    fun unpackInvalidThickEnd() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\t10\t")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 8.")
+        thrown.expectMessage("Reason: thickEnd value  is not an integer")
+        bedEntry.unpack(8)
+    }
+
+    @Test
+    fun unpackInvalidColor() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\t10\t15\tolive\t2\t4,5\t10,11")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 9.")
+        thrown.expectMessage("Reason: color value olive is not a comma-separated RGB")
+        bedEntry.unpack(12)
+    }
+
+    @Test
+    fun unpackInvalidBlockCount() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\t10\t15\t0,128,0\ttwo\t4,5\t10,11")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 10.")
+        thrown.expectMessage("Reason: blockCount value two is not an integer")
+        bedEntry.unpack(12)
+    }
+
+    @Test
+    fun unpackInvalidBlockSizes() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\t10\t15\t0,128,0\t3\t4,5\t10,11")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 11.")
+        thrown.expectMessage("Reason: blockSizes value 4,5 is not a comma-separated integer list of size 3")
+        bedEntry.unpack(12)
+    }
+
+    @Test
+    fun unpackInvalidBlockStarts() {
+        val bedEntry = BedEntry("chr1", 1, 100, "be\t3\t+\t10\t15\t0,128,0\t2\t4,5\ta,b")
+        thrown.expect(BedEntryUnpackException::class.java)
+        thrown.expectMessage("Unpacking BED entry failed at field 12.")
+        thrown.expectMessage("Reason: blockStarts value a,b is not a comma-separated integer list of size 2")
+        bedEntry.unpack(12)
+    }
+
 
     @Test
     fun getField() = assertGet()

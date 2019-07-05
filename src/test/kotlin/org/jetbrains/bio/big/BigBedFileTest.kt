@@ -80,10 +80,10 @@ class BigBedFileTest(
             val items = bb.query("chr1")
             assertEquals(ExtendedBedEntry("chr1", 0, 9800, "15_Quies", 0, '.',
                                           0, 9800, Color(255, 255, 255).rgb),
-                         items.first().unpack())
+                         items.first().unpack(fieldsNumber = 9))
             assertEquals(ExtendedBedEntry("chr1", 724000, 727200, "8_ZNF/Rpts", 0, '.',
                                           724000, 727200, Color(102, 205, 170).rgb),
-                         items.last().unpack())
+                         items.last().unpack(fieldsNumber = 9))
         }
     }
 
