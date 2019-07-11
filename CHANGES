@@ -6,7 +6,7 @@ Here you can see the full list of changes between each big release.
 Version 0.9.0
 -------------
 
-Released on Jul 5th 2019
+Released on Jul 11th 2019
 
 Changed
 -  `BedEntry.unpack` logic has changed significantly. It now throws on missing fields. The exception can be
@@ -20,6 +20,7 @@ Fixed
 -  `ExtendedBedEntry.score` is now Int instead of Short. The reason for this is that many
   BED file providers (e.g. MACS2, SICER) don't respect the UCSC standard which limits the score
   to 0..1000 range, and we want to be able to parse those files.
+
 
 Version 0.8.4
 -------------
