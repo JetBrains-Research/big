@@ -1,6 +1,7 @@
-# big
-
+[![JetBrains Research](https://jb.gg/badges/research.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 Linux/MacOS [![Build status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Epigenome_Tools_Big)/statusIcon.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Epigenome_Tools_Big&guest=1)  Windows [![Build status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:Epigenome_Tools_BigWindows)/statusIcon.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Epigenome_Tools_BigWindows&guest=1)
+
+# big
 
 `big` implements high performance classes for reading and writing BigWIG,
 BigBED and TDF. You can use `big` in any programming language running on the
