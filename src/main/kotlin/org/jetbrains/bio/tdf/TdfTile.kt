@@ -1,8 +1,8 @@
 package org.jetbrains.bio.tdf
 
-import org.apache.log4j.Logger
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.ScoredInterval
+import org.slf4j.LoggerFactory
 
 /**
  * Data container in [TdfFile].
@@ -22,7 +22,7 @@ interface TdfTile {
     val size: Int
 
     companion object {
-        private val LOG = Logger.getLogger(TdfTile::class.java)
+        private val LOG = LoggerFactory.getLogger(TdfTile::class.java)
 
         internal fun read(input: RomBuffer, expectedTracks: Int) = with(input) {
             val type = readCString()

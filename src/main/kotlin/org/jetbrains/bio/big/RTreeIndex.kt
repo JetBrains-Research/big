@@ -3,11 +3,10 @@ package org.jetbrains.bio.big
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
-import org.apache.log4j.Level
-import org.apache.log4j.LogManager
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
+import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.ByteOrder
 import kotlin.math.max
@@ -220,7 +219,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger(RTreeIndex::class.java)
+        private val LOG = LoggerFactory.getLogger(RTreeIndex::class.java)
 
         internal fun read(input: RomBuffer, offset: Long): RTreeIndex {
             return RTreeIndex(Header.read(input, offset))
@@ -324,7 +323,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
         private fun computeLevels(leaves: List<RTreeIndexLeaf>,
                                   blockSize: Int): List<List<Interval>> {
             var intervals = leaves.map { it.interval }
-            if (LOG.isEnabledFor(Level.WARN)) {
+            if (LOG.isWarnEnabled) {
                 var containsIntersectedIntervalse = false
                 for (i in 1 until intervals.size) {
                     if (intervals[i] intersects intervals[i - 1]) {

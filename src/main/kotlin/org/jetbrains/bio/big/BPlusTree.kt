@@ -4,8 +4,8 @@ import com.google.common.math.IntMath
 import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import com.google.common.primitives.Shorts
-import org.apache.log4j.LogManager
 import org.jetbrains.bio.*
+import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.ByteOrder
 
@@ -140,7 +140,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
     }
 
     companion object {
-        private val LOG = LogManager.getLogger(BPlusTree::class.java)
+        private val LOG = LoggerFactory.getLogger(BPlusTree::class.java)
 
         internal fun read(input: RomBuffer, offset: Long): BPlusTree {
             return BPlusTree(Header.read(input, offset))
@@ -321,7 +321,7 @@ private data class BPlusNode(
     }
 }
 
-private const val NULL_BYTE = 0.toByte()
+private val NULL_BYTE = 0.toByte()
 fun ByteArray.trimToString(keySize: Int): String {
     var nameLen = keySize
     for (i in 0 until keySize) {

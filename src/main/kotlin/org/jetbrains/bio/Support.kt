@@ -5,7 +5,7 @@ import com.google.common.collect.Iterators
 import com.google.common.collect.UnmodifiableIterator
 import com.google.common.math.IntMath
 import com.google.common.math.LongMath
-import org.apache.log4j.Logger
+import org.slf4j.Logger
 import java.io.BufferedReader
 import java.math.RoundingMode
 import java.nio.file.Files

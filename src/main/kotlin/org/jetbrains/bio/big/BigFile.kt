@@ -5,9 +5,9 @@ import gnu.trove.TCollections
 import gnu.trove.map.TIntObjectMap
 import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.commons.math3.util.Precision
-import org.apache.log4j.LogManager
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.bio.*
+import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.IOException
 import java.nio.ByteOrder
@@ -466,7 +466,7 @@ abstract class BigFile<out T> internal constructor(
                                        val chrom: String)
 
     companion object {
-        private val LOG = LogManager.getLogger(BigFile::class.java)
+        private val LOG = LoggerFactory.getLogger(BigFile::class.java)
         const val PREFETCH_LEVEL_OFF = 0
         const val PREFETCH_LEVEL_FAST = 1
         const val PREFETCH_LEVEL_DETAILED = 2
@@ -559,7 +559,7 @@ abstract class BigFile<out T> internal constructor(
 
     /** Ad hoc post-processing for [BigFile]. */
     protected object Post {
-        private val LOG = LogManager.getLogger(javaClass)
+        private val LOG = LoggerFactory.getLogger(javaClass)
 
         private inline fun <T> modify(
                 path: Path, offset: Long = 0L,
