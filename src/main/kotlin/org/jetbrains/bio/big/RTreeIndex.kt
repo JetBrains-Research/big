@@ -10,6 +10,8 @@ import org.jetbrains.bio.RomBuffer
 import org.jetbrains.bio.divCeiling
 import java.io.IOException
 import java.nio.ByteOrder
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * A 1-D R+ tree for storing genomic intervals.
@@ -262,7 +264,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
             val levelOffset = output.tell()
             var i = 0
             while (i < leaves.size) {
-                val leafCount = Math.min(blockSize, leaves.size - i)
+                val leafCount = min(blockSize, leaves.size - i)
                 with(output) {
                     writeBoolean(true)  // isLeaf.
                     writeByte(0)        // reserved.
@@ -298,7 +300,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                 var childOffset = levelOffset + bytesInCurrentBlock * nodeCount
                 var i = 0
                 while (i < level.size) {
-                    val childCount = Math.min(blockSize, level.size - i)
+                    val childCount = min(blockSize, level.size - i)
                     with(output) {
                         writeBoolean(false)  // isLeaf.
                         writeByte(0)         // reserved.
@@ -344,7 +346,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
                     // |-------|   parent
                     //   /   |
                     //  |-| |-|    links
-                    val links = intervals.subList(i, Math.min(intervals.size, i + blockSize))
+                    val links = intervals.subList(i, min(intervals.size, i + blockSize))
                     level.add(links.reduce(Interval::union))
                     i += blockSize
                 }
@@ -358,7 +360,7 @@ internal class RTreeIndex(val header: RTreeIndex.Header) {
 
             // Omit the root since it's trivial and leaves --- we'll deal
             // with them later.
-            return levels.subList(1, Math.max(1, levels.size - 1))
+            return levels.subList(1, max(1, levels.size - 1))
         }
     }
 }

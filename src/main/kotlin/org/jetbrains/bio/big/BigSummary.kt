@@ -6,6 +6,9 @@ import com.google.common.primitives.Ints
 import com.google.common.primitives.Longs
 import org.jetbrains.bio.OrderedDataOutput
 import org.jetbrains.bio.RomBuffer
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToLong
 
 data class BigSummary(
         /** An upper bound on the number of (bases) with actual data. */
@@ -26,17 +29,17 @@ data class BigSummary(
         count += intersection
         sum += value * intersection
         sumSquares += value * value * intersection
-        minValue = Math.min(minValue, value)
-        maxValue = Math.max(maxValue, value)
+        minValue = min(minValue, value)
+        maxValue = max(maxValue, value)
     }
 
     internal fun update(zoomData: ZoomData, intersection: Int, total: Int) {
         val weight = intersection.toDouble() / total
-        count += Math.round(zoomData.count * weight)
+        count += (zoomData.count * weight).roundToLong()
         sum += zoomData.sum * weight
         sumSquares += zoomData.sumSquares * weight
-        minValue = Math.min(minValue, zoomData.minValue.toDouble())
-        maxValue = Math.max(maxValue, zoomData.maxValue.toDouble())
+        minValue = min(minValue, zoomData.minValue.toDouble())
+        maxValue = max(maxValue, zoomData.maxValue.toDouble())
     }
 
     /** Because monoids rock. */
@@ -44,8 +47,8 @@ data class BigSummary(
         isEmpty()       -> other
         other.isEmpty() -> this
         else -> BigSummary(count + other.count,
-                           Math.min(minValue, other.minValue),
-                           Math.max(maxValue, other.maxValue),
+                           min(minValue, other.minValue),
+                           max(maxValue, other.maxValue),
                            sum + other.sum,
                            sumSquares + other.sumSquares)
     }
@@ -108,7 +111,7 @@ internal fun List<ZoomLevel>.pick(desiredReduction: Int): ZoomLevel? {
         var closest: ZoomLevel? = null
         for (zoomLevel in this) {
             val d = desiredReduction - zoomLevel.reduction
-            if (d >= 0 && d < Math.min(desiredReduction, acc)) {
+            if (d >= 0 && d < min(desiredReduction, acc)) {
                 acc = d
                 closest = zoomLevel
             }

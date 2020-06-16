@@ -1,7 +1,6 @@
 package org.jetbrains.bio
 
 import com.google.common.primitives.Bytes
-import org.apache.log4j.Logger
 import org.iq80.snappy.Snappy
 import org.jetbrains.bio.big.RTreeIndex
 import java.io.Closeable
@@ -158,7 +157,7 @@ abstract class RomBuffer : Closeable {
                             uncompressedBuf, 0)
                 }
                 CompressionType.NO_COMPRESSION -> {
-                    impossible()
+                    throw IllegalStateException("Unexpected compression: $compression")
                 }
             }
             val input = ByteBuffer.wrap(uncompressedBuf, 0, uncompressedSize)

@@ -599,7 +599,7 @@ abstract class BigFile<out T> internal constructor(
                 val zoomLevels = ArrayList<ZoomLevel>()
                 modify(path, offset = Files.size(path)) { bf, output ->
                     var reduction = initial
-                    for (level in 0 until bf.zoomLevels.size) {
+                    for (level in bf.zoomLevels.indices) {
                         val zoomLevel = reduction.zoomAt(
                                 bf, output, itemsPerSlot,
                                 reduction / step,

@@ -59,9 +59,6 @@ internal inline fun <T> Logger.time(message: String, block: () -> T): T {
 @Suppress("UNUSED_PARAMETER")
 internal fun ignore(_value: Any?) {}
 
-/** A marker function for "impossible" `when` branches. */
-inline fun impossible(): Nothing = throw IllegalStateException()
-
 internal operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, property: KProperty<*>) = get()
 
 internal operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) = set(value)

@@ -15,6 +15,8 @@ import java.io.BufferedReader
 import java.io.Closeable
 import java.io.Reader
 import java.util.*
+import kotlin.math.min
+import kotlin.math.roundToLong
 
 /**
  * A basic BedGraph format parser.
@@ -95,7 +97,7 @@ data class BedGraphSection(
             mean.increment((endOffsets[i] - startOffsets[i]).toDouble())
         }
 
-        return Ints.saturatedCast(Math.round(mean.result))
+        return Ints.saturatedCast(mean.result.roundToLong())
     }
 
     override val start: Int get() {
@@ -163,7 +165,7 @@ data class BedGraphSection(
         } else {
             (0 until chunks).mapUnboxed { i ->
                 val from = i * max
-                val to = Math.min((i + 1) * max, size)
+                val to = min((i + 1) * max, size)
                 copy(startOffsets = startOffsets.subList(from, to),
                      endOffsets = endOffsets.subList(from, to),
                      values = values.subList(from, to))

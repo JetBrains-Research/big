@@ -171,7 +171,7 @@ class BigWigFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Int = BigFile.PREFETCH_LEVEL_DETAILED,
+        fun read(src: String, prefetch: Int = PREFETCH_LEVEL_DETAILED,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigWigFile {
@@ -249,7 +249,7 @@ class BigWigFile private constructor(
             val summary = WigSectionSummary().apply { wigSections.forEach { this(it) } }
 
             val header = OrderedDataOutput(outputPath, order).use { output ->
-                output.skipBytes(BigFile.Header.BYTES)
+                output.skipBytes(Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
@@ -298,7 +298,7 @@ class BigWigFile private constructor(
                 cancelledChecker?.invoke()
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = 1)
-                BigFile.Header(
+                Header(
                         output.order, MAGIC,
                         version = if (compression == CompressionType.SNAPPY) 5 else 4,
                         zoomLevelCount = zoomLevelCount,
@@ -315,11 +315,11 @@ class BigWigFile private constructor(
             with(summary) {
                 if (count > 0) {
                     val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                    BigFile.Post.zoom(outputPath, initial = initial, cancelledChecker = cancelledChecker)
+                    Post.zoom(outputPath, initial = initial, cancelledChecker = cancelledChecker)
                 }
             }
 
-            BigFile.Post.totalSummary(outputPath)
+            Post.totalSummary(outputPath)
         }
     }
 }

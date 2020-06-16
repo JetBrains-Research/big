@@ -91,11 +91,12 @@ class BigBedFile private constructor(
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(path: Path, cancelledChecker: (() -> Unit)? = null) = read(path.toString(), cancelledChecker = cancelledChecker)
+        fun read(path: Path, cancelledChecker: (() -> Unit)? = null) =
+                read(path.toString(), cancelledChecker = cancelledChecker)
 
         @Throws(IOException::class)
         @JvmStatic
-        fun read(src: String, prefetch: Int = BigFile.PREFETCH_LEVEL_DETAILED,
+        fun read(src: String, prefetch: Int = PREFETCH_LEVEL_DETAILED,
                  cancelledChecker: (() -> Unit)? = null,
                  factoryProvider: RomBufferFactoryProvider = defaultFactory()
         ): BigBedFile {
@@ -118,6 +119,7 @@ class BigBedFile private constructor(
 
             /** Makes sure the entries are sorted by offset. */
             private var edge = 0
+
             /** Makes sure the entries are sorted by chromosome. */
             private var previous = ""
 
@@ -173,7 +175,7 @@ class BigBedFile private constructor(
             val summary = BedEntrySummary().apply { bedEntries.forEach { this(it) } }
 
             val header = OrderedDataOutput(outputPath, order).use { output ->
-                output.skipBytes(BigFile.Header.BYTES)
+                output.skipBytes(Header.BYTES)
                 output.skipBytes(ZoomLevel.BYTES * zoomLevelCount)
                 val totalSummaryOffset = output.tell()
                 output.skipBytes(BigSummary.BYTES)
@@ -228,7 +230,7 @@ class BigBedFile private constructor(
                 val unzoomedIndexOffset = output.tell()
                 RTreeIndex.write(output, leaves, itemsPerSlot = itemsPerSlot)
 
-                BigFile.Header(
+                Header(
                         output.order, MAGIC,
                         version = if (compression == CompressionType.SNAPPY) 5 else 4,
                         zoomLevelCount = zoomLevelCount,
@@ -245,11 +247,11 @@ class BigBedFile private constructor(
             with(summary) {
                 if (count > 0) {
                     val initial = Math.max(sum divCeiling count.toLong(), 1).toInt() * 10
-                    BigFile.Post.zoom(outputPath, itemsPerSlot, initial = initial, cancelledChecker = cancelledChecker)
+                    Post.zoom(outputPath, itemsPerSlot, initial = initial, cancelledChecker = cancelledChecker)
                 }
             }
 
-            BigFile.Post.totalSummary(outputPath)
+            Post.totalSummary(outputPath)
         }
     }
 }
@@ -272,7 +274,7 @@ private const val START = 1
 internal fun Sequence<BedEntry>.aggregate(): List<Pair<BedEntry, Int>> {
     val events = flatMap {
         sequenceOf(AggregationEvent(it.start, START, it),
-                   AggregationEvent(it.end, END, it))
+                AggregationEvent(it.end, END, it))
     }.toMutableList()
 
     events.sort()

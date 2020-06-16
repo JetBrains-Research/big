@@ -131,7 +131,7 @@ internal class BPlusTree(val header: BPlusTree.Header) {
 
                 val itemCount = readLong()
                 readLong()  // reserved.
-                val rootOffset = position.toLong()
+                val rootOffset = position
 
                 Header(order, blockSize, keySize, Ints.checkedCast(itemCount),
                        rootOffset)
@@ -321,7 +321,7 @@ private data class BPlusNode(
     }
 }
 
-private val NULL_BYTE = 0.toByte()
+private const val NULL_BYTE = 0.toByte()
 fun ByteArray.trimToString(keySize: Int): String {
     var nameLen = keySize
     for (i in 0 until keySize) {

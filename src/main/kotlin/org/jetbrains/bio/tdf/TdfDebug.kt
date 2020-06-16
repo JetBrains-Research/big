@@ -49,7 +49,7 @@ fun TdfFile.debug(includeTiles: Boolean = false) {
 
         println("Attributes")
         for ((key, value) in ds.attributes) {
-            println("\t" + key + " = " + value)
+            println("\t$key = $value")
         }
         println()
 
@@ -59,7 +59,7 @@ fun TdfFile.debug(includeTiles: Boolean = false) {
         for (i in 0 until ds.tileCount) {
             val tile = getTile(ds, i)
             if (tile != null) {
-                print("  " + i)
+                print("  $i")
                 if (includeTiles) {
                     val nBins = tile.size
                     val binsToShow = Math.min(4, nBins)

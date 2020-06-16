@@ -116,7 +116,7 @@ class OrderedDataOutput(
                     uncompressedBuf.size
                 }
                 CompressionType.NO_COMPRESSION -> {
-                    impossible()
+                    throw IllegalStateException("Unexpected compression: $compression")
                 }
             }
         }

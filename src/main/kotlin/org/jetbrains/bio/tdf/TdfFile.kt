@@ -9,6 +9,7 @@ import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.*
+import kotlin.math.min
 
 /**
  * A Tiled Data Format (TDF) reader.
@@ -25,7 +26,7 @@ import java.util.*
  *
  * @since 0.2.2
  */
-data class TdfFile private constructor(
+data class TdfFile internal constructor(
         val source: String,
         private val buffFactory: RomBufferFactory,
         private val header: Header,
@@ -67,7 +68,7 @@ data class TdfFile private constructor(
     ): List<TdfTile> {
         val startTile = startOffset / dataset.tileWidth
         val endTile = endOffset divCeiling dataset.tileWidth
-        return (startTile..Math.min(dataset.tileCount - 1, endTile)).mapNotNull {
+        return (startTile..min(dataset.tileCount - 1, endTile)).mapNotNull {
             cancelledChecker?.invoke()
             getTile(dataset, it)
         }
@@ -105,7 +106,7 @@ data class TdfFile private constructor(
     //     how to share resources between the dataset and 'TdfFile'.
     fun getTile(ds: TdfDataset, tileNumber: Int): TdfTile? {
         return with(ds) {
-            require(tileNumber in 0..(tileCount - 1)) { "invalid tile index" }
+            require(tileNumber in 0 until tileCount) { "invalid tile index" }
             val position = tilePositions[tileNumber]
             if (position < 0) {
                 return null  // Indicates empty tile.
@@ -182,7 +183,7 @@ data class TdfFile private constructor(
                                val headerSize: Int) {
         companion object {
             /** Number of bytes used for this header. */
-            val BYTES = 24
+            const val BYTES = 24
 
             internal fun read(input: RomBuffer) = with(input) {
                 val b = readBytes(4)
@@ -283,7 +284,7 @@ internal data class IndexEntry(val offset: Long, val size: Int)
  * It's perfectly valid to have zero datasets and groups, thus
  * the repeated fields ([] notation) can be empty.
  */
-internal data class TdfMasterIndex private constructor(
+internal data class TdfMasterIndex internal constructor(
         val datasets: Map<String, IndexEntry>,
         val groups: Map<String, IndexEntry>) {
 
@@ -312,7 +313,7 @@ internal data class TdfMasterIndex private constructor(
  * in the tiles, but IGV implementation seems to always use
  * floats.
  */
-data class TdfDataset private constructor(
+data class TdfDataset internal constructor(
         val attributes: Map<String, String>,
         val tileWidth: Int, val tileCount: Int,
         val tilePositions: LongArray, val tileSizes: IntArray) {
