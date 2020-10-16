@@ -37,8 +37,8 @@ class BetterSeekableBufferedStreamTestParametrized(
                 buff.add(stream.read())
             }
         }
-        Assert.assertEquals(BetterSeekableBufferedStreamTest.TEST_DATA.map { it.toInt() and 0xFF }, buff)
-        Assert.assertArrayEquals(BetterSeekableBufferedStreamTest.TEST_DATA, buff.map { it.toByte() }.toByteArray())
+        Assert.assertEquals(TEST_DATA.map { it.toInt() and 0xFF }, buff)
+        Assert.assertArrayEquals(TEST_DATA, buff.map { it.toByte() }.toByteArray())
     }
 
     @Test
@@ -56,8 +56,8 @@ class BetterSeekableBufferedStreamTestParametrized(
             assertEquals(-1, stream.read())
             assertTrue(stream.eof())
         }
-        Assert.assertEquals(BetterSeekableBufferedStreamTest.TEST_DATA.map { it.toInt() and 0xFF }, buff)
-        Assert.assertArrayEquals(BetterSeekableBufferedStreamTest.TEST_DATA, buff.map { it.toByte() }.toByteArray())
+        Assert.assertEquals(TEST_DATA.map { it.toInt() and 0xFF }, buff)
+        Assert.assertArrayEquals(TEST_DATA, buff.map { it.toByte() }.toByteArray())
     }
 
     @Test
@@ -80,7 +80,7 @@ class BetterSeekableBufferedStreamTestParametrized(
     @Test
     fun seekOutOfBounds() {
         createStream(10).use { stream ->
-            val oobPos = BetterSeekableBufferedStreamTest.TEST_DATA.size + 100L
+            val oobPos = TEST_DATA.size + 100L
             stream.seek(oobPos)
             assertEquals(oobPos, stream.position())
             assertEquals(oobPos, stream.position)
@@ -208,11 +208,11 @@ class BetterSeekableBufferedStreamTestParametrized(
         createStream(10).use { stream ->
             stream.read()
 
-            val n = BetterSeekableBufferedStreamTest.TEST_DATA.size.toLong()
+            val n = TEST_DATA.size.toLong()
             stream.seek(n - 4)
             assertEquals(
-                    BetterSeekableBufferedStreamTest.TEST_DATA[n.toInt() - 4].toInt() and 0xFF,
-                    stream.read()
+                TEST_DATA[n.toInt() - 4].toInt() and 0xFF,
+                stream.read()
             )
             assertEquals(n - 3, stream.position)
             assertCacheMatchesRealData(n - 4 to n, stream)
@@ -277,26 +277,26 @@ class BetterSeekableBufferedStreamTestParametrized(
             stream.seek(0L)
             stream.read()
             // force trimmed buffer rewritten
-            stream.seek((BetterSeekableBufferedStreamTest.TEST_DATA.size - 6).toLong())
+            stream.seek((TEST_DATA.size - 6).toLong())
             stream.read()
 
-            stream.seek((BetterSeekableBufferedStreamTest.TEST_DATA.size - 4).toLong())
+            stream.seek((TEST_DATA.size - 4).toLong())
             stream.fillBuffer_()
 
-            assertEquals((BetterSeekableBufferedStreamTest.TEST_DATA.size - 6).toLong(), stream.bufferStartOffset)
-            assertEquals(BetterSeekableBufferedStreamTest.TEST_DATA.size.toLong(), stream.bufferEndOffset)
+            assertEquals((TEST_DATA.size - 6).toLong(), stream.bufferStartOffset)
+            assertEquals(TEST_DATA.size.toLong(), stream.bufferEndOffset)
 
-            assertEquals(BetterSeekableBufferedStreamTest.TEST_DATA[BetterSeekableBufferedStreamTest.TEST_DATA.size - 4].toInt() and 0xFF, stream.read())
-            assertEquals((BetterSeekableBufferedStreamTest.TEST_DATA.size - 3).toLong(), stream.position)
+            assertEquals(TEST_DATA[TEST_DATA.size - 4].toInt() and 0xFF, stream.read())
+            assertEquals((TEST_DATA.size - 3).toLong(), stream.position)
 
             assertCacheMatchesRealData(18L to 24L, stream)
             // buffer size > available bytes => some garbage in the end of buffer
             assertEquals(
-                    when {
-                        doubleBuffer -> listOf(-13, -14, -15, -16, -17, -18, 0, 0, 0, 0)
-                        else -> listOf(-13, -14, -15, -16, -17, -18, 127, 34, -1, -128)
-                    },
-                    stream.buffer!!.map { it.toInt() }
+                when {
+                    doubleBuffer -> listOf(-13, -14, -15, -16, -17, -18, 0, 0, 0, 0)
+                    else -> listOf(-13, -14, -15, -16, -17, -18, 127, 34, -1, -128)
+                },
+                stream.buffer!!.map { it.toInt() }
             )
         }
     }
@@ -528,7 +528,7 @@ class BetterSeekableBufferedStreamTestParametrized(
 
     private fun createStream(bufferSize: Int, source: String? = null): BetterSeekableBufferedStream =
         BetterSeekableBufferedStream(
-            object : ByteArraySeekableStream(BetterSeekableBufferedStreamTest.TEST_DATA) {
+            object : ByteArraySeekableStream(TEST_DATA) {
                 override fun getSource() = source
             }, bufferSize, doubleBuffer
         )
@@ -559,7 +559,7 @@ class BetterSeekableBufferedStreamTest {
 
     @Test
     fun getSource() {
-        val byteStream = ByteArraySeekableStream(BetterSeekableBufferedStreamTest.TEST_DATA)
+        val byteStream = ByteArraySeekableStream(TEST_DATA)
         BetterSeekableBufferedStream(byteStream).use { stream ->
             assertEquals(byteStream.source, stream.source)
         }
@@ -567,9 +567,9 @@ class BetterSeekableBufferedStreamTest {
 
     @Test
     fun getLength() {
-        val byteStream = ByteArraySeekableStream(BetterSeekableBufferedStreamTest.TEST_DATA)
+        val byteStream = ByteArraySeekableStream(TEST_DATA)
         BetterSeekableBufferedStream(byteStream).use { stream ->
-            assertEquals(BetterSeekableBufferedStreamTest.TEST_DATA.size, stream.length().toInt())
+            assertEquals(TEST_DATA.size, stream.length().toInt())
         }
     }
 
@@ -933,11 +933,11 @@ class BetterSeekableBufferedStreamTest {
                 buffer: ByteArray,
                 bufferOffset: Int = 0
         ) {
-            val fromIndex = expectedBufferStartEnd.first.toInt()
-            val toIndex = expectedBufferStartEnd.second.toInt()
+            val fromIndex = expectedBufferStartEnd.first
+            val toIndex = expectedBufferStartEnd.second
             assertEquals(
-                    TEST_DATA.toList().subList(fromIndex, toIndex),
-                    buffer.toList().subList(bufferOffset + 0, bufferOffset + toIndex - fromIndex)
+                TEST_DATA.toList().subList(fromIndex, toIndex),
+                buffer.toList().subList(bufferOffset + 0, bufferOffset + toIndex - fromIndex)
             )
         }
     }
