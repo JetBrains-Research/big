@@ -2,11 +2,10 @@ package org.jetbrains.bio
 
 import htsjdk.samtools.seekablestream.ByteArraySeekableStream
 import org.apache.commons.math3.util.Precision
+import org.junit.Assert
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import java.io.EOFException
@@ -24,9 +23,6 @@ class RomBufferTest(
         val fp: NamedRomBufferFactoryProvider,
         val byteOrder: ByteOrder
 ) {
-    @get:Rule
-    var expectedEx = ExpectedException.none()
-
     @Test
     fun defaults() {
         fp("", byteOrder).use { factory ->
@@ -282,15 +278,15 @@ class RomBufferTest(
 
     @Test
     fun checkLimitLimited() {
-        expectedEx.expect(IllegalStateException::class.java)
-        expectedEx.expectMessage("Buffer overflow: pos 11 > limit 10")
-
-        fp("", byteOrder, 10).use { factory ->
-            factory.create().use { rb1 ->
-                rb1.position = 10
-                rb1.readByte()
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            fp("", byteOrder, 10).use { factory ->
+                factory.create().use { rb1 ->
+                    rb1.position = 10
+                    rb1.readByte()
+                }
             }
         }
+        assertEquals("Buffer overflow: pos 11 > limit 10, max length: 27", ex.message)
     }
 
     @Test
@@ -342,28 +338,31 @@ class RomBufferTest(
         val magic = if (byteOrder == BIG_ENDIAN) BE_MAGIC else LE_MAGIC
         val otherMagic = if (byteOrder == BIG_ENDIAN) LE_MAGIC else BE_MAGIC
 
-        expectedEx.expect(IllegalStateException::class.java)
-        expectedEx.expectMessage("Unexpected header magic: Actual $magic doesn't match expected LE=$otherMagic (BE=$magic)")
-
-        fp("", byteOrder, 10).use { factory ->
-            factory.create().use { rb1 ->
-                rb1.checkHeader(otherMagic)
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            fp("", byteOrder, 10).use { factory ->
+                factory.create().use { rb1 ->
+                    rb1.checkHeader(otherMagic)
+                }
             }
         }
+        assertEquals(
+            "Unexpected header magic: Actual $magic doesn't match expected LE=$otherMagic (BE=$magic)",
+            ex.message
+        )
     }
 
     @Test
     fun checkHeaderUnknownMagic() {
         val magic = if (byteOrder == BIG_ENDIAN) BE_MAGIC else LE_MAGIC
 
-        expectedEx.expect(IllegalStateException::class.java)
-        expectedEx.expectMessage("Unexpected header magic: Actual $magic doesn't match expected LE=0 (BE=0)")
-
-        fp("", byteOrder, 10).use { factory ->
-            factory.create().use { rb1 ->
-                rb1.checkHeader(0)
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            fp("", byteOrder, 10).use { factory ->
+                factory.create().use { rb1 ->
+                    rb1.checkHeader(0)
+                }
             }
         }
+        assertEquals("Unexpected header magic: Actual $magic doesn't match expected LE=0 (BE=0)", ex.message)
     }
 
     companion object {

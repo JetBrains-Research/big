@@ -5,9 +5,7 @@ import org.jetbrains.bio.BetterSeekableBufferedStreamTest.Companion.TEST_DATA
 import org.jetbrains.bio.BetterSeekableBufferedStreamTest.Companion.assertBufferMatchesRealData
 import org.jetbrains.bio.BetterSeekableBufferedStreamTest.Companion.assertCacheMatchesRealData
 import org.junit.Assert
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.assertEquals
@@ -21,9 +19,6 @@ import kotlin.test.assertTrue
 class BetterSeekableBufferedStreamTestParametrized(
         private val doubleBuffer: Boolean
 ) {
-    @get:Rule
-    var expectedEx = ExpectedException.none()
-
     @Test
     fun readFromBegin() {
         createStream(10).use { stream ->
@@ -94,28 +89,40 @@ class BetterSeekableBufferedStreamTestParametrized(
 
     @Test
     fun seekNegative() {
-        expectedEx.expect(IllegalArgumentException::class.java)
-        expectedEx.expectMessage("Position should be non-negative value, but was -1")
-
-        val bufferSize = 10
-        createStream(bufferSize).use { stream ->
-            stream.seek(3)
-            stream.seek(-1)
+        val ex = Assert.assertThrows(IllegalArgumentException::class.java) {
+            val bufferSize = 10
+            createStream(bufferSize, "test data").use { stream ->
+                stream.seek(3)
+                stream.seek(-1)
+            }
         }
+        assertEquals("Position should be non-negative value, but was -1 in test data", ex.message)
+    }
+
+    @Test
+    fun seekNegativeStreamWoSource() {
+        val ex = Assert.assertThrows(IllegalArgumentException::class.java) {
+            val bufferSize = 10
+            createStream(bufferSize, null).use { stream ->
+                stream.seek(3)
+                stream.seek(-1)
+            }
+        }
+        assertEquals("Position should be non-negative value, but was -1 in null", ex.message)
     }
 
     @Test
     fun readAndClose() {
-        expectedEx.expect(IllegalStateException::class.java)
-        expectedEx.expectMessage("Stream is closed")
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            val stream = createStream(10, "test data")
+            assertFalse(stream.eof())
 
-        val stream = createStream(10)
-        assertFalse(stream.eof())
+            stream.close()
+            assertEquals(0, stream.position)
 
-        stream.close()
-        assertEquals(0, stream.position)
-
-        stream.read()
+            stream.read()
+        }
+        assertEquals("Stream is closed: test data", ex.message)
     }
 
     @Test
@@ -132,17 +139,32 @@ class BetterSeekableBufferedStreamTestParametrized(
 
     @Test
     fun close() {
-        expectedEx.expect(IllegalStateException::class.java)
-        expectedEx.expectMessage("Stream is closed")
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            val stream = createStream(10, "test data")
+            stream.read()
+            assertFalse(stream.eof())
 
-        val stream = createStream(10)
-        stream.read()
-        assertFalse(stream.eof())
+            stream.close()
+            assertEquals(1, stream.position)
 
-        stream.close()
-        assertEquals(1, stream.position)
+            stream.read()
+        }
+        assertEquals("Stream is closed: test data", ex.message)
+    }
 
-        stream.read()
+    @Test
+    fun closeStreamWoSource() {
+        val ex = Assert.assertThrows(IllegalStateException::class.java) {
+            val stream = createStream(10, null)
+            stream.read()
+            assertFalse(stream.eof())
+
+            stream.close()
+            assertEquals(1, stream.position)
+
+            stream.read()
+        }
+        assertEquals("Stream is closed: null", ex.message)
     }
 
     @Test(expected = NullPointerException::class)
@@ -504,9 +526,12 @@ class BetterSeekableBufferedStreamTestParametrized(
         }
     }
 
-    private fun createStream(bufferSize: Int): BetterSeekableBufferedStream = BetterSeekableBufferedStream(
-            ByteArraySeekableStream(BetterSeekableBufferedStreamTest.TEST_DATA), bufferSize, doubleBuffer
-    )
+    private fun createStream(bufferSize: Int, source: String? = null): BetterSeekableBufferedStream =
+        BetterSeekableBufferedStream(
+            object : ByteArraySeekableStream(BetterSeekableBufferedStreamTest.TEST_DATA) {
+                override fun getSource() = source
+            }, bufferSize, doubleBuffer
+        )
 
     companion object {
         @Parameterized.Parameters(name = "{0}")
