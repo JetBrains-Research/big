@@ -51,6 +51,10 @@ test {
     maxHeapSize = "1024m"
 }
 
+jar {
+    archivesBaseName = 'big'
+}
+
 task sourcesJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
