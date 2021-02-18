@@ -10,21 +10,33 @@ JVM, but the public API is in part Kotlin-specific.
 Installation
 ------------
 
-The latest version of `big` is available on [jCenter] [jcenter]. If you're using
+The latest version of `big` is available on [Maven Central] [maven-central]. If you're using
 Gradle just add the following to your `build.gradle`:
 
-```gradle
+```groovy
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
-    compile 'org.jetbrains.bio:big:0.8.3'
+    compile 'org.jetbrains.bio:big:0.9.1'
 }
 
 ```
 
-[jcenter]: https://bintray.com/bintray/jcenter
+With Maven, specify the following in your `pom.xml`:
+```xml
+<dependency>
+  <groupId>org.jetbrains.bio</groupId>
+  <artifactId>big</artifactId>
+  <version>0.9.1</version>
+</dependency>
+```
+
+The previous versions were published on Bintray. They can be downloaded
+from [GitHub Releases](https://github.com/JetBrains-Research/big/releases).
+
+[maven-central]: https://search.maven.org/artifact/org.jetbrains.bio/big/0.9.1/jar
 
 Examples
 --------
@@ -99,8 +111,11 @@ Building from source
 The build process is as simple as
 
 ```bash
-$ ./gradlew assemble
+$ ./gradlew jar
 ```
+
+Note: don't use `./gradlew assemble`, since it includes the signing of the artifacts
+and will fail if the correct credentials are not provided.
 
 Testing
 -------
