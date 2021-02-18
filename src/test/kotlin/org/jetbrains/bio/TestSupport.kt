@@ -1,9 +1,9 @@
 package org.jetbrains.bio
 
+import org.apache.commons.lang3.SystemUtils
 import org.jetbrains.bio.big.BigBedFile
 import org.jetbrains.bio.big.BigFile
 import org.jetbrains.bio.big.BigWigFile
-import sun.awt.OSInfo
 import java.io.IOException
 import java.nio.ByteOrder
 import java.nio.file.Files
@@ -64,7 +64,7 @@ fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
                         EndianThreadSafeBufferFactory(path, byteOrder)
             }
     )
-    if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
+    if (!SystemUtils.IS_OS_WINDOWS) {
         providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
             override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
         })
@@ -83,7 +83,7 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
                         EndianSynchronizedBufferFactory.create(path, byteOrder)
             }
     )
-    if (OSInfo.getOSType() != OSInfo.OSType.WINDOWS) {
+    if (!SystemUtils.IS_OS_WINDOWS) {
         providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
             override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
         })
