@@ -47,6 +47,9 @@ abstract class NamedRomBufferFactoryProvider(private val title: String) {
     override fun toString() = title
 }
 
+private val mmapSupported =
+    SystemUtils.OS_ARCH in arrayOf("amd64", "x86_64") && (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC_OSX)
+
 fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
     val providers: MutableList<NamedRomBufferFactoryProvider> = mutableListOf(
             object : NamedRomBufferFactoryProvider("EndianSynchronizedBufferFactory") {
@@ -64,7 +67,7 @@ fun romFactoryProviders(): List<NamedRomBufferFactoryProvider> {
                         EndianThreadSafeBufferFactory(path, byteOrder)
             }
     )
-    if (!SystemUtils.IS_OS_WINDOWS) {
+    if (mmapSupported) {
         providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
             override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
         })
@@ -83,7 +86,7 @@ fun threadSafeRomFactoryProvidersAndPrefetchParams(): List<Array<Any>> {
                         EndianSynchronizedBufferFactory.create(path, byteOrder)
             }
     )
-    if (!SystemUtils.IS_OS_WINDOWS) {
+    if (mmapSupported) {
         providers.add(object : NamedRomBufferFactoryProvider("MMBRomBufferFactory") {
             override fun invoke(path: String, byteOrder: ByteOrder, limit: Long) = MMBRomBufferFactory(Paths.get(path), byteOrder)
         })
