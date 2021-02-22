@@ -23,9 +23,6 @@ repositories {
 }
 
 dependencies {
-    // Logging dependencies
-    compile("ch.qos.logback:logback-classic:1.2.3")
-    compile("ch.qos.logback:logback-core:1.2.3")
     compile "org.slf4j:slf4j-api:1.7.25"
 
     compile 'com.google.guava:guava:29.0-jre'
@@ -39,6 +36,8 @@ dependencies {
     testCompile 'junit:junit:4.13.2'
     testCompile "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
     testCompile "org.apache.commons:commons-lang3:3.11"
+    testCompile "ch.qos.logback:logback-classic:1.2.3"
+    testCompile "ch.qos.logback:logback-core:1.2.3"
 }
 
 dokkaJavadoc {
